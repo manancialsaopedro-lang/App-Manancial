@@ -19,3 +19,4 @@ View your app in AI Studio: https://ai.studio/apps/drive/1DoT1jpvqGuZZmb_llDSC8U
 3. Run the app:
    `npm run dev`
 # App-Manancial
+# App-Manancial
