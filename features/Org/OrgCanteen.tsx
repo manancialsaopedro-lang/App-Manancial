@@ -267,7 +267,7 @@ export const OrgCanteen = () => {
       setPaymentModal({ show: false, step: 'SELECT_METHOD', type: 'ALL', amount: 0 });
     } catch (error) {
       console.error("Erro ao registrar pagamento:", error);
-      alert("NÃ£o foi possÃ­vel registrar o pagamento.");
+      alert("Não foi possível registrar o pagamento.");
     }
   };
 

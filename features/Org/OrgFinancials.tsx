@@ -1,4 +1,4 @@
-﻿
+
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ArrowUpCircle, ArrowDownCircle, Trash2, ArrowRight, User, ArrowLeft, X, CheckCircle, Package, TrendingDown, TrendingUp, Calendar } from 'lucide-react';
@@ -215,11 +215,11 @@ export const OrgFinancials = () => {
 
   const fixEncoding = (value?: string) => {
     if (!value) return '';
-    if (!/[ÃƒÃ‚]/.test(value)) return value;
+    if (!/[ÃÂ]/.test(value)) return value;
     try {
       const bytes = Uint8Array.from(Array.from(value).map(ch => ch.charCodeAt(0) & 0xff));
       const decoded = new TextDecoder('utf-8').decode(bytes);
-      return decoded.includes('ï¿½') ? value : decoded;
+      return decoded.includes('�') ? value : decoded;
     } catch {
       return value;
     }
@@ -362,7 +362,7 @@ export const OrgFinancials = () => {
                            <div className="space-y-4">
                               <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
                                  <h4 className="font-black text-orange-700 flex items-center gap-2 mb-2"><Package size={18} /> Entrada em Estoque</h4>
-                                 <p className="text-xs text-orange-600 mb-4">Adicione itens para atualizar automaticamente o inventÃ¡rio e calcular o custo.</p>
+                                 <p className="text-xs text-orange-600 mb-4">Adicione itens para atualizar automaticamente o inventário e calcular o custo.</p>
                                  
                                  <div className="flex flex-col gap-2">
                                     <select 
@@ -415,7 +415,7 @@ export const OrgFinancials = () => {
                                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Descricao</label>
                                  <input 
                                     autoFocus
-                                    placeholder={formData.type === 'ENTRADA' ? "Ex: Oferta VoluntÃ¡ria" : "Ex: Compra de Materiais"}
+                                    placeholder={formData.type === 'ENTRADA' ? "Ex: Oferta Voluntária" : "Ex: Compra de Materiais"}
                                     value={formData.description}
                                     onChange={e => setFormData({...formData, description: e.target.value})}
                                     className="w-full p-4 bg-gray-50 rounded-xl font-bold text-gray-900 outline-none focus:ring-2 ring-blue-100"
@@ -613,6 +613,5 @@ export const OrgFinancials = () => {
     </div>
   );
 };
-
 
 

@@ -45,7 +45,7 @@ export const OrgStockEditor = () => {
       await fetchProducts();
     } catch (error) {
       console.error("Erro ao salvar produto:", error);
-      alert("NÃ£o foi possÃ­vel salvar o produto.");
+      alert("Não foi possível salvar o produto.");
     }
   };
 

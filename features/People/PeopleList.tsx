@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, UserPlus, Trash2, X, CheckCircle, AlertCircle, Filter, ChevronDown } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { TEAM_UI, INSTALLMENT_VALUE, CAMP_TOTAL_PRICE } from '../../constants';
@@ -66,8 +66,8 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
 
   const handleInstallmentClick = (p: Person, clickedIndex: number) => {
     const targetAmount = (clickedIndex + 1) * INSTALLMENT_VALUE;
-    // Se clicar na parcela que jÃƒÂ¡ ÃƒÂ© o valor total atual, zera o pagamento (permite desmarcar a primeira parcela)
-    // Se nÃƒÂ£o, define o valor para aquela parcela (acumulativo)
+    // Se clicar na parcela que já é o valor total atual, zera o pagamento (permite desmarcar a primeira parcela)
+    // Se não, define o valor para aquela parcela (acumulativo)
     const newAmount = p.amountPaid === targetAmount ? 0 : targetAmount;
     const paymentUpdate = { amountPaid: newAmount, lastPaymentDate: new Date().toISOString() };
     updatePerson(p.id, paymentUpdate);
@@ -167,7 +167,7 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
               </div>
            </div>
            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-2">Faixa EtÃƒÂ¡ria</label>
+              <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-2">Faixa Etária</label>
               <div className="relative">
                 <select value={filterAge} onChange={e => setFilterAge(e.target.value as any)} className="w-full p-3 bg-gray-50 rounded-xl font-bold text-sm outline-none appearance-none cursor-pointer hover:bg-gray-100 transition-colors">
                   <option value="Todos">Todas as Idades</option>
