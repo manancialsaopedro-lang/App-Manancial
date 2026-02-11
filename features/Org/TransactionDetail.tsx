@@ -1,29 +1,94 @@
-
-import React from 'react';
-import { useParams, useNavigate, Navigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Receipt, Clock, CreditCard, Tag, Package } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { Card } from '../../components/Shared';
+import { getTransactionById } from '../../lib/api/transactions';
+import { getSaleById } from '../../lib/api/sales';
+import { SaleItem, Transaction } from '../../types';
 
 export const TransactionDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { transactions, sales } = useAppStore();
+  const { transactions, sales, setTransactions, setSales } = useAppStore();
+  const [transaction, setTransaction] = useState<Transaction | null>(null);
+  const [saleItems, setSaleItems] = useState<SaleItem[] | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const transaction = transactions.find(t => t.id === id);
+  useEffect(() => {
+    const storeTx = transactions.find(t => t.id === id);
+    if (storeTx) {
+      setTransaction(storeTx);
+      return;
+    }
+
+    if (!id) return;
+
+    setLoading(true);
+    getTransactionById(id)
+      .then((data) => {
+        if (data) {
+          setTransaction(data);
+          setTransactions([data, ...transactions]);
+        }
+      })
+      .catch((error) => console.error("Erro ao buscar transaÃ§Ã£o:", error))
+      .finally(() => setLoading(false));
+  }, [id, setTransactions, transactions]);
+
+  useEffect(() => {
+    if (!transaction || transaction.items?.length) {
+      setSaleItems(null);
+      return;
+    }
+
+    if (transaction.category !== 'CANTINA' || !transaction.referenceId) {
+      setSaleItems(null);
+      return;
+    }
+
+    const storeSale = sales.find(s => s.id === transaction.referenceId);
+    if (storeSale) {
+      setSaleItems(storeSale.items);
+      return;
+    }
+
+    getSaleById(transaction.referenceId)
+      .then((sale) => {
+        if (sale) {
+          setSaleItems(sale.items);
+          setSales([sale, ...sales]);
+        }
+      })
+      .catch((error) => console.error("Erro ao buscar itens da venda:", error));
+  }, [sales, setSales, transaction]);
+
+  const itemsToDisplay = useMemo(() => {
+    if (transaction?.items?.length) return transaction.items;
+    if (saleItems?.length) return saleItems;
+    return [];
+  }, [saleItems, transaction?.items]);
 
   if (!transaction) {
-    return <Navigate to="/org/financials" />;
-  }
+    if (loading) {
+      return (
+        <div className="max-w-2xl mx-auto space-y-8 animate-in slide-in-from-bottom-4">
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-400 font-bold hover:text-gray-900 transition-colors">
+            <ArrowLeft size={18} /> Voltar para o Caixa
+          </button>
+          <Card className="p-8 text-center text-gray-400 font-bold">Carregando transaÃ§Ã£o...</Card>
+        </div>
+      );
+    }
 
-  // Lógica para recuperar itens:
-  // 1. Tenta pegar diretamente da transação (para pagamentos de pendência onde os itens foram copiados)
-  // 2. Se não tiver, tenta buscar a Venda original via referenceId (para vendas diretas antigas ou simples)
-  let itemsToDisplay = transaction.items;
-
-  if (!itemsToDisplay && transaction.category === 'CANTINA' && transaction.referenceId) {
-     const sale = sales.find(s => s.id === transaction.referenceId);
-     if (sale) itemsToDisplay = sale.items;
+    return (
+      <div className="max-w-2xl mx-auto space-y-8 animate-in slide-in-from-bottom-4">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-400 font-bold hover:text-gray-900 transition-colors">
+          <ArrowLeft size={18} /> Voltar para o Caixa
+        </button>
+        <Card className="p-8 text-center text-gray-400 font-bold">TransaÃ§Ã£o nÃ£o encontrada.</Card>
+      </div>
+    );
   }
 
   return (
@@ -43,7 +108,7 @@ export const TransactionDetail = () => {
       </div>
 
       <Card className="p-8">
-        <h3 className="text-xs font-black uppercase text-gray-400 tracking-widest mb-6">Informações Gerais</h3>
+        <h3 className="text-xs font-black uppercase text-gray-400 tracking-widest mb-6">InformaÃ§Ãµes Gerais</h3>
         <div className="grid grid-cols-2 gap-6">
           <div className="flex items-center gap-3">
              <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400"><Clock size={18} /></div>
@@ -55,8 +120,8 @@ export const TransactionDetail = () => {
           <div className="flex items-center gap-3">
              <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400"><CreditCard size={18} /></div>
              <div>
-                <p className="text-[10px] font-bold uppercase text-gray-400">Método de Pagamento</p>
-                <p className="font-bold text-gray-900">{transaction.paymentMethod || 'Não informado'}</p>
+                <p className="text-[10px] font-bold uppercase text-gray-400">MÃ©todo de Pagamento</p>
+                <p className="font-bold text-gray-900">{transaction.paymentMethod || 'NÃ£o informado'}</p>
              </div>
           </div>
           <div className="flex items-center gap-3">
@@ -69,7 +134,7 @@ export const TransactionDetail = () => {
           <div className="flex items-center gap-3">
              <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400"><Receipt size={18} /></div>
              <div>
-                <p className="text-[10px] font-bold uppercase text-gray-400">ID Referência</p>
+                <p className="text-[10px] font-bold uppercase text-gray-400">ID ReferÃªncia</p>
                 <p className="font-bold text-gray-900 text-xs truncate w-32">{transaction.referenceId || transaction.id}</p>
              </div>
           </div>
@@ -77,7 +142,7 @@ export const TransactionDetail = () => {
       </Card>
 
       {/* Detalhes da Venda (Cupom Fiscal Digital) */}
-      {itemsToDisplay && itemsToDisplay.length > 0 && (
+      {itemsToDisplay.length > 0 && (
         <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl relative overflow-hidden">
            {/* Visual de "papel rasgado" no topo (opcional/css simples) */}
            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-orange-400 to-orange-600" />

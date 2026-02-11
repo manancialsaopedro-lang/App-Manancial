@@ -1,13 +1,17 @@
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ArrowUpCircle, ArrowDownCircle, Trash2, ArrowRight, User, ArrowLeft, X, CheckCircle, Package, TrendingDown, TrendingUp, Calendar, CreditCard, ShoppingBag } from 'lucide-react';
+import { Plus, ArrowUpCircle, ArrowDownCircle, Trash2, ArrowRight, User, ArrowLeft, X, CheckCircle, Package, TrendingDown, TrendingUp, Calendar } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { Card } from '../../components/Shared';
 import { TransactionCategory, TransactionType, PaymentMethod, Transaction, Product } from '../../types';
+import { listTransactions, createTransaction, deleteTransaction } from '../../lib/api/transactions';
+import { listProducts, updateProduct as updateProductApi } from '../../lib/api/products';
+import { listPeople } from '../../lib/api/people';
+import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 
 export const OrgFinancials = () => {
-  const { transactions, addTransaction, removeTransaction, fixedCostRent, people, products, updateProduct } = useAppStore();
+  const { transactions, setTransactions, fixedCostRent, people, setPeople, products, setProducts } = useAppStore();
   const navigate = useNavigate();
   
   // --- WIZARD STATE ---
@@ -29,6 +33,43 @@ export const OrgFinancials = () => {
   const [selectedProductId, setSelectedProductId] = useState('');
   const [itemQty, setItemQty] = useState('');
   const [itemCost, setItemCost] = useState('');
+
+  const fetchFinancialData = useCallback(async () => {
+    try {
+      const [transactionsData, productsData, peopleData] = await Promise.all([
+        listTransactions(),
+        listProducts(),
+        listPeople()
+      ]);
+      setTransactions(transactionsData);
+      setProducts(productsData);
+      setPeople(peopleData);
+    } catch (error) {
+      console.error("Erro ao carregar dados do Supabase:", error);
+    }
+  }, [setPeople, setProducts, setTransactions]);
+
+  useEffect(() => {
+    fetchFinancialData();
+  }, [fetchFinancialData]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    const channel = supabase()
+      .channel("transactions-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "transactions" },
+        () => {
+          fetchFinancialData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase().removeChannel(channel);
+    };
+  }, [fetchFinancialData]);
 
   // --- WIZARD LOGIC ---
 
@@ -75,7 +116,7 @@ export const OrgFinancials = () => {
     return stockItems.reduce((acc, item) => acc + (item.quantity * item.cost), 0);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // 1. Calculate amount (Manual or Stock Based)
     const finalAmount = (formData.type === 'SAIDA' && formData.category === 'CANTINA' && stockItems.length > 0)
       ? calculateStockTotal()
@@ -88,26 +129,34 @@ export const OrgFinancials = () => {
       ? `Reposição de Estoque (${stockItems.length} itens)`
       : formData.description;
 
-    addTransaction({
-      description: description,
-      amount: finalAmount,
-      type: formData.type,
-      category: formData.category,
-      paymentMethod: formData.method,
-      date: new Date(formData.date).toISOString() // Ensure correct ISO format
-    });
-
-    // 3. Update Stock if applicable
-    if (formData.type === 'SAIDA' && formData.category === 'CANTINA') {
-      stockItems.forEach(item => {
-        updateProduct(item.product.id, {
-          stock: item.product.stock + item.quantity,
-          costPrice: item.cost // Update cost price to latest paid price
-        });
+    try {
+      await createTransaction({
+        description: description,
+        amount: finalAmount,
+        type: formData.type,
+        category: formData.category,
+        paymentMethod: formData.method,
+        date: new Date(formData.date).toISOString() // Ensure correct ISO format
       });
-    }
 
-    resetWizard();
+      // 3. Update Stock if applicable
+      if (formData.type === 'SAIDA' && formData.category === 'CANTINA') {
+        await Promise.all(
+          stockItems.map(item =>
+            updateProductApi(item.product.id, {
+              stock: item.product.stock + item.quantity,
+              costPrice: item.cost // Update cost price to latest paid price
+            })
+          )
+        );
+      }
+
+      await fetchFinancialData();
+      resetWizard();
+    } catch (error) {
+      console.error("Erro ao salvar transaÃ§Ã£o:", error);
+      alert("NÃ£o foi possÃ­vel salvar a transaÃ§Ã£o.");
+    }
   };
 
   // --- FINANCIAL CONSOLIDATION LOGIC (Existing) ---
@@ -451,7 +500,15 @@ export const OrgFinancials = () => {
                        </td>
                        <td className="px-8 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                           {!isAuto ? (
-                            <button onClick={() => removeTransaction(t.id)} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                            <button onClick={async () => {
+                              try {
+                                await deleteTransaction(t.id);
+                                await fetchFinancialData();
+                              } catch (error) {
+                                console.error("Erro ao remover transaÃ§Ã£o:", error);
+                                alert("NÃ£o foi possÃ­vel remover a transaÃ§Ã£o.");
+                              }
+                            }} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
                           ) : (
                             <span className="text-[9px] text-gray-300 font-bold uppercase">Gerenciado em Inscritos</span>
                           )}

@@ -1,14 +1,27 @@
-
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Search, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Search } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { Product } from '../../types';
+import { listProducts, upsertProduct } from '../../lib/api/products';
 
 export const OrgStockEditor = () => {
   const navigate = useNavigate();
-  const { products, updateProduct } = useAppStore();
+  const { products, setProducts, updateProduct } = useAppStore();
   const [search, setSearch] = useState('');
+
+  const fetchProducts = useCallback(async () => {
+    try {
+      const data = await listProducts();
+      setProducts(data);
+    } catch (error) {
+      console.error("Erro ao carregar produtos:", error);
+    }
+  }, [setProducts]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
   
   // Local state to handle bulk edits before saving? 
   // No, user requested "Control Total", let's make it live or line-by-line. 
@@ -22,6 +35,16 @@ export const OrgStockEditor = () => {
   const calculateMargin = (sell: number, cost: number) => {
      if (sell === 0) return 0;
      return ((sell - cost) / sell) * 100;
+  };
+
+  const commitProductUpdate = async (product: Product) => {
+    try {
+      await upsertProduct(product);
+      await fetchProducts();
+    } catch (error) {
+      console.error("Erro ao salvar produto:", error);
+      alert("NÃ£o foi possÃ­vel salvar o produto.");
+    }
   };
 
   return (
@@ -72,6 +95,7 @@ export const OrgStockEditor = () => {
                              <input 
                                value={p.name}
                                onChange={(e) => updateProduct(p.id, { name: e.target.value })}
+                               onBlur={() => commitProductUpdate(p)}
                                className="w-full bg-transparent font-bold text-gray-900 outline-none border-b border-transparent focus:border-blue-500 transition-all"
                              />
                           </td>
@@ -79,6 +103,7 @@ export const OrgStockEditor = () => {
                              <input 
                                value={p.category}
                                onChange={(e) => updateProduct(p.id, { category: e.target.value })}
+                               onBlur={() => commitProductUpdate(p)}
                                className="w-full bg-transparent font-medium text-gray-500 text-sm outline-none border-b border-transparent focus:border-blue-500 transition-all"
                              />
                           </td>
@@ -87,6 +112,7 @@ export const OrgStockEditor = () => {
                                type="number"
                                value={p.stock}
                                onChange={(e) => updateProduct(p.id, { stock: Number(e.target.value) })}
+                               onBlur={() => commitProductUpdate(p)}
                                className={`w-full bg-gray-50 rounded-lg py-1 px-2 text-center font-bold text-sm outline-none focus:ring-2 focus:ring-blue-200 ${p.stock < p.minStock ? 'text-red-500 bg-red-50' : 'text-gray-900'}`}
                              />
                           </td>
@@ -98,6 +124,7 @@ export const OrgStockEditor = () => {
                                   step="0.01"
                                   value={p.costPrice}
                                   onChange={(e) => updateProduct(p.id, { costPrice: Number(e.target.value) })}
+                                  onBlur={() => commitProductUpdate(p)}
                                   className="w-full bg-white border border-gray-200 rounded-lg py-1 pl-6 pr-2 text-right font-medium text-sm outline-none focus:border-blue-500"
                                 />
                              </div>
@@ -110,6 +137,7 @@ export const OrgStockEditor = () => {
                                   step="0.01"
                                   value={p.sellPrice}
                                   onChange={(e) => updateProduct(p.id, { sellPrice: Number(e.target.value) })}
+                                  onBlur={() => commitProductUpdate(p)}
                                   className="w-full bg-white border border-gray-200 rounded-lg py-1 pl-6 pr-2 text-right font-black text-gray-900 text-sm outline-none focus:border-blue-500"
                                 />
                              </div>

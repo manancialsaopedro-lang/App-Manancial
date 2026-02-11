@@ -11,6 +11,7 @@ export interface FinancialSlice {
   sales: Sale[];
 
   addTransaction: (t: Omit<Transaction, 'id' | 'date'>) => void;
+  setTransactions: (transactions: Transaction[]) => void;
   updateTransaction: (id: string, updates: Partial<Transaction>) => void;
   removeTransaction: (id: string) => void;
   updateFixedCostRent: (value: number) => void;
@@ -18,8 +19,10 @@ export interface FinancialSlice {
   updateProjectionItem: (id: string, updates: Partial<ProjectionItem>) => void;
   deleteProjectionItem: (id: string) => void;
   addProduct: (p: Omit<Product, 'id'>) => void;
+  setProducts: (products: Product[]) => void;
   updateProduct: (id: string, updates: Partial<Product>) => void;
   deleteProduct: (id: string) => void;
+  setSales: (sales: Sale[]) => void;
   registerSale: (items: { product: Product, quantity: number }[], method: PaymentMethod, person?: Person) => void;
   settleSale: (saleId: string, method: PaymentMethod) => void;
   settleAllCustomerDebt: (personId: string, method: PaymentMethod) => void;
@@ -39,6 +42,10 @@ export const createFinancialSlice: StateCreator<
 
   addTransaction: (t) => set((state) => ({
     transactions: [{ ...t, id: `tx-${Date.now()}`, date: new Date().toISOString() }, ...state.transactions]
+  })),
+
+  setTransactions: (transactions) => set(() => ({
+    transactions
   })),
 
   updateTransaction: (id, updates) => set((state) => ({
@@ -67,12 +74,20 @@ export const createFinancialSlice: StateCreator<
     products: [...state.products, { ...p, id: `prod-${Date.now()}` }]
   })),
 
+  setProducts: (products) => set(() => ({
+    products
+  })),
+
   updateProduct: (id, updates) => set((state) => ({
     products: state.products.map(p => p.id === id ? { ...p, ...updates } : p)
   })),
 
   deleteProduct: (id) => set((state) => ({
     products: state.products.filter(p => p.id !== id)
+  })),
+
+  setSales: (sales) => set(() => ({
+    sales
   })),
 
   registerSale: (items, method, person) => set((state) => {

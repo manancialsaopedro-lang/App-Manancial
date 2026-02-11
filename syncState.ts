@@ -1,5 +1,5 @@
 
-import { supabase } from "./supabaseClient";
+import { supabase } from "./lib/supabase";
 import { useAppStore } from "./store";
 
 export async function saveAppState() {
@@ -23,7 +23,7 @@ export async function saveAppState() {
     isDarkMode: state.isDarkMode,
   };
 
-  const { error } = await supabase
+  const { error } = await supabase()
     .from("app_state")
     .upsert({ state_key: "default", state: payload, updated_at: new Date().toISOString() }, { onConflict: "state_key" });
 

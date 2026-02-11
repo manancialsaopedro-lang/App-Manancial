@@ -108,8 +108,7 @@ export const OrgForecast = () => {
          amount: Number(reviewData.amount),
          type: 'SAIDA',
          category: reviewData.category,
-         paymentMethod: reviewData.method,
-         date: new Date(reviewData.date).toISOString()
+         paymentMethod: reviewData.method
        });
    
        updateProjectionItem(reviewItem.id, { 

@@ -1,14 +1,18 @@
 
-import React, { useState, useMemo } from 'react';
-import { ShoppingCart, Package, Plus, Minus, Trash2, Tag, Save, CreditCard, Search, User, ClipboardList, CheckCircle, Wallet, ArrowRight, X, AlertTriangle, Settings } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ShoppingCart, Package, Plus, Minus, Trash2, Save, Search, User, ClipboardList, CheckCircle, Wallet, ArrowRight, X, AlertTriangle, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store';
 import { Card } from '../../components/Shared';
-import { Product, PaymentMethod, Person, Sale } from '../../types';
+import { Product, PaymentMethod, Person, Sale, SaleItem } from '../../types';
+import { listProducts, createProduct, updateProduct as updateProductApi } from '../../lib/api/products';
+import { listPeople } from '../../lib/api/people';
+import { listSales, createSale, updateSale } from '../../lib/api/sales';
+import { createTransaction } from '../../lib/api/transactions';
 
 export const OrgCanteen = () => {
   const navigate = useNavigate();
-  const { products, people, sales, addProduct, updateProduct, registerSale, settleSale, settleAllCustomerDebt } = useAppStore();
+  const { products, setProducts, updateProduct, people, setPeople, sales, setSales } = useAppStore();
   const [activeTab, setActiveTab] = useState<'pos' | 'stock' | 'debts'>('pos');
   
   // Estado Carrinho (POS)
@@ -35,6 +39,25 @@ export const OrgCanteen = () => {
   // Estado Edição Produto
   const [newProd, setNewProd] = useState<Partial<Product>>({});
   const [showAddProd, setShowAddProd] = useState(false);
+
+  const fetchCanteenData = useCallback(async () => {
+    try {
+      const [productsData, peopleData, salesData] = await Promise.all([
+        listProducts(),
+        listPeople(),
+        listSales()
+      ]);
+      setProducts(productsData);
+      setPeople(peopleData);
+      setSales(salesData);
+    } catch (error) {
+      console.error("Erro ao carregar dados da cantina:", error);
+    }
+  }, [setPeople, setProducts, setSales]);
+
+  useEffect(() => {
+    fetchCanteenData();
+  }, [fetchCanteenData]);
 
   // --- LÓGICA PDV ---
   const addToCart = (p: Product) => {
@@ -64,15 +87,67 @@ export const OrgCanteen = () => {
     setReviewModal({ show: true, method });
   };
 
-  const confirmCheckout = () => {
+  const confirmCheckout = async () => {
     if (!reviewModal.method) return;
-    registerSale(cart, reviewModal.method, selectedPerson || undefined);
-    
-    // Reset
-    setCart([]);
-    setSelectedPerson(null);
-    setPersonSearch("");
-    setReviewModal({ show: false, method: null });
+    const isPending = reviewModal.method === 'PendÃªncia';
+
+    try {
+      const items: SaleItem[] = cart.map(item => ({
+        productId: item.product.id,
+        productName: item.product.name,
+        quantity: item.quantity,
+        unitPrice: item.product.sellPrice,
+        unitCost: item.product.costPrice
+      }));
+
+      const totalCost = items.reduce((acc, item) => acc + item.quantity * item.unitCost, 0);
+
+      const newSale = await createSale({
+        items,
+        total: cartTotal,
+        totalCost,
+        date: new Date().toISOString(),
+        paymentMethod: reviewModal.method,
+        personId: selectedPerson?.id,
+        personName: selectedPerson?.name,
+        status: isPending ? 'PENDING' : 'PAID'
+      });
+
+      await Promise.all(
+        cart.map(item =>
+          updateProductApi(item.product.id, {
+            stock: item.product.stock - item.quantity
+          })
+        )
+      );
+
+      if (!isPending) {
+        await createTransaction({
+          description: selectedPerson ? `Venda Cantina: ${selectedPerson.name}` : `Venda Cantina #${newSale.id.slice(-4)}`,
+          amount: cartTotal,
+          type: 'ENTRADA',
+          category: 'CANTINA',
+          date: new Date().toISOString(),
+          paymentMethod: reviewModal.method,
+          referenceId: newSale.id,
+          personId: selectedPerson?.id,
+          personName: selectedPerson?.name,
+          isSettled: true,
+          items
+        });
+      }
+
+      await fetchCanteenData();
+
+      // Reset
+      setCart([]);
+      setSelectedPerson(null);
+      setPersonSearch("");
+      setReviewModal({ show: false, method: null });
+    } catch (error) {
+      console.error("Erro ao registrar venda:", error);
+      alert("NÃ£o foi possÃ­vel registrar a venda.");
+    }
   };
 
   // Filtro de Pessoas para Autocomplete
@@ -115,16 +190,59 @@ export const OrgCanteen = () => {
     setPaymentModal(prev => ({ ...prev, method, step: 'CONFIRM' }));
   };
 
-  const finalizePayment = () => {
+  const finalizePayment = async () => {
     if (!selectedDebtorId || !paymentModal.method) return;
 
-    if (paymentModal.type === 'SINGLE' && paymentModal.saleId) {
-      settleSale(paymentModal.saleId, paymentModal.method);
-    } else if (paymentModal.type === 'ALL') {
-      settleAllCustomerDebt(selectedDebtorId, paymentModal.method);
-      setSelectedDebtorId(null); 
+    try {
+      if (paymentModal.type === 'SINGLE' && paymentModal.saleId) {
+        const sale = sales.find(s => s.id === paymentModal.saleId);
+        if (sale) {
+          await updateSale(paymentModal.saleId, { status: 'PAID', paymentMethod: paymentModal.method });
+          await createTransaction({
+            description: `Recebimento PendÃªncia: ${sale.personName || 'Cliente'} (Venda #${sale.id.slice(-4)})`,
+            amount: sale.total,
+            type: 'ENTRADA',
+            category: 'CANTINA',
+            date: new Date().toISOString(),
+            paymentMethod: paymentModal.method,
+            referenceId: sale.id,
+            personId: sale.personId,
+            personName: sale.personName,
+            isSettled: true,
+            items: sale.items
+          });
+        }
+      } else if (paymentModal.type === 'ALL') {
+        const pendingSales = sales.filter(s => s.personId === selectedDebtorId && s.status === 'PENDING');
+        if (pendingSales.length > 0) {
+          await Promise.all(
+            pendingSales.map(sale => updateSale(sale.id, { status: 'PAID', paymentMethod: paymentModal.method }))
+          );
+          const totalAmount = pendingSales.reduce((acc, s) => acc + s.total, 0);
+          const allItems = pendingSales.flatMap(s => s.items);
+          const personName = pendingSales[0].personName || 'Cliente';
+          await createTransaction({
+            description: `Recebimento PendÃªncia Total: ${personName}`,
+            amount: totalAmount,
+            type: 'ENTRADA',
+            category: 'CANTINA',
+            date: new Date().toISOString(),
+            paymentMethod: paymentModal.method,
+            personId: selectedDebtorId,
+            personName,
+            isSettled: true,
+            items: allItems
+          });
+        }
+        setSelectedDebtorId(null); 
+      }
+
+      await fetchCanteenData();
+      setPaymentModal({ show: false, step: 'SELECT_METHOD', type: 'ALL', amount: 0 });
+    } catch (error) {
+      console.error("Erro ao registrar pagamento:", error);
+      alert("NÃ£o foi possÃ­vel registrar o pagamento.");
     }
-    setPaymentModal({ show: false, step: 'SELECT_METHOD', type: 'ALL', amount: 0 });
   };
 
   // Cálculo de itens para o resumo da confirmação
@@ -143,18 +261,24 @@ export const OrgCanteen = () => {
   }, [paymentModal, selectedDebtor]);
 
   // --- LÓGICA ESTOQUE ---
-  const handleSaveProduct = () => {
+  const handleSaveProduct = async () => {
     if (newProd.name && newProd.sellPrice) {
-      addProduct({
-        name: newProd.name,
-        sellPrice: Number(newProd.sellPrice),
-        costPrice: Number(newProd.costPrice || 0),
-        stock: Number(newProd.stock || 0),
-        minStock: Number(newProd.minStock || 5),
-        category: newProd.category || 'Geral'
-      });
-      setShowAddProd(false);
-      setNewProd({});
+      try {
+        await createProduct({
+          name: newProd.name,
+          sellPrice: Number(newProd.sellPrice),
+          costPrice: Number(newProd.costPrice || 0),
+          stock: Number(newProd.stock || 0),
+          minStock: Number(newProd.minStock || 5),
+          category: newProd.category || 'Geral'
+        });
+        setShowAddProd(false);
+        setNewProd({});
+        await fetchCanteenData();
+      } catch (error) {
+        console.error("Erro ao salvar produto:", error);
+        alert("NÃ£o foi possÃ­vel salvar o produto.");
+      }
     }
   };
 
@@ -188,7 +312,7 @@ export const OrgCanteen = () => {
               >
                 <div className="flex justify-between items-start mb-4">
                    <div className="w-10 h-10 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center font-bold text-xs">{p.stock}</div>
-                   <span className="font-black text-lg text-gray-900">R$ {p.sellPrice.toFixed(2)}</span>
+                   <span className="font-black text-lg text-gray-900">R$ {Number(p.sellPrice ?? 0).toFixed(2)}</span>
                 </div>
                 <h4 className="font-bold text-gray-700 leading-tight group-hover:text-orange-600">{p.name}</h4>
                 <p className="text-xs text-gray-400 mt-1">{p.category}</p>
@@ -245,7 +369,7 @@ export const OrgCanteen = () => {
                   <div key={idx} className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl">
                     <div>
                       <div className="font-bold text-sm text-gray-800">{item.product.name}</div>
-                      <div className="text-xs text-gray-500">{item.quantity}x R$ {item.product.sellPrice.toFixed(2)}</div>
+                      <div className="text-xs text-gray-500">{item.quantity}x R$ {Number(item.product.sellPrice ?? 0).toFixed(2)}</div>
                     </div>
                     <button onClick={() => removeFromCart(item.product.id)} className="text-red-400 hover:text-red-600"><Trash2 size={16} /></button>
                   </div>
@@ -426,11 +550,19 @@ export const OrgCanteen = () => {
                                {p.stock} un
                             </span>
                          </td>
-                         <td className="px-8 py-4 text-right text-sm font-black text-gray-900">R$ {p.sellPrice.toFixed(2)}</td>
+                         <td className="px-8 py-4 text-right text-sm font-black text-gray-900">R$ {Number(p.sellPrice ?? 0).toFixed(2)}</td>
                          <td className="px-8 py-4 text-center">
                             <div className="flex justify-center items-center gap-2">
-                               <button onClick={() => updateProduct(p.id, { stock: p.stock - 1 })} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-100 flex items-center justify-center"><Minus size={14} /></button>
-                               <button onClick={() => updateProduct(p.id, { stock: p.stock + 1 })} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-100 flex items-center justify-center"><Plus size={14} /></button>
+                               <button onClick={async () => {
+                                 updateProduct(p.id, { stock: p.stock - 1 });
+                                 await updateProductApi(p.id, { stock: p.stock - 1 });
+                                 await fetchCanteenData();
+                               }} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-100 flex items-center justify-center"><Minus size={14} /></button>
+                               <button onClick={async () => {
+                                 updateProduct(p.id, { stock: p.stock + 1 });
+                                 await updateProductApi(p.id, { stock: p.stock + 1 });
+                                 await fetchCanteenData();
+                               }} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-100 flex items-center justify-center"><Plus size={14} /></button>
                             </div>
                          </td>
                       </tr>
@@ -467,7 +599,7 @@ export const OrgCanteen = () => {
                     {cart.map((item, i) => (
                       <div key={i} className="flex justify-between text-sm mb-1">
                         <span>{item.quantity}x {item.product.name}</span>
-                        <span className="font-bold">R$ {(item.quantity * item.product.sellPrice).toFixed(2)}</span>
+                        <span className="font-bold">R$ {(item.quantity * Number(item.product.sellPrice ?? 0)).toFixed(2)}</span>
                       </div>
                     ))}
                  </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -6,6 +7,7 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 export const InstallPWAButton = () => {
+  const location = useLocation();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
 
@@ -39,7 +41,7 @@ export const InstallPWAButton = () => {
     setVisible(false);
   };
 
-  if (!visible) {
+  if (!visible || location.pathname !== '/login') {
     return null;
   }
 

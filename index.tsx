@@ -155,13 +155,20 @@ root.render(
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/sw.js')
-      .then((registration) => {
-        console.log('Service worker registrado:', registration.scope);
-      })
-      .catch((error) => {
-        console.error('Falha ao registrar service worker:', error);
-      });
+    if (import.meta.env.PROD) {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .then((registration) => {
+          console.log('Service worker registrado:', registration.scope);
+        })
+        .catch((error) => {
+          console.error('Falha ao registrar service worker:', error);
+        });
+      return;
+    }
+
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations.forEach((registration) => registration.unregister());
+    });
   });
 }

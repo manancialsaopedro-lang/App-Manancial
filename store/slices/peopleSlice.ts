@@ -6,6 +6,7 @@ import { INITIAL_PEOPLE, CAMP_TOTAL_PRICE } from '../../constants';
 export interface PeopleSlice {
   people: Person[];
   addPerson: (name?: string) => void;
+  setPeople: (people: Person[]) => void;
   updatePerson: (id: string, updates: Partial<Person>) => void;
   deletePerson: (id: string) => void;
 }
@@ -40,6 +41,10 @@ export const createPeopleSlice: StateCreator<
       teamId: 'none',
       paymentStatus: 'PENDENTE'
     }, ...state.people]
+  })),
+
+  setPeople: (people) => set(() => ({
+    people
   })),
 
   updatePerson: (id, updates) => set((state) => ({

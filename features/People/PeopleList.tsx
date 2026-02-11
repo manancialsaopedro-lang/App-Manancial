@@ -1,14 +1,15 @@
-
-import React, { useState } from 'react';
+﻿import React, { useCallback, useEffect, useState } from 'react';
 import { Search, UserPlus, Trash2, X, CheckCircle, AlertCircle, Filter, ChevronDown } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { TEAM_UI, INSTALLMENT_VALUE, CAMP_TOTAL_PRICE } from '../../constants';
 import { AgeGroup, TeamId, PersonType, PaymentStatus, Person } from '../../types';
 import { AgeBadge } from '../../components/Shared';
+import { listPeople, createPerson, deletePerson as deletePersonApi, upsertPerson } from '../../lib/api/people';
 
 export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
-  const { people, updatePerson, deletePerson, addPerson } = useAppStore();
+  const { people, setPeople, updatePerson } = useAppStore();
   const [search, setSearch] = useState("");
+  const getErrorMessage = (error: unknown) => (error instanceof Error && error.message ? error.message : "Erro desconhecido");
   
   // Filtros
   const [showFilters, setShowFilters] = useState(false);
@@ -17,25 +18,59 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
   const [filterStatus, setFilterStatus] = useState<'Todos' | PaymentStatus>('Todos');
   const [filterInstallments, setFilterInstallments] = useState<'Todos' | 'Quitadas' | 'Abertas'>('Todos');
 
+  const fetchPeople = useCallback(async () => {
+    try {
+      const data = await listPeople();
+      setPeople(data);
+    } catch (error) {
+      console.error("Erro ao carregar pessoas:", error);
+    }
+  }, [setPeople]);
+
+  useEffect(() => {
+    fetchPeople();
+  }, [fetchPeople]);
+
+  const commitPersonUpdate = async (person: Person) => {
+    try {
+      await upsertPerson(person);
+      await fetchPeople();
+    } catch (error) {
+      console.error("Erro ao salvar pessoa:", error);
+      alert(`Nao foi possivel salvar a pessoa. Motivo: ${getErrorMessage(error)}`);
+    }
+  };
+
   const cycleAge = (id: string, current: AgeGroup) => {
     const list: AgeGroup[] = ['Adulto', 'Jovem', 'Criança', 'Indefinido'];
-    updatePerson(id, { ageGroup: list[(list.indexOf(current) + 1) % list.length] });
+    const nextAge = list[(list.indexOf(current) + 1) % list.length];
+    updatePerson(id, { ageGroup: nextAge });
+    const updated = people.find(p => p.id === id);
+    if (updated) commitPersonUpdate({ ...updated, ageGroup: nextAge });
   };
 
   const toggleType = (id: string, current: PersonType) => {
-    updatePerson(id, { personType: current === 'Membro' ? 'Visitante' : 'Membro' });
+    const nextType = current === 'Membro' ? 'Visitante' : 'Membro';
+    updatePerson(id, { personType: nextType });
+    const updated = people.find(p => p.id === id);
+    if (updated) commitPersonUpdate({ ...updated, personType: nextType });
   };
 
   const togglePaymentStatus = (id: string, current: PaymentStatus) => {
-    updatePerson(id, { paymentStatus: current === 'PAGO' ? 'PENDENTE' : 'PAGO' });
+    const nextStatus = current === 'PAGO' ? 'PENDENTE' : 'PAGO';
+    updatePerson(id, { paymentStatus: nextStatus });
+    const updated = people.find(p => p.id === id);
+    if (updated) commitPersonUpdate({ ...updated, paymentStatus: nextStatus });
   };
 
   const handleInstallmentClick = (p: Person, clickedIndex: number) => {
     const targetAmount = (clickedIndex + 1) * INSTALLMENT_VALUE;
-    // Se clicar na parcela que já é o valor total atual, zera o pagamento (permite desmarcar a primeira parcela)
-    // Se não, define o valor para aquela parcela (acumulativo)
+    // Se clicar na parcela que jÃƒÂ¡ ÃƒÂ© o valor total atual, zera o pagamento (permite desmarcar a primeira parcela)
+    // Se nÃƒÂ£o, define o valor para aquela parcela (acumulativo)
     const newAmount = p.amountPaid === targetAmount ? 0 : targetAmount;
-    updatePerson(p.id, { amountPaid: newAmount });
+    const paymentUpdate = { amountPaid: newAmount, lastPaymentDate: new Date().toISOString() };
+    updatePerson(p.id, paymentUpdate);
+    commitPersonUpdate({ ...p, ...paymentUpdate });
   };
 
   const filtered = people.filter(p => {
@@ -76,7 +111,23 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
             </button>
           )}
         </div>
-        <button onClick={() => addPerson()} className={`px-8 py-3 rounded-2xl font-black flex items-center gap-2 text-white shadow-lg transition-all hover:scale-105 ${mode === 'org' ? 'bg-blue-600 shadow-blue-500/20' : 'bg-orange-500 shadow-orange-500/20'}`}>
+        <button onClick={async () => {
+          try {
+            await createPerson({
+              name: 'Novo Participante',
+              amountPaid: 0,
+              totalPrice: CAMP_TOTAL_PRICE,
+              ageGroup: 'Indefinido',
+              personType: 'Membro',
+              teamId: 'none',
+              paymentStatus: 'PENDENTE'
+            });
+            await fetchPeople();
+          } catch (error) {
+            console.error("Erro ao criar pessoa:", error);
+            alert(`Nao foi possivel criar a pessoa. Motivo: ${getErrorMessage(error)}`);
+          }
+        }} className={`px-8 py-3 rounded-2xl font-black flex items-center gap-2 text-white shadow-lg transition-all hover:scale-105 ${mode === 'org' ? 'bg-blue-600 shadow-blue-500/20' : 'bg-orange-500 shadow-orange-500/20'}`}>
           <UserPlus size={18} /> Novo
         </button>
       </div>
@@ -96,7 +147,7 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
               </div>
            </div>
            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-2">Faixa Etária</label>
+              <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-2">Faixa EtÃƒÂ¡ria</label>
               <div className="relative">
                 <select value={filterAge} onChange={e => setFilterAge(e.target.value as any)} className="w-full p-3 bg-gray-50 rounded-xl font-bold text-sm outline-none appearance-none cursor-pointer hover:bg-gray-100 transition-colors">
                   <option value="Todos">Todas as Idades</option>
@@ -150,7 +201,7 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
                 <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 text-center">Equipe</th>
               )}
               
-              <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 text-center">Ações</th>
+              <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 text-center">A&ccedil;&otilde;es</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -161,7 +212,8 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
                   <input 
                     className="bg-transparent font-bold w-full outline-none focus:ring-2 focus:ring-blue-50 rounded p-1" 
                     value={p.name} 
-                    onChange={e => updatePerson(p.id, { name: e.target.value })} 
+                    onChange={e => updatePerson(p.id, { name: e.target.value })}
+                    onBlur={() => commitPersonUpdate(p)}
                   />
                 </td>
 
@@ -208,16 +260,30 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
                   <td className="px-8 py-4 text-center">
                     <div className="flex justify-center gap-1">
                       {(['alianca', 'segredo', 'caminho'] as TeamId[]).map(tid => (
-                        <button key={tid} onClick={() => updatePerson(p.id, { teamId: tid })} className={`w-6 h-6 rounded-md border transition-all ${p.teamId === tid ? TEAM_UI[tid].color + ' border-transparent scale-110 shadow-sm' : 'bg-white border-gray-100 hover:border-gray-300'}`} />
+                        <button key={tid} onClick={() => {
+                          updatePerson(p.id, { teamId: tid });
+                          commitPersonUpdate({ ...p, teamId: tid });
+                        }} className={`w-6 h-6 rounded-md border transition-all ${p.teamId === tid ? TEAM_UI[tid].color + ' border-transparent scale-110 shadow-sm' : 'bg-white border-gray-100 hover:border-gray-300'}`} />
                       ))}
-                      <button onClick={() => updatePerson(p.id, { teamId: 'none' })} className="w-6 h-6 rounded-md border border-gray-100 flex items-center justify-center text-gray-300 hover:text-red-500"><X size={10} /></button>
+                      <button onClick={() => {
+                        updatePerson(p.id, { teamId: 'none' });
+                        commitPersonUpdate({ ...p, teamId: 'none' });
+                      }} className="w-6 h-6 rounded-md border border-gray-100 flex items-center justify-center text-gray-300 hover:text-red-500"><X size={10} /></button>
                     </div>
                   </td>
                 )}
 
-                {/* Ações */}
+                {/* A&ccedil;&otilde;es */}
                 <td className="px-8 py-4 text-center">
-                  <button onClick={() => deletePerson(p.id)} className="p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={18} /></button>
+                  <button onClick={async () => {
+                    try {
+                      await deletePersonApi(p.id);
+                      await fetchPeople();
+                    } catch (error) {
+                      console.error("Erro ao remover pessoa:", error);
+                      alert(`Nao foi possivel remover a pessoa. Motivo: ${getErrorMessage(error)}`);
+                    }
+                  }} className="p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={18} /></button>
                 </td>
               </tr>
             ))}
@@ -227,3 +293,5 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
     </div>
   );
 };
+
+

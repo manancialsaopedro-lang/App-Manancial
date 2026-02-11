@@ -153,6 +153,7 @@ export interface ProjectionItem {
 export interface AppState {
   // Auth State
   user: User | null;
+  authReady: boolean;
 
   // Gincana & Pessoas
   people: Person[];
@@ -178,9 +179,11 @@ export interface AppState {
   // Auth Actions
   signIn: (email: string, name?: string) => void;
   signOut: () => void;
+  setAuthReady: (ready: boolean) => void;
 
   // Actions
   addPerson: (name?: string) => void;
+  setPeople: (people: Person[]) => void;
   updatePerson: (id: string, updates: Partial<Person>) => void;
   deletePerson: (id: string) => void;
   
@@ -201,6 +204,7 @@ export interface AppState {
 
   // Actions Financeiro
   addTransaction: (t: Omit<Transaction, 'id' | 'date'>) => void;
+  setTransactions: (transactions: Transaction[]) => void;
   updateTransaction: (id: string, updates: Partial<Transaction>) => void;
   removeTransaction: (id: string) => void;
   updateFixedCostRent: (value: number) => void;
@@ -212,8 +216,10 @@ export interface AppState {
 
   // Actions Cantina
   addProduct: (p: Omit<Product, 'id'>) => void;
+  setProducts: (products: Product[]) => void;
   updateProduct: (id: string, updates: Partial<Product>) => void;
   deleteProduct: (id: string) => void;
+  setSales: (sales: Sale[]) => void;
   
   // Atualizado: registerSale agora lida com a lógica de criar ou não transação
   registerSale: (items: { product: Product, quantity: number }[], method: PaymentMethod, person?: Person) => void;
