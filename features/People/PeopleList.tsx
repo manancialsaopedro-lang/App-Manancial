@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, UserPlus, Trash2, X, CheckCircle, AlertCircle, Filter, ChevronDown } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { TEAM_UI, INSTALLMENT_VALUE, CAMP_TOTAL_PRICE } from '../../constants';
@@ -9,6 +9,7 @@ import { listPeople, createPerson, deletePerson as deletePersonApi, upsertPerson
 export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
   const { people, setPeople, updatePerson } = useAppStore();
   const [search, setSearch] = useState("");
+  const [sortAlphabetically, setSortAlphabetically] = useState(false);
   const getErrorMessage = (error: unknown) => (error instanceof Error && error.message ? error.message : "Erro desconhecido");
   
   // Filtros
@@ -20,7 +21,7 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
 
   const fetchPeople = useCallback(async () => {
     try {
-      const data = await listPeople();
+      const data = await listPeople({ alphabetical: false });
       setPeople(data);
     } catch (error) {
       console.error("Erro ao carregar pessoas:", error);
@@ -89,6 +90,11 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
     return matchesSearch && matchesType && matchesAge && matchesStatus && matchesInstallments;
   });
 
+  const displayedPeople = useMemo(() => {
+    if (!sortAlphabetically) return filtered;
+    return [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
+  }, [filtered, sortAlphabetically]);
+
   return (
     <div className="space-y-6 animate-in fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -111,25 +117,39 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
             </button>
           )}
         </div>
-        <button onClick={async () => {
-          try {
-            await createPerson({
-              name: 'Novo Participante',
-              amountPaid: 0,
-              totalPrice: CAMP_TOTAL_PRICE,
-              ageGroup: 'Indefinido',
-              personType: 'Membro',
-              teamId: 'none',
-              paymentStatus: 'PENDENTE'
-            });
-            await fetchPeople();
-          } catch (error) {
-            console.error("Erro ao criar pessoa:", error);
-            alert(`Nao foi possivel criar a pessoa. Motivo: ${getErrorMessage(error)}`);
-          }
-        }} className={`px-8 py-3 rounded-2xl font-black flex items-center gap-2 text-white shadow-lg transition-all hover:scale-105 ${mode === 'org' ? 'bg-blue-600 shadow-blue-500/20' : 'bg-orange-500 shadow-orange-500/20'}`}>
-          <UserPlus size={18} /> Novo
-        </button>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl px-4 py-3 shadow-sm">
+            <span className="text-xs font-black uppercase text-gray-500 tracking-wider">A-Z</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={sortAlphabetically}
+              onClick={() => setSortAlphabetically(prev => !prev)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${sortAlphabetically ? 'bg-blue-600' : 'bg-gray-200'}`}
+            >
+              <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${sortAlphabetically ? 'translate-x-5' : 'translate-x-1'}`} />
+            </button>
+          </label>
+          <button onClick={async () => {
+            try {
+              const created = await createPerson({
+                name: 'Novo Participante',
+                amountPaid: 0,
+                totalPrice: CAMP_TOTAL_PRICE,
+                ageGroup: 'Indefinido',
+                personType: 'Membro',
+                teamId: 'none',
+                paymentStatus: 'PENDENTE'
+              });
+              setPeople([created, ...people.filter(p => p.id !== created.id)]);
+            } catch (error) {
+              console.error("Erro ao criar pessoa:", error);
+              alert(`Nao foi possivel criar a pessoa. Motivo: ${getErrorMessage(error)}`);
+            }
+          }} className={`px-8 py-3 rounded-2xl font-black flex items-center gap-2 text-white shadow-lg transition-all hover:scale-105 ${mode === 'org' ? 'bg-blue-600 shadow-blue-500/20' : 'bg-orange-500 shadow-orange-500/20'}`}>
+            <UserPlus size={18} /> Novo
+          </button>
+        </div>
       </div>
 
       {/* Barra de Filtros */}
@@ -183,15 +203,83 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
         </div>
       )}
 
-      <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden overflow-x-auto">
+      <div className="md:hidden space-y-3">
+        {displayedPeople.map(p => (
+          <div key={p.id} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-4 space-y-3">
+            <input
+              className="bg-transparent font-black text-lg w-full outline-none focus:ring-2 focus:ring-blue-50 rounded p-1"
+              value={p.name}
+              onChange={e => updatePerson(p.id, { name: e.target.value })}
+              onBlur={() => commitPersonUpdate(p)}
+            />
+            <div className="flex items-center justify-between gap-3">
+              <button
+                onClick={() => toggleType(p.id, p.personType)}
+                className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${p.personType === 'Membro' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-green-50 text-green-600 border-green-100'}`}
+              >
+                {p.personType}
+              </button>
+              <AgeBadge group={p.ageGroup} onClick={() => cycleAge(p.id, p.ageGroup)} />
+            </div>
+
+            {mode === 'org' ? (
+              <>
+                <button
+                  onClick={() => togglePaymentStatus(p.id, p.paymentStatus)}
+                  className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl border-2 font-black text-xs uppercase tracking-wider ${p.paymentStatus === 'PAGO' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white text-gray-400 border-gray-200'}`}
+                >
+                  {p.paymentStatus === 'PAGO' ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
+                  {p.paymentStatus}
+                </button>
+                <div className="flex justify-between gap-1">
+                  {[...Array(6)].map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleInstallmentClick(p, i)}
+                      className={`w-8 h-8 rounded-full border transition-all font-black text-[10px] ${p.amountPaid >= (i + 1) * INSTALLMENT_VALUE ? 'bg-blue-500 border-blue-500 text-white' : 'border-gray-200 text-gray-400'}`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="flex justify-center gap-2">
+                {(['alianca', 'segredo', 'caminho'] as TeamId[]).map(tid => (
+                  <button key={tid} onClick={() => {
+                    updatePerson(p.id, { teamId: tid });
+                    commitPersonUpdate({ ...p, teamId: tid });
+                  }} className={`w-7 h-7 rounded-md border transition-all ${p.teamId === tid ? TEAM_UI[tid].color + ' border-transparent scale-110 shadow-sm' : 'bg-white border-gray-100 hover:border-gray-300'}`} />
+                ))}
+                <button onClick={() => {
+                  updatePerson(p.id, { teamId: 'none' });
+                  commitPersonUpdate({ ...p, teamId: 'none' });
+                }} className="w-7 h-7 rounded-md border border-gray-100 flex items-center justify-center text-gray-300 hover:text-red-500"><X size={10} /></button>
+              </div>
+            )}
+
+            <button onClick={async () => {
+              try {
+                await deletePersonApi(p.id);
+                await fetchPeople();
+              } catch (error) {
+                console.error("Erro ao remover pessoa:", error);
+                alert(`Nao foi possivel remover a pessoa. Motivo: ${getErrorMessage(error)}`);
+              }
+            }} className="w-full py-2 rounded-xl text-red-500 bg-red-50 font-bold text-sm">
+              Excluir
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden md:block bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden overflow-x-auto">
         <table className="w-full text-left">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
               <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400">Nome</th>
               <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 text-center">Tipo</th>
               <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 text-center">Idade</th>
-              
-              {/* Coluna Condicional: Pagamento ou Equipe */}
               {mode === 'org' ? (
                 <>
                   <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 text-center">Status Pagamento</th>
@@ -200,57 +288,49 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
               ) : (
                 <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 text-center">Equipe</th>
               )}
-              
               <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 text-center">A&ccedil;&otilde;es</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {filtered.map(p => (
+            {displayedPeople.map(p => (
               <tr key={p.id} className="group hover:bg-gray-50/50">
-                {/* Nome */}
                 <td className="px-8 py-4">
-                  <input 
-                    className="bg-transparent font-bold w-full outline-none focus:ring-2 focus:ring-blue-50 rounded p-1" 
-                    value={p.name} 
+                  <input
+                    className="bg-transparent font-bold w-full outline-none focus:ring-2 focus:ring-blue-50 rounded p-1"
+                    value={p.name}
                     onChange={e => updatePerson(p.id, { name: e.target.value })}
                     onBlur={() => commitPersonUpdate(p)}
                   />
                 </td>
-
-                {/* Tipo de Pessoa */}
                 <td className="px-8 py-4 text-center">
-                  <button 
+                  <button
                     onClick={() => toggleType(p.id, p.personType)}
                     className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all hover:scale-105 ${p.personType === 'Membro' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-green-50 text-green-600 border-green-100'}`}
                   >
                     {p.personType}
                   </button>
                 </td>
-
-                {/* Idade */}
                 <td className="px-8 py-4 text-center"><AgeBadge group={p.ageGroup} onClick={() => cycleAge(p.id, p.ageGroup)} /></td>
-
-                {/* Condicional: Pagamento vs Equipe */}
                 {mode === 'org' ? (
                   <>
                     <td className="px-8 py-4 text-center">
-                      <button 
-                         onClick={() => togglePaymentStatus(p.id, p.paymentStatus)}
-                         className={`flex items-center gap-2 mx-auto px-4 py-2 rounded-xl border-2 font-black text-xs uppercase tracking-wider transition-all hover:scale-105 ${p.paymentStatus === 'PAGO' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white text-gray-400 border-gray-200 hover:border-red-300 hover:text-red-500'}`}
+                      <button
+                        onClick={() => togglePaymentStatus(p.id, p.paymentStatus)}
+                        className={`flex items-center gap-2 mx-auto px-4 py-2 rounded-xl border-2 font-black text-xs uppercase tracking-wider transition-all hover:scale-105 ${p.paymentStatus === 'PAGO' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white text-gray-400 border-gray-200 hover:border-red-300 hover:text-red-500'}`}
                       >
-                         {p.paymentStatus === 'PAGO' ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
-                         {p.paymentStatus}
+                        {p.paymentStatus === 'PAGO' ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
+                        {p.paymentStatus}
                       </button>
                     </td>
                     <td className="px-8 py-4 text-center opacity-50 hover:opacity-100 transition-opacity">
                       <div className="flex justify-center gap-1">
                         {[...Array(6)].map((_, i) => (
-                          <button 
-                            key={i} 
-                            onClick={() => handleInstallmentClick(p, i)} 
-                            className={`w-6 h-6 rounded-full border transition-all font-black text-[9px] ${p.amountPaid >= (i+1) * INSTALLMENT_VALUE ? 'bg-blue-500 border-blue-500 text-white' : 'border-gray-200 text-gray-300'}`}
+                          <button
+                            key={i}
+                            onClick={() => handleInstallmentClick(p, i)}
+                            className={`w-6 h-6 rounded-full border transition-all font-black text-[9px] ${p.amountPaid >= (i + 1) * INSTALLMENT_VALUE ? 'bg-blue-500 border-blue-500 text-white' : 'border-gray-200 text-gray-300'}`}
                           >
-                            {i+1}
+                            {i + 1}
                           </button>
                         ))}
                       </div>
@@ -272,8 +352,6 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
                     </div>
                   </td>
                 )}
-
-                {/* A&ccedil;&otilde;es */}
                 <td className="px-8 py-4 text-center">
                   <button onClick={async () => {
                     try {
@@ -293,5 +371,3 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
     </div>
   );
 };
-
-

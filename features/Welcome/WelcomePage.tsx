@@ -1,7 +1,7 @@
-
+﻿
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LayoutGrid, Flag, Music, ArrowRight, Sun, Moon, Tent, Cloud, Flame, Mountain, Shield } from 'lucide-react';
+import { LayoutGrid, Flag, ArrowRight, Sun, Moon, Tent, Cloud, Flame, Mountain, Shield } from 'lucide-react';
 import { useAppStore } from '../../store';
 
 export const WelcomePage = () => {
@@ -91,16 +91,15 @@ export const WelcomePage = () => {
 
         {/* VERSE */}
         <p className={`text-lg md:text-xl font-serif italic text-center max-w-2xl mb-16 leading-relaxed ${themeColors.textSec}`}>
-          "O segredo do Senhor é para os que o temem; e ele lhes fará saber a sua aliança."
+          "O segredo do Senhor e para os que o temem; e ele lhes fara saber a sua alianca."
           <span className="block text-sm font-sans font-bold mt-2 not-italic uppercase tracking-widest opacity-60">Salmos 25:14</span>
         </p>
 
         {/* NAVIGATION CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-5xl mx-auto">
           {[
-            { id: 'org', icon: LayoutGrid, title: 'Organização', desc: 'Financeiro e Cantina', color: 'from-blue-600 to-cyan-500' },
+            { id: 'org', icon: LayoutGrid, title: 'Organizacao', desc: 'Financeiro e Cantina', color: 'from-blue-600 to-cyan-500' },
             { id: 'gincana', icon: Flag, title: 'Gincana', desc: 'Provas e Equipes', color: 'from-orange-500 to-amber-500' },
-            { id: 'louvor', icon: Music, title: 'Louvor', desc: 'Repertório (Em Breve)', color: 'from-purple-600 to-indigo-500' }
           ].map((sector) => (
             <button 
               key={sector.id} 
@@ -131,3 +130,4 @@ export const WelcomePage = () => {
     </div>
   );
 };
+

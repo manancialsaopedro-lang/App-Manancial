@@ -18,6 +18,13 @@ type ProductDbRow = {
 
 const PRODUCTS_SELECT = "id,name,cost_price,sell_price,stock,min_stock,category";
 
+const createRandomId = (): string => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `product-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
 const fromDb = (row: ProductDbRow): Product => ({
   id: row.id ?? `product-${Date.now()}-${Math.random().toString(16).slice(2)}`,
   name: row.name ?? "Produto sem nome",
@@ -64,7 +71,8 @@ export const listProducts = async (): Promise<Product[]> => {
 };
 
 export const createProduct = async (payload: Omit<Product, "id">): Promise<Product> => {
-  const { data, error } = await supabase().from(TABLE).insert(toDb(payload)).select(PRODUCTS_SELECT).single();
+  const dbPayload = toDb({ ...payload, id: createRandomId() });
+  const { data, error } = await supabase().from(TABLE).insert(dbPayload).select(PRODUCTS_SELECT).single();
 
   if (error) throw handleProductsError("Nao foi possivel criar produto", error);
   return fromDb((data ?? {}) as ProductDbRow);

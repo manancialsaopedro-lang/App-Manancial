@@ -1,10 +1,12 @@
-
+﻿
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Calendar, DollarSign, AlertCircle, ShoppingBag, Package, TrendingUp, CreditCard, ArrowRight } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { Card } from '../../components/Shared';
 
 export const OrgDailyClose = () => {
+  const navigate = useNavigate();
   // Pega a data de hoje no formato YYYY-MM-DD para o input
   const today = new Date().toISOString().split('T')[0];
   
@@ -83,7 +85,7 @@ export const OrgDailyClose = () => {
          <div>
             <h2 className="text-3xl font-black tracking-tighter text-gray-900">Fechamento Geral</h2>
             <p className="text-gray-500 font-medium">
-               Análise financeira de {new Date(startDate + 'T00:00:00').toLocaleDateString('pt-BR')} {isSameDay ? '' : ` até ${new Date(endDate + 'T00:00:00').toLocaleDateString('pt-BR')}`}.
+               Análise financeira de {new Date(startDate + 'T00:00:00').toLocaleDateString('pt-BR')} {isSameDay ? '' : ` Até ${new Date(endDate + 'T00:00:00').toLocaleDateString('pt-BR')}`}.
             </p>
          </div>
          
@@ -133,7 +135,7 @@ export const OrgDailyClose = () => {
              <Card className="p-6">
                 <div className="flex items-center gap-3 mb-4 text-emerald-600">
                    <TrendingUp size={24} />
-                   <span className="font-bold uppercase text-xs tracking-widest text-gray-400">Lucro Líquido</span>
+                   <span className="font-bold uppercase text-xs tracking-widest text-gray-400">Lucro líquido</span>
                 </div>
                 <div className="text-4xl font-black text-emerald-600">R$ {netProfitPeriod.toFixed(2)}</div>
                 <div className="mt-2 text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg inline-block font-bold">
@@ -141,13 +143,13 @@ export const OrgDailyClose = () => {
                 </div>
              </Card>
 
-             <Card className="p-6 border-purple-100 bg-purple-50/50">
+             <Card onClick={() => navigate('/org/canteen?tab=debts')} className="p-6 border-purple-100 bg-purple-50/50 cursor-pointer hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3 mb-4 text-purple-600">
                    <AlertCircle size={24} />
                    <span className="font-bold uppercase text-xs tracking-widest text-purple-400">Pendências (Fiado)</span>
                 </div>
                 <div className="text-4xl font-black text-purple-600">R$ {pendingSalesTotal.toFixed(2)}</div>
-                <div className="mt-2 text-xs text-purple-400 font-bold">Criadas neste período</div>
+                <div className="mt-2 text-xs text-purple-400 font-bold">Criadas neste periodo - Toque para abrir</div>
              </Card>
 
              <Card className="p-6">
@@ -216,7 +218,7 @@ export const OrgDailyClose = () => {
                      <AlertCircle size={16} /> Nota de Conciliação
                    </h4>
                    <p className="text-xs text-gray-500 leading-relaxed">
-                      O "Total Vendido" inclui vendas fiado (pendências) que podem não ter entrado no caixa ainda. 
+                      O "Total Vendido" inclui vendas fiado (Pendências) que podem não ter entrado no caixa ainda. 
                       Para conferência física do dinheiro, utilize o valor do card <strong>"Caixa (Entradas Reais)"</strong>.
                    </p>
                 </div>
@@ -227,3 +229,8 @@ export const OrgDailyClose = () => {
     </div>
   );
 };
+
+
+
+
+

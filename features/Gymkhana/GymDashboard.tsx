@@ -34,6 +34,11 @@ export const GymDashboard = () => {
   };
 
   const recentEvents = scoreEvents.slice(0, 5);
+  const AGE_GROUP_LABELS: Record<AgeGroup, string> = {
+    Adulto: 'Adultos',
+    Jovem: 'Jovens',
+    Criança: 'Crianças'
+  };
   
   // Status Materiais
   const acquiredMaterials = materials.filter(m => m.isAcquired).length;
@@ -176,7 +181,7 @@ export const GymDashboard = () => {
               {(['Adulto', 'Jovem', 'Criança'] as AgeGroup[]).map(group => (
                 <div key={group} onDragOver={e => e.preventDefault()} onDrop={e => onDrop(e, group)} className={`bg-white rounded-[2rem] border shadow-sm overflow-hidden flex flex-col h-[300px] transition-all ${isEditing ? 'border-dashed border-2 border-blue-400 scale-[1.01]' : 'border-gray-100'}`}>
                   <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center font-black">
-                    <h4 className="text-gray-900">{group}s</h4>
+                    <h4 className="text-gray-900">{AGE_GROUP_LABELS[group]}</h4>
                     <span className="bg-gray-100 px-3 py-1 rounded-full text-xs">{people.filter(p => p.ageGroup === group).length}</span>
                   </div>
                   <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-2">

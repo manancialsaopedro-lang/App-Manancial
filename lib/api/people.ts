@@ -114,8 +114,17 @@ const handlePeopleError = (action: string, rawError: unknown): Error => {
 
 const PEOPLE_SELECT = "id,name,amount_paid,total_price,age_group,person_type,team_id,payment_status,last_payment_date";
 
-export const listPeople = async (): Promise<Person[]> => {
-  const { data, error } = await supabase().from(TABLE).select(PEOPLE_SELECT).order("name", { ascending: true });
+type ListPeopleOptions = {
+  alphabetical?: boolean;
+};
+
+export const listPeople = async (options: ListPeopleOptions = {}): Promise<Person[]> => {
+  const alphabetical = options.alphabetical ?? true;
+  let query = supabase().from(TABLE).select(PEOPLE_SELECT);
+  if (alphabetical) {
+    query = query.order("name", { ascending: true });
+  }
+  const { data, error } = await query;
 
   if (error) throw handlePeopleError("Nao foi possivel listar pessoas", error);
   return ((data ?? []) as PersonDbRow[]).map(fromDb);

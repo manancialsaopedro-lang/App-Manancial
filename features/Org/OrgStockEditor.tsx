@@ -1,14 +1,16 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Search } from 'lucide-react';
+import { ArrowLeft, Search, Trash2, AlertTriangle, CheckCircle, X } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { Product } from '../../types';
-import { listProducts, upsertProduct } from '../../lib/api/products';
+import { deleteProduct as deleteProductApi, listProducts, upsertProduct } from '../../lib/api/products';
+import { createTransaction, listTransactions } from '../../lib/api/transactions';
 
 export const OrgStockEditor = () => {
   const navigate = useNavigate();
-  const { products, setProducts, updateProduct } = useAppStore();
+  const { products, setProducts, updateProduct, setTransactions, addProjectionEntry } = useAppStore();
   const [search, setSearch] = useState('');
+  const [showStockCostReview, setShowStockCostReview] = useState(false);
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -47,11 +49,89 @@ export const OrgStockEditor = () => {
     }
   };
 
+  const handleDeleteProduct = async (product: Product) => {
+    const confirmed = window.confirm(`Excluir "${product.name}" do estoque?`);
+    if (!confirmed) return;
+
+    try {
+      await deleteProductApi(product.id);
+      setProducts(products.filter(p => p.id !== product.id));
+      await fetchProducts();
+    } catch (error) {
+      console.error("Erro ao remover produto:", error);
+      alert("Nao foi possivel remover o produto.");
+    }
+  };
+
+  const stockCostItems = useMemo(
+    () =>
+      products
+        .filter((p) => p.stock > 0)
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          stock: p.stock,
+          costPrice: p.costPrice,
+          total: p.stock * p.costPrice
+        })),
+    [products]
+  );
+
+  const stockCostTotal = useMemo(
+    () => stockCostItems.reduce((acc, item) => acc + item.total, 0),
+    [stockCostItems]
+  );
+
+  const openStockCostReview = () => {
+    if (stockCostTotal <= 0) {
+      alert('Nao ha custo de estoque para registrar.');
+      return;
+    }
+    setShowStockCostReview(true);
+  };
+
+  const registerCurrentStockCost = async () => {
+    const totalCost = stockCostTotal;
+    if (totalCost <= 0) {
+      alert('Nao ha custo de estoque para registrar.');
+      return;
+    }
+
+    try {
+      const now = new Date();
+      const description = `Registro do Estoque Atual (${stockCostItems.length} produtos)`;
+      const tx = await createTransaction({
+        description,
+        amount: totalCost,
+        type: 'SAIDA',
+        category: 'CANTINA',
+        paymentMethod: 'Outro',
+        date: now.toISOString()
+      });
+
+      addProjectionEntry({
+        label: description,
+        amount: totalCost,
+        categoryMapping: 'CANTINA',
+        isExecuted: true,
+        executedTransactionId: tx.id,
+        source: 'STOCK'
+      });
+
+      const refreshedTransactions = await listTransactions();
+      setTransactions(refreshedTransactions);
+      setShowStockCostReview(false);
+    } catch (error) {
+      console.error('Erro ao registrar gasto do estoque atual:', error);
+      alert('Nao foi possivel registrar o gasto do estoque atual.');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-[2rem] border border-gray-100 shadow-sm sticky top-0 z-30">
         <div className="flex items-center gap-4 w-full md:w-auto">
-           <button onClick={() => navigate('/org/canteen')} className="p-3 rounded-full hover:bg-gray-100 transition-colors">
+           <button onClick={() => navigate('/org/canteen?tab=stock')} className="p-3 rounded-full hover:bg-gray-100 transition-colors">
               <ArrowLeft size={24} className="text-gray-500" />
            </button>
            <div>
@@ -69,9 +149,79 @@ export const OrgStockEditor = () => {
              className="bg-transparent outline-none font-bold text-sm w-full"
            />
         </div>
+        <button
+          onClick={openStockCostReview}
+          className="w-full md:w-auto px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-colors"
+        >
+          Registrar Gasto do Estoque Atual
+        </button>
       </div>
 
-      <div className="bg-white rounded-[2rem] border border-gray-100 shadow-xl overflow-hidden">
+      <div className="md:hidden space-y-3">
+         {filteredProducts.map(p => {
+            const margin = calculateMargin(p.sellPrice, p.costPrice);
+            const isLowMargin = margin < 30;
+
+            return (
+               <div key={p.id} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-4 space-y-3">
+                  <input
+                    value={p.name}
+                    onChange={(e) => updateProduct(p.id, { name: e.target.value })}
+                    onBlur={() => commitProductUpdate(p)}
+                    className="w-full bg-transparent font-black text-base outline-none border-b border-transparent focus:border-blue-500"
+                  />
+                  <input
+                    value={p.category}
+                    onChange={(e) => updateProduct(p.id, { category: e.target.value })}
+                    onBlur={() => commitProductUpdate(p)}
+                    className="w-full bg-transparent font-medium text-gray-500 text-sm outline-none border-b border-transparent focus:border-blue-500"
+                  />
+
+                  <div className="grid grid-cols-3 gap-2">
+                     <input
+                       type="number"
+                       value={p.stock}
+                       onChange={(e) => updateProduct(p.id, { stock: Number(e.target.value) })}
+                       onBlur={() => commitProductUpdate(p)}
+                       className={`w-full rounded-lg py-2 px-2 text-center font-bold text-sm outline-none focus:ring-2 focus:ring-blue-200 ${p.stock < p.minStock ? 'text-red-500 bg-red-50' : 'text-gray-900 bg-gray-50'}`}
+                     />
+                     <input
+                       type="number"
+                       step="0.01"
+                       value={p.costPrice}
+                       onChange={(e) => updateProduct(p.id, { costPrice: Number(e.target.value) })}
+                       onBlur={() => commitProductUpdate(p)}
+                       className="w-full border border-gray-200 rounded-lg py-2 px-2 text-center font-medium text-sm outline-none focus:border-blue-500"
+                     />
+                     <input
+                       type="number"
+                       step="0.01"
+                       value={p.sellPrice}
+                       onChange={(e) => updateProduct(p.id, { sellPrice: Number(e.target.value) })}
+                       onBlur={() => commitProductUpdate(p)}
+                       className="w-full border border-gray-200 rounded-lg py-2 px-2 text-center font-black text-sm outline-none focus:border-blue-500"
+                     />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                     <span className={`inline-block px-3 py-1 rounded-lg text-xs font-black ${isLowMargin ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                        Margem {margin.toFixed(1)}%
+                     </span>
+                     <button
+                       onClick={() => handleDeleteProduct(p)}
+                       className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-300 hover:text-red-600 hover:bg-red-50 transition-colors"
+                       title="Excluir produto"
+                     >
+                       <Trash2 size={16} />
+                     </button>
+                  </div>
+               </div>
+            );
+         })}
+         {filteredProducts.length === 0 && <div className="p-10 text-center text-gray-400">Nenhum produto encontrado.</div>}
+      </div>
+
+      <div className="hidden md:block bg-white rounded-[2rem] border border-gray-100 shadow-xl overflow-hidden">
          <div className="overflow-x-auto">
            <table className="w-full text-left border-collapse">
               <thead className="bg-gray-50 border-b border-gray-100">
@@ -82,6 +232,7 @@ export const OrgStockEditor = () => {
                     <th className="px-6 py-4 text-[10px] font-black uppercase text-gray-400 tracking-wider w-32">R$ Custo</th>
                     <th className="px-6 py-4 text-[10px] font-black uppercase text-gray-400 tracking-wider w-32">R$ Venda</th>
                     <th className="px-6 py-4 text-[10px] font-black uppercase text-gray-400 tracking-wider text-right">Margem</th>
+                    <th className="px-6 py-4 text-[10px] font-black uppercase text-gray-400 tracking-wider text-center">Ações</th>
                  </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -147,6 +298,15 @@ export const OrgStockEditor = () => {
                                 {margin.toFixed(1)}%
                              </span>
                           </td>
+                          <td className="px-6 py-3 text-center">
+                             <button
+                               onClick={() => handleDeleteProduct(p)}
+                               className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-300 hover:text-red-600 hover:bg-red-50 transition-colors"
+                               title="Excluir produto"
+                             >
+                               <Trash2 size={16} />
+                             </button>
+                          </td>
                        </tr>
                     );
                  })}
@@ -155,6 +315,61 @@ export const OrgStockEditor = () => {
            {filteredProducts.length === 0 && <div className="p-10 text-center text-gray-400">Nenhum produto encontrado.</div>}
          </div>
       </div>
+
+      {showStockCostReview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowStockCostReview(false)} />
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl relative z-10 p-8 animate-in zoom-in-95 max-h-[85vh] overflow-y-auto">
+            <button onClick={() => setShowStockCostReview(false)} className="absolute top-5 right-5 p-2 rounded-full hover:bg-gray-100 text-gray-400">
+              <X size={18} />
+            </button>
+
+            <h2 className="text-2xl font-black text-gray-900 mb-2 flex items-center gap-2">
+              <AlertTriangle className="text-emerald-600" /> Confirmar Registro do Estoque Atual
+            </h2>
+            <p className="text-gray-500 mb-6">Revise os detalhes antes de lancar no Caixa e no Detalhamento de Custos.</p>
+
+            <div className="bg-gray-50 rounded-2xl p-4 mb-6 space-y-3">
+              <div className="flex justify-between items-center border-b border-gray-200 pb-2">
+                <span className="text-gray-500 font-bold text-xs uppercase">Produtos com estoque</span>
+                <span className="font-black text-gray-900">{stockCostItems.length}</span>
+              </div>
+              <div className="max-h-72 overflow-y-auto space-y-2">
+                {stockCostItems.map((item) => (
+                  <div key={item.id} className="flex justify-between items-center text-sm bg-white border border-gray-100 rounded-xl p-3">
+                    <div>
+                      <div className="font-bold text-gray-800">{item.name}</div>
+                      <div className="text-xs text-gray-500">
+                        {item.stock} x R$ {item.costPrice.toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="font-black text-gray-900">R$ {item.total.toFixed(2)}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                <span className="text-gray-900 font-black uppercase">Total a Lancar</span>
+                <span className="text-3xl font-black text-emerald-600">R$ {stockCostTotal.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowStockCostReview(false)}
+                className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl font-bold transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={registerCurrentStockCost}
+                className="flex-1 py-4 bg-emerald-600 text-white rounded-xl font-black hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
+              >
+                <CheckCircle size={20} /> Confirmar Registro
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

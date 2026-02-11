@@ -1,19 +1,28 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ShoppingCart, Package, Plus, Minus, Trash2, Save, Search, User, ClipboardList, CheckCircle, Wallet, ArrowRight, X, AlertTriangle, Settings } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ShoppingCart, Package, Plus, Minus, Trash2, Search, User, ClipboardList, CheckCircle, Wallet, ArrowRight, X, AlertTriangle, Settings } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../../store';
 import { Card } from '../../components/Shared';
 import { Product, PaymentMethod, Person, Sale, SaleItem } from '../../types';
-import { listProducts, createProduct, updateProduct as updateProductApi } from '../../lib/api/products';
+import { listProducts, updateProduct as updateProductApi } from '../../lib/api/products';
 import { listPeople } from '../../lib/api/people';
 import { listSales, createSale, updateSale } from '../../lib/api/sales';
 import { createTransaction } from '../../lib/api/transactions';
 
 export const OrgCanteen = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { products, setProducts, updateProduct, people, setPeople, sales, setSales } = useAppStore();
-  const [activeTab, setActiveTab] = useState<'pos' | 'stock' | 'debts'>('pos');
+  const parseTab = (value: string | null): 'pos' | 'stock' | 'debts' => {
+    if (value === 'stock' || value === 'debts' || value === 'pos') return value;
+    return 'pos';
+  };
+  const initialTab = (() => {
+    const tab = searchParams.get('tab');
+    return parseTab(tab);
+  })();
+  const [activeTab, setActiveTab] = useState<'pos' | 'stock' | 'debts'>(initialTab);
   
   // Estado Carrinho (POS)
   const [cart, setCart] = useState<{product: Product, quantity: number}[]>([]);
@@ -36,10 +45,6 @@ export const OrgCanteen = () => {
     method?: PaymentMethod 
   }>({ show: false, step: 'SELECT_METHOD', type: 'ALL', amount: 0 });
 
-  // Estado Edição Produto
-  const [newProd, setNewProd] = useState<Partial<Product>>({});
-  const [showAddProd, setShowAddProd] = useState(false);
-
   const fetchCanteenData = useCallback(async () => {
     try {
       const [productsData, peopleData, salesData] = await Promise.all([
@@ -58,6 +63,22 @@ export const OrgCanteen = () => {
   useEffect(() => {
     fetchCanteenData();
   }, [fetchCanteenData]);
+
+  useEffect(() => {
+    const nextTab = parseTab(searchParams.get('tab'));
+    setActiveTab(prev => (prev === nextTab ? prev : nextTab));
+  }, [searchParams]);
+
+  const changeTab = (tab: 'pos' | 'stock' | 'debts') => {
+    setActiveTab(tab);
+    const next = new URLSearchParams(searchParams);
+    if (tab === 'pos') {
+      next.delete('tab');
+    } else {
+      next.set('tab', tab);
+    }
+    setSearchParams(next, { replace: true });
+  };
 
   // --- LÓGICA PDV ---
   const addToCart = (p: Product) => {
@@ -89,7 +110,11 @@ export const OrgCanteen = () => {
 
   const confirmCheckout = async () => {
     if (!reviewModal.method) return;
-    const isPending = reviewModal.method === 'PendÃªncia';
+    const normalizedMethod = reviewModal.method
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    const isPending = normalizedMethod === 'pendencia';
 
     try {
       const items: SaleItem[] = cart.map(item => ({
@@ -146,7 +171,8 @@ export const OrgCanteen = () => {
       setReviewModal({ show: false, method: null });
     } catch (error) {
       console.error("Erro ao registrar venda:", error);
-      alert("NÃ£o foi possÃ­vel registrar a venda.");
+      const message = error instanceof Error ? error.message : "Erro desconhecido";
+      alert(`Nao foi possivel registrar a venda. Motivo: ${message}`);
     }
   };
 
@@ -199,7 +225,7 @@ export const OrgCanteen = () => {
         if (sale) {
           await updateSale(paymentModal.saleId, { status: 'PAID', paymentMethod: paymentModal.method });
           await createTransaction({
-            description: `Recebimento PendÃªncia: ${sale.personName || 'Cliente'} (Venda #${sale.id.slice(-4)})`,
+            description: `Recebimento Pendencia: ${sale.personName || 'Cliente'} (Venda #${sale.id.slice(-4)})`,
             amount: sale.total,
             type: 'ENTRADA',
             category: 'CANTINA',
@@ -222,7 +248,7 @@ export const OrgCanteen = () => {
           const allItems = pendingSales.flatMap(s => s.items);
           const personName = pendingSales[0].personName || 'Cliente';
           await createTransaction({
-            description: `Recebimento PendÃªncia Total: ${personName}`,
+            description: `Recebimento Pendencia Total: ${personName}`,
             amount: totalAmount,
             type: 'ENTRADA',
             category: 'CANTINA',
@@ -260,40 +286,18 @@ export const OrgCanteen = () => {
     return items;
   }, [paymentModal, selectedDebtor]);
 
-  // --- LÓGICA ESTOQUE ---
-  const handleSaveProduct = async () => {
-    if (newProd.name && newProd.sellPrice) {
-      try {
-        await createProduct({
-          name: newProd.name,
-          sellPrice: Number(newProd.sellPrice),
-          costPrice: Number(newProd.costPrice || 0),
-          stock: Number(newProd.stock || 0),
-          minStock: Number(newProd.minStock || 5),
-          category: newProd.category || 'Geral'
-        });
-        setShowAddProd(false);
-        setNewProd({});
-        await fetchCanteenData();
-      } catch (error) {
-        console.error("Erro ao salvar produto:", error);
-        alert("NÃ£o foi possÃ­vel salvar o produto.");
-      }
-    }
-  };
-
   return (
     <div className="space-y-6 animate-in fade-in relative">
       {/* Mobile-Friendly Tabs */}
       <div className="flex flex-col md:flex-row gap-4 mb-8">
-        <button onClick={() => setActiveTab('pos')} className={`flex-1 py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all ${activeTab === 'pos' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>
+        <button onClick={() => changeTab('pos')} className={`flex-1 py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all ${activeTab === 'pos' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>
           <ShoppingCart size={18} /> <span className="hidden md:inline">Vender (PDV)</span><span className="md:hidden">Vender</span>
         </button>
-        <button onClick={() => setActiveTab('debts')} className={`flex-1 py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all ${activeTab === 'debts' ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>
+        <button onClick={() => changeTab('debts')} className={`flex-1 py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all ${activeTab === 'debts' ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>
           <ClipboardList size={18} /> <span className="hidden md:inline">Pendências</span><span className="md:hidden">Fiado</span>
           {debtors.length > 0 && <span className="bg-white text-purple-600 px-2 py-0.5 rounded-full text-xs font-bold">{debtors.length}</span>}
         </button>
-        <button onClick={() => setActiveTab('stock')} className={`flex-1 py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all ${activeTab === 'stock' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>
+        <button onClick={() => changeTab('stock')} className={`flex-1 py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all ${activeTab === 'stock' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>
           <Package size={18} /> Estoque
         </button>
       </div>
@@ -512,21 +516,8 @@ export const OrgCanteen = () => {
             >
                <Settings size={18} /> Editor de Estoque Completo
             </button>
-            <button onClick={() => setShowAddProd(!showAddProd)} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2"><Plus size={18} /> Cadastrar Rápido</button>
+            <button onClick={() => navigate('/org/canteen/stock/new')} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2"><Plus size={18} /> Cadastrar Rápido</button>
           </div>
-
-          {showAddProd && (
-             <Card className="p-6 bg-blue-50 border-blue-100 mb-6">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                   <input placeholder="Nome do Produto" className="p-3 rounded-lg" onChange={e => setNewProd({...newProd, name: e.target.value})} />
-                   <input type="number" placeholder="Preço Custo" className="p-3 rounded-lg" onChange={e => setNewProd({...newProd, costPrice: Number(e.target.value)})} />
-                   <input type="number" placeholder="Preço Venda" className="p-3 rounded-lg" onChange={e => setNewProd({...newProd, sellPrice: Number(e.target.value)})} />
-                   <input type="number" placeholder="Estoque Inicial" className="p-3 rounded-lg" onChange={e => setNewProd({...newProd, stock: Number(e.target.value)})} />
-                   <input placeholder="Categoria" className="p-3 rounded-lg" onChange={e => setNewProd({...newProd, category: e.target.value})} />
-                   <button onClick={handleSaveProduct} className="bg-blue-600 text-white rounded-lg font-bold flex items-center justify-center gap-2"><Save size={18} /> Salvar</button>
-                </div>
-             </Card>
-          )}
 
           <div className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden">
              <table className="w-full text-left">

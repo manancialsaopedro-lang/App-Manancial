@@ -16,6 +16,7 @@ export interface FinancialSlice {
   removeTransaction: (id: string) => void;
   updateFixedCostRent: (value: number) => void;
   addProjectionItem: (label: string, amount: number) => void;
+  addProjectionEntry: (item: Omit<ProjectionItem, 'id'>) => string;
   updateProjectionItem: (id: string, updates: Partial<ProjectionItem>) => void;
   deleteProjectionItem: (id: string) => void;
   addProduct: (p: Omit<Product, 'id'>) => void;
@@ -59,8 +60,16 @@ export const createFinancialSlice: StateCreator<
   updateFixedCostRent: (value) => set(() => ({ fixedCostRent: value })),
 
   addProjectionItem: (label, amount) => set((state) => ({
-    expenseProjections: [...state.expenseProjections, { id: `proj-${Date.now()}`, label, amount }]
+    expenseProjections: [...state.expenseProjections, { id: `proj-${Date.now()}`, label, amount, source: 'BASE' }]
   })),
+
+  addProjectionEntry: (item) => {
+    const id = `proj-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+    set((state) => ({
+      expenseProjections: [...state.expenseProjections, { ...item, id }]
+    }));
+    return id;
+  },
 
   updateProjectionItem: (id, updates) => set((state) => ({
     expenseProjections: state.expenseProjections.map(p => p.id === id ? { ...p, ...updates } : p)

@@ -40,7 +40,9 @@ import { OrgCostDetail } from './features/Org/OrgCostDetail';
 import { OrgRevenueDetail } from './features/Org/OrgRevenueDetail';
 import { OrgDailyClose } from './features/Org/OrgDailyClose';
 import { OrgStockEditor } from './features/Org/OrgStockEditor';
+import { OrgStockQuickWizard } from './features/Org/OrgStockQuickWizard';
 import { OrgPurchaseHistory } from './features/Org/OrgPurchaseHistory';
+import { OrgPurchasePersonHistory } from './features/Org/OrgPurchasePersonHistory';
 
 // New Detailed Pages
 import { OrgAdherence } from './features/Org/OrgAdherence';
@@ -101,8 +103,10 @@ const App = () => {
           <Route path="financials/:id" element={<TransactionDetail />} />
           
           <Route path="canteen" element={<OrgCanteen />} />
+          <Route path="canteen/stock/new" element={<OrgStockQuickWizard />} />
           <Route path="canteen/stock" element={<OrgStockEditor />} />
           <Route path="history" element={<OrgPurchaseHistory />} />
+          <Route path="history/:personId" element={<OrgPurchasePersonHistory />} />
           <Route path="closing" element={<OrgDailyClose />} />
           
           <Route path="purchases" element={<Navigate to="financials" />} />

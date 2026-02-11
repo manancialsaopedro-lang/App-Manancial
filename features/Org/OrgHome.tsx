@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PieChart, Users, Wallet, ArrowRight } from 'lucide-react';
+import { PieChart, Users, Wallet, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Card } from '../../components/Shared';
 
 export const OrgHome = () => {
@@ -40,7 +40,19 @@ export const OrgHome = () => {
   return (
     <div className="space-y-8 animate-in fade-in pb-24">
       <div className="flex flex-col gap-2">
-        <h2 className="text-3xl font-black tracking-tighter text-gray-900">Início</h2>
+        <div className="flex items-center gap-3 xl:hidden">
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="h-11 w-11 rounded-2xl border border-gray-200 bg-white text-gray-500 shadow-sm transition hover:text-gray-700"
+            aria-label="Voltar para seleção de módulo"
+            title="Voltar"
+          >
+            <ArrowLeft size={20} className="mx-auto" />
+          </button>
+          <h2 className="text-3xl font-black tracking-tighter text-gray-900">Início</h2>
+        </div>
+        <h2 className="hidden text-3xl font-black tracking-tighter text-gray-900 xl:block">Início</h2>
         <p className="text-gray-500 font-medium">Selecione uma área para acessar.</p>
       </div>
 

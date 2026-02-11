@@ -25,6 +25,14 @@ export const useAppStore = create<AppState>()(
         if (state && !state.expenseProjections) {
            state.expenseProjections = INITIAL_PROJECTIONS;
         }
+        if (state?.expenseProjections?.length) {
+           state.expenseProjections = state.expenseProjections.map((item) => {
+             if (item.id === 'proj-7' && item.categoryMapping === 'CANTINA') {
+               return { ...item, categoryMapping: undefined, source: item.source || 'BASE' };
+             }
+             return { ...item, source: item.source || 'BASE' };
+           });
+        }
         
         if (state && state.scoreEvents.length === 0 && (Object.values(state.teamScores) as number[]).some(s => s > 0)) {
            const newEvents: ScoreEvent[] = [];

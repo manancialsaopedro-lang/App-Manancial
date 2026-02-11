@@ -1,6 +1,6 @@
 
 export type TeamId = 'alianca' | 'segredo' | 'caminho' | 'org' | 'none';
-export type Sector = 'welcome' | 'org' | 'gincana' | 'louvor';
+export type Sector = 'welcome' | 'org' | 'gincana';
 export type AgeGroup = 'Adulto' | 'Jovem' | 'Criança' | 'Indefinido';
 export type PersonType = 'Membro' | 'Visitante';
 export type PaymentStatus = 'PAGO' | 'PENDENTE';
@@ -148,6 +148,9 @@ export interface ProjectionItem {
   amount: number;
   categoryMapping?: TransactionCategory; // To match with real data if possible
   isExecuted?: boolean; // Indicates if this projection has been converted to a real transaction
+  executedTransactionId?: string; // Transaction generated when imported to cash flow
+  previousRentValue?: number; // Backup to undo ALUGUEL_CHACARA execution
+  source?: 'BASE' | 'STOCK' | 'MOVEMENT'; // Origin of the row in cost detail
 }
 
 export interface AppState {
@@ -211,6 +214,7 @@ export interface AppState {
   
   // Actions Projeção
   addProjectionItem: (label: string, amount: number) => void;
+  addProjectionEntry: (item: Omit<ProjectionItem, 'id'>) => string;
   updateProjectionItem: (id: string, updates: Partial<ProjectionItem>) => void;
   deleteProjectionItem: (id: string) => void;
 

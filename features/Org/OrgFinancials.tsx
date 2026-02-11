@@ -1,17 +1,29 @@
-
+﻿
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ArrowUpCircle, ArrowDownCircle, Trash2, ArrowRight, User, ArrowLeft, X, CheckCircle, Package, TrendingDown, TrendingUp, Calendar } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { Card } from '../../components/Shared';
 import { TransactionCategory, TransactionType, PaymentMethod, Transaction, Product } from '../../types';
-import { listTransactions, createTransaction, deleteTransaction } from '../../lib/api/transactions';
+import { listTransactions, createTransaction, deleteTransaction, updateTransaction as updateTransactionApi } from '../../lib/api/transactions';
 import { listProducts, updateProduct as updateProductApi } from '../../lib/api/products';
 import { listPeople } from '../../lib/api/people';
 import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 
 export const OrgFinancials = () => {
-  const { transactions, setTransactions, fixedCostRent, people, setPeople, products, setProducts } = useAppStore();
+  const {
+    transactions,
+    setTransactions,
+    fixedCostRent,
+    people,
+    setPeople,
+    products,
+    setProducts,
+    addProjectionEntry,
+    expenseProjections,
+    deleteProjectionItem,
+    updateProjectionItem
+  } = useAppStore();
   const navigate = useNavigate();
   
   // --- WIZARD STATE ---
@@ -122,15 +134,15 @@ export const OrgFinancials = () => {
       ? calculateStockTotal()
       : Number(formData.amount);
 
-    if (finalAmount <= 0) return alert("Valor inválido.");
+    if (finalAmount <= 0) return alert("Valor invalido.");
 
     // 2. Add Transaction
     const description = (formData.type === 'SAIDA' && formData.category === 'CANTINA' && stockItems.length > 0)
-      ? `Reposição de Estoque (${stockItems.length} itens)`
+      ? `Reposicao de Estoque (${stockItems.length} itens)`
       : formData.description;
 
     try {
-      await createTransaction({
+      const createdTransaction = await createTransaction({
         description: description,
         amount: finalAmount,
         type: formData.type,
@@ -151,11 +163,22 @@ export const OrgFinancials = () => {
         );
       }
 
+      if (formData.type === 'SAIDA') {
+        addProjectionEntry({
+          label: description,
+          amount: finalAmount,
+          categoryMapping: formData.category,
+          isExecuted: true,
+          executedTransactionId: createdTransaction.id,
+          source: formData.category === 'CANTINA' ? 'STOCK' : 'MOVEMENT'
+        });
+      }
+
       await fetchFinancialData();
       resetWizard();
     } catch (error) {
-      console.error("Erro ao salvar transaÃ§Ã£o:", error);
-      alert("NÃ£o foi possÃ­vel salvar a transaÃ§Ã£o.");
+      console.error("Erro ao salvar transacao:", error);
+      alert("Nao foi possivel salvar a transacao.");
     }
   };
 
@@ -169,22 +192,55 @@ export const OrgFinancials = () => {
     .filter(p => p.amountPaid > 0)
     .map(p => ({
       id: `auto-sub-${p.id}`,
-      description: `Inscrição: ${p.name}`,
+      description: `Inscricao: ${p.name}`,
       amount: p.amountPaid,
       type: 'ENTRADA',
       category: 'INSCRICAO',
-      date: p.lastPaymentDate || new Date().toISOString(),
+      date: p.lastPaymentDate || '1970-01-01T00:00:00.000Z',
       paymentMethod: p.paymentMethod || 'Outro',
       referenceId: p.id,
       isSettled: true
     }));
 
-  const allTransactions = [...transactions, ...subscriptionTransactions].sort((a, b) => 
-    new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
+  const getTime = (value?: string) => {
+    if (!value) return 0;
+    const time = new Date(value).getTime();
+    return Number.isFinite(time) ? time : 0;
+  };
+
+  const allTransactions = [...transactions, ...subscriptionTransactions].sort((a, b) => getTime(b.date) - getTime(a.date));
 
   const totalEntries = manualEntries + totalSubscriptionRevenue;
   const balance = totalEntries - totalExits;
+
+  const fixEncoding = (value?: string) => {
+    if (!value) return '';
+    if (!/[ÃƒÃ‚]/.test(value)) return value;
+    try {
+      const bytes = Uint8Array.from(Array.from(value).map(ch => ch.charCodeAt(0) & 0xff));
+      const decoded = new TextDecoder('utf-8').decode(bytes);
+      return decoded.includes('ï¿½') ? value : decoded;
+    } catch {
+      return value;
+    }
+  };
+
+  const cycleTransactionCategory = async (t: Transaction) => {
+    const allowed: TransactionCategory[] = t.type === 'SAIDA'
+      ? ['OUTROS', 'CANTINA', 'ALUGUEL_CHACARA']
+      : ['OUTROS', 'CANTINA', 'INSCRICAO'];
+
+    const currentIdx = allowed.indexOf(t.category);
+    const nextCategory = allowed[(currentIdx + 1) % allowed.length] || allowed[0];
+
+    try {
+      await updateTransactionApi(t.id, { category: nextCategory });
+      await fetchFinancialData();
+    } catch (error) {
+      console.error('Erro ao atualizar categoria da transacao:', error);
+      alert('Nao foi possivel atualizar a categoria.');
+    }
+  };
 
   return (
     <div className="space-y-8 animate-in slide-in-from-bottom-4">
@@ -196,7 +252,7 @@ export const OrgFinancials = () => {
               <ArrowLeft size={24} className="text-gray-500" />
            </button>
            <div>
-              <h2 className="text-3xl font-black tracking-tighter">Caixa & Movimentações</h2>
+              <h2 className="text-3xl font-black tracking-tighter">Caixa & Movimentacoes</h2>
               <p className="text-gray-400 font-medium">Fluxo de caixa consolidado.</p>
            </div>
         </div>
@@ -204,7 +260,7 @@ export const OrgFinancials = () => {
           onClick={() => setShowWizard(true)}
           className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black flex items-center gap-2 shadow-lg shadow-blue-500/20 hover:scale-105 transition-all w-full md:w-auto justify-center"
         >
-          <Plus size={20} /> Nova Transação
+          <Plus size={20} /> Nova Transacao
         </button>
       </div>
 
@@ -212,14 +268,14 @@ export const OrgFinancials = () => {
          <Card className="p-6 bg-emerald-50 border-emerald-100">
             <div className="flex items-center gap-3 mb-2 text-emerald-600">
                <ArrowUpCircle size={24} />
-               <span className="font-bold uppercase text-xs">Entradas (Inc. Inscrições)</span>
+               <span className="font-bold uppercase text-xs">Entradas (Inc. Inscricoes)</span>
             </div>
             <span className="text-2xl font-black text-emerald-700">R$ {totalEntries.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
          </Card>
-         <Card className="p-6 bg-red-50 border-red-100">
+         <Card onClick={() => navigate('/org/analytics/costs')} className="p-6 bg-red-50 border-red-100 cursor-pointer hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3 mb-2 text-red-600">
                <ArrowDownCircle size={24} />
-               <span className="font-bold uppercase text-xs">Saídas + Aluguel</span>
+               <span className="font-bold uppercase text-xs">Saidas + Aluguel</span>
             </div>
             <span className="text-2xl font-black text-red-700">R$ {totalExits.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
          </Card>
@@ -242,7 +298,7 @@ export const OrgFinancials = () => {
                <div className={`p-8 text-white relative transition-colors duration-500 ${formData.type === 'ENTRADA' ? 'bg-emerald-600' : 'bg-red-600'}`}>
                   <button onClick={resetWizard} className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/20 text-white/80"><X size={20} /></button>
                   <h3 className="text-2xl font-black mb-2">
-                     {formData.type === 'ENTRADA' ? 'Registrar Entrada' : 'Registrar Saída'}
+                     {formData.type === 'ENTRADA' ? 'Registrar Entrada' : 'Registrar Saida'}
                   </h3>
                   <div className="flex items-center gap-2 text-white/60 text-sm font-bold">
                      <span className={`w-6 h-6 rounded-full flex items-center justify-center border border-white/40 ${step >= 1 ? 'bg-white text-gray-900' : ''}`}>1</span>
@@ -258,7 +314,7 @@ export const OrgFinancials = () => {
                   {step === 1 && (
                      <div className="space-y-6 animate-in slide-in-from-right-8">
                         <div>
-                           <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Tipo de Movimentação</label>
+                           <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Tipo de Movimentacao</label>
                            <div className="flex gap-4">
                               <button 
                                  onClick={() => setFormData({...formData, type: 'ENTRADA'})}
@@ -270,7 +326,7 @@ export const OrgFinancials = () => {
                                  onClick={() => setFormData({...formData, type: 'SAIDA'})}
                                  className={`flex-1 p-4 rounded-xl border-2 flex items-center justify-center gap-2 font-bold transition-all ${formData.type === 'SAIDA' ? 'border-red-500 bg-red-50 text-red-600' : 'border-gray-100 text-gray-400'}`}
                               >
-                                 <TrendingDown size={20} /> Saída
+                                 <TrendingDown size={20} /> Saida
                               </button>
                            </div>
                         </div>
@@ -284,7 +340,7 @@ export const OrgFinancials = () => {
                            >
                               <option value="OUTROS">Outros / Operacional</option>
                               {formData.type === 'SAIDA' && <option value="CANTINA">Cantina (Estoque)</option>}
-                              {formData.type === 'SAIDA' && <option value="ALUGUEL_CHACARA">Custo Chácara</option>}
+                              {formData.type === 'SAIDA' && <option value="ALUGUEL_CHACARA">Custo Chacara</option>}
                               {formData.type === 'ENTRADA' && <option value="CANTINA">Cantina (Venda Manual)</option>}
                            </select>
                         </div>
@@ -293,7 +349,7 @@ export const OrgFinancials = () => {
                            onClick={handleNext} 
                            className="w-full py-4 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-colors flex items-center justify-center gap-2"
                         >
-                           Próximo <ArrowRight size={18} />
+                           Proximo <ArrowRight size={18} />
                         </button>
                      </div>
                   )}
@@ -306,7 +362,7 @@ export const OrgFinancials = () => {
                            <div className="space-y-4">
                               <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
                                  <h4 className="font-black text-orange-700 flex items-center gap-2 mb-2"><Package size={18} /> Entrada em Estoque</h4>
-                                 <p className="text-xs text-orange-600 mb-4">Adicione itens para atualizar automaticamente o inventário e calcular o custo.</p>
+                                 <p className="text-xs text-orange-600 mb-4">Adicione itens para atualizar automaticamente o inventÃ¡rio e calcular o custo.</p>
                                  
                                  <div className="flex flex-col gap-2">
                                     <select 
@@ -356,10 +412,10 @@ export const OrgFinancials = () => {
                            /* STANDARD FLOW */
                            <>
                               <div>
-                                 <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Descrição</label>
+                                 <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Descricao</label>
                                  <input 
                                     autoFocus
-                                    placeholder={formData.type === 'ENTRADA' ? "Ex: Oferta Voluntária" : "Ex: Compra de Materiais"}
+                                    placeholder={formData.type === 'ENTRADA' ? "Ex: Oferta VoluntÃ¡ria" : "Ex: Compra de Materiais"}
                                     value={formData.description}
                                     onChange={e => setFormData({...formData, description: e.target.value})}
                                     className="w-full p-4 bg-gray-50 rounded-xl font-bold text-gray-900 outline-none focus:ring-2 ring-blue-100"
@@ -388,7 +444,7 @@ export const OrgFinancials = () => {
                               disabled={formData.type === 'SAIDA' && formData.category === 'CANTINA' ? stockItems.length === 0 : !formData.description}
                               className="flex-1 py-3 bg-gray-900 text-white rounded-xl font-bold disabled:opacity-50 hover:bg-black transition-colors"
                            >
-                              Próximo
+                              Proximo
                            </button>
                         </div>
                      </div>
@@ -417,9 +473,9 @@ export const OrgFinancials = () => {
                         </div>
 
                         <div>
-                           <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Método de Pagamento</label>
+                           <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Metodo de Pagamento</label>
                            <div className="grid grid-cols-2 gap-3">
-                              {['Pix', 'Dinheiro', 'Crédito', 'Débito'].map(m => (
+                              {['Pix', 'Dinheiro', 'Credito', 'Debito'].map(m => (
                                  <button
                                     key={m}
                                     onClick={() => setFormData({...formData, method: m as PaymentMethod})}
@@ -453,11 +509,11 @@ export const OrgFinancials = () => {
             <thead className="bg-gray-50 border-b border-gray-100">
                <tr>
                   <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400">Data</th>
-                  <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400">Descrição</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400">Descricao</th>
                   <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400">Categoria</th>
-                  <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400">Método</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400">Metodo</th>
                   <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 text-right">Valor</th>
-                  <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 text-center">Ações</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 text-center">Acoes</th>
                </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -473,25 +529,40 @@ export const OrgFinancials = () => {
                     >
                        <td className="px-8 py-4 text-xs font-bold text-gray-500">
                           {new Date(t.date).toLocaleDateString()}
-                          {isAuto && <span className="block text-[9px] font-normal opacity-50">Automático</span>}
+                          {isAuto && <span className="block text-[9px] font-normal opacity-50">Automatico</span>}
                           {isPending && <span className="block text-[9px] font-black text-purple-500 uppercase">Em Aberto</span>}
                        </td>
                        <td className="px-8 py-4 font-bold text-gray-900 group-hover:text-blue-600 transition-colors flex items-center gap-2">
                           {isAuto && <User size={14} className="text-blue-400" />}
-                          {t.description}
+                          {fixEncoding(t.description)}
                           {t.referenceId && !isAuto && <span className="inline-flex items-center text-[9px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded uppercase tracking-wider">Ver Detalhes</span>}
                        </td>
-                       <td className="px-8 py-4"><span className="px-2 py-1 bg-gray-100 rounded-lg text-[10px] font-bold text-gray-500">{t.category}</span></td>
+                       <td className="px-8 py-4">
+                          {!isAuto ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                cycleTransactionCategory(t);
+                              }}
+                              className="px-2 py-1 bg-gray-100 rounded-lg text-[10px] font-bold text-gray-500 hover:bg-gray-200 transition-colors"
+                              title="Clique para alterar categoria"
+                            >
+                              {t.category}
+                            </button>
+                          ) : (
+                            <span className="px-2 py-1 bg-gray-100 rounded-lg text-[10px] font-bold text-gray-500">{t.category}</span>
+                          )}
+                       </td>
                        <td className="px-8 py-4">
                           {t.paymentMethod && (
                             <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${
                                 t.paymentMethod === 'Pix' ? 'bg-teal-50 text-teal-600' : 
                                 t.paymentMethod === 'Dinheiro' ? 'bg-emerald-50 text-emerald-600' :
-                                t.paymentMethod === 'Pendência' ? 'bg-purple-50 text-purple-600' :
-                                (t.paymentMethod === 'Crédito' || t.paymentMethod === 'Débito') ? 'bg-blue-50 text-blue-600' : 
+                                t.paymentMethod === 'Pendencia' ? 'bg-purple-50 text-purple-600' :
+                                (t.paymentMethod === 'Credito' || t.paymentMethod === 'Debito') ? 'bg-blue-50 text-blue-600' : 
                                 'bg-gray-50 text-gray-500'
                             }`}>
-                               {t.paymentMethod}
+                               {fixEncoding(t.paymentMethod)}
                             </span>
                           )}
                        </td>
@@ -502,11 +573,23 @@ export const OrgFinancials = () => {
                           {!isAuto ? (
                             <button onClick={async () => {
                               try {
+                                const linkedProjectionRows = expenseProjections.filter((p) => p.executedTransactionId === t.id);
                                 await deleteTransaction(t.id);
+                                linkedProjectionRows.forEach((row) => {
+                                  if (row.source === 'STOCK' || row.source === 'MOVEMENT') {
+                                    deleteProjectionItem(row.id);
+                                    return;
+                                  }
+                                  updateProjectionItem(row.id, {
+                                    isExecuted: false,
+                                    executedTransactionId: undefined,
+                                    previousRentValue: undefined
+                                  });
+                                });
                                 await fetchFinancialData();
                               } catch (error) {
-                                console.error("Erro ao remover transaÃ§Ã£o:", error);
-                                alert("NÃ£o foi possÃ­vel remover a transaÃ§Ã£o.");
+                                console.error("Erro ao remover transacao:", error);
+                                alert("Nao foi possivel remover a transacao.");
                               }
                             }} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
                           ) : (
@@ -518,7 +601,7 @@ export const OrgFinancials = () => {
                })}
                <tr className="bg-red-50/30">
                   <td className="px-8 py-4 text-xs font-bold text-gray-500">-</td>
-                  <td className="px-8 py-4 font-bold text-gray-900">Aluguel Chácara (Custo Fixo)</td>
+                  <td className="px-8 py-4 font-bold text-gray-900">Aluguel Chacara (Custo Fixo)</td>
                   <td className="px-8 py-4"><span className="px-2 py-1 bg-gray-100 rounded-lg text-[10px] font-bold text-gray-500">ALUGUEL_CHACARA</span></td>
                   <td className="px-8 py-4">-</td>
                   <td className="px-8 py-4 text-right font-black text-red-500">- R$ {fixedCostRent.toFixed(2)}</td>
@@ -530,3 +613,6 @@ export const OrgFinancials = () => {
     </div>
   );
 };
+
+
+
