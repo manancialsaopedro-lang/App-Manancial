@@ -160,3 +160,12 @@ export const updateSale = async (
   if (error) throw handleSalesError("Nao foi possivel atualizar venda", error);
   return mapSaleRow(data as DbSaleRow);
 };
+
+export const deleteSale = async (id: string): Promise<void> => {
+  const { error } = await supabase()
+    .from(SALES_TABLE)
+    .delete()
+    .eq("id", id);
+
+  if (error) throw handleSalesError("Nao foi possivel remover venda", error);
+};

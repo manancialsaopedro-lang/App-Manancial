@@ -11,6 +11,7 @@ import { AppLayout } from './layouts/AppLayout';
 
 // Features - Auth
 import { LoginPage } from './features/Auth/LoginPage';
+import { AuthConfirmPage } from './features/Auth/AuthConfirmPage';
 
 // Features - Welcome
 import { WelcomePage } from './features/Welcome/WelcomePage';
@@ -75,6 +76,7 @@ const App = () => {
     <HashRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/auth/confirm" element={<AuthConfirmPage />} />
         <Route path="/offline" element={<OfflinePage />} />
 
         {/* Rotas Protegidas */}

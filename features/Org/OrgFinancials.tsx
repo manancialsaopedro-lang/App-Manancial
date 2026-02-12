@@ -29,6 +29,8 @@ export const OrgFinancials = () => {
   // --- WIZARD STATE ---
   const [showWizard, setShowWizard] = useState(false);
   const [step, setStep] = useState(1);
+  const [pendingDeleteTransaction, setPendingDeleteTransaction] = useState<Transaction | null>(null);
+  const [isDeletingTransaction, setIsDeletingTransaction] = useState(false);
   
   const [formData, setFormData] = useState({
     type: 'SAIDA' as TransactionType,
@@ -215,11 +217,11 @@ export const OrgFinancials = () => {
 
   const fixEncoding = (value?: string) => {
     if (!value) return '';
-    if (!/[ÃÂ]/.test(value)) return value;
+    if (!/[ÃƒÃ‚]/.test(value)) return value;
     try {
       const bytes = Uint8Array.from(Array.from(value).map(ch => ch.charCodeAt(0) & 0xff));
       const decoded = new TextDecoder('utf-8').decode(bytes);
-      return decoded.includes('�') ? value : decoded;
+      return decoded.includes('ï¿½') ? value : decoded;
     } catch {
       return value;
     }
@@ -239,6 +241,34 @@ export const OrgFinancials = () => {
     } catch (error) {
       console.error('Erro ao atualizar categoria da transacao:', error);
       alert('Nao foi possivel atualizar a categoria.');
+    }
+  };
+
+  const confirmDeleteTransaction = async () => {
+    if (!pendingDeleteTransaction) return;
+    try {
+      setIsDeletingTransaction(true);
+      const t = pendingDeleteTransaction;
+      const linkedProjectionRows = expenseProjections.filter((p) => p.executedTransactionId === t.id);
+      await deleteTransaction(t.id);
+      linkedProjectionRows.forEach((row) => {
+        if (row.source === 'STOCK' || row.source === 'MOVEMENT') {
+          deleteProjectionItem(row.id);
+          return;
+        }
+        updateProjectionItem(row.id, {
+          isExecuted: false,
+          executedTransactionId: undefined,
+          previousRentValue: undefined
+        });
+      });
+      await fetchFinancialData();
+      setPendingDeleteTransaction(null);
+    } catch (error) {
+      console.error("Erro ao remover transacao:", error);
+      alert("Nao foi possivel remover a transacao.");
+    } finally {
+      setIsDeletingTransaction(false);
     }
   };
 
@@ -362,7 +392,7 @@ export const OrgFinancials = () => {
                            <div className="space-y-4">
                               <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
                                  <h4 className="font-black text-orange-700 flex items-center gap-2 mb-2"><Package size={18} /> Entrada em Estoque</h4>
-                                 <p className="text-xs text-orange-600 mb-4">Adicione itens para atualizar automaticamente o inventário e calcular o custo.</p>
+                                 <p className="text-xs text-orange-600 mb-4">Adicione itens para atualizar automaticamente o inventÃ¡rio e calcular o custo.</p>
                                  
                                  <div className="flex flex-col gap-2">
                                     <select 
@@ -415,7 +445,7 @@ export const OrgFinancials = () => {
                                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Descricao</label>
                                  <input 
                                     autoFocus
-                                    placeholder={formData.type === 'ENTRADA' ? "Ex: Oferta Voluntária" : "Ex: Compra de Materiais"}
+                                    placeholder={formData.type === 'ENTRADA' ? "Ex: Oferta VoluntÃ¡ria" : "Ex: Compra de Materiais"}
                                     value={formData.description}
                                     onChange={e => setFormData({...formData, description: e.target.value})}
                                     className="w-full p-4 bg-gray-50 rounded-xl font-bold text-gray-900 outline-none focus:ring-2 ring-blue-100"
@@ -503,8 +533,85 @@ export const OrgFinancials = () => {
          </div>
       )}
 
-      {/* TABLE */}
-      <div className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm">
+      {/* MOBILE LIST */}
+      <div className="md:hidden space-y-3">
+         {allTransactions.map(t => {
+            const isAuto = t.id.startsWith('auto-sub-');
+            const isPending = t.isSettled === false;
+            return (
+              <div
+                key={t.id}
+                className={`rounded-2xl border p-4 ${
+                  isAuto ? 'bg-blue-50/40 border-blue-100' : isPending ? 'bg-purple-50/40 border-purple-100' : 'bg-white border-gray-100'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-bold text-gray-500">
+                      {new Date(t.date).toLocaleDateString()}
+                      {isAuto && <span className="ml-2 text-[10px] opacity-60">Automatico</span>}
+                      {isPending && <span className="ml-2 text-[10px] text-purple-600 uppercase">Em Aberto</span>}
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-gray-900">{fixEncoding(t.description)}</p>
+                  </div>
+                  <div className={`text-right text-sm font-black ${isPending ? 'text-purple-400 opacity-70' : t.type === 'ENTRADA' ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {t.type === 'SAIDA' ? '-' : '+'} R$ {t.amount.toFixed(2)}
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="rounded-lg bg-gray-50 px-2 py-1.5">
+                    <span className="block text-[10px] font-bold uppercase text-gray-400">Categoria</span>
+                    <span className="font-bold text-gray-700">{t.category}</span>
+                  </div>
+                  <div className="rounded-lg bg-gray-50 px-2 py-1.5">
+                    <span className="block text-[10px] font-bold uppercase text-gray-400">Metodo</span>
+                    <span className="font-bold text-gray-700">{t.paymentMethod ? fixEncoding(t.paymentMethod) : '-'}</span>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {!isAuto ? (
+                    <>
+                      <button
+                        onClick={() => navigate(`/org/financials/${t.id}`)}
+                        className="rounded-xl border border-blue-100 bg-blue-50 py-2 text-[11px] font-black text-blue-700"
+                      >
+                        Detalhe
+                      </button>
+                      <button
+                        onClick={() => cycleTransactionCategory(t)}
+                        className="rounded-xl border border-gray-200 bg-white py-2 text-[11px] font-black text-gray-700"
+                        title="Alterar categoria"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => setPendingDeleteTransaction(t)}
+                        className="rounded-xl border border-red-100 bg-red-50 py-2 text-[11px] font-black text-red-700"
+                      >
+                        Excluir
+                      </button>
+                    </>
+                  ) : (
+                    <div className="col-span-3 rounded-xl border border-gray-200 bg-gray-50 py-2 text-center text-[10px] font-bold uppercase text-gray-500">
+                      Gerenciado em Inscritos
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+         })}
+
+         <div className="rounded-2xl border border-red-100 bg-red-50/40 p-4">
+           <p className="text-[11px] font-bold uppercase text-gray-400">Custo fixo</p>
+           <p className="mt-1 text-sm font-bold text-gray-900">Aluguel Chacara</p>
+           <p className="mt-2 text-right text-sm font-black text-red-600">- R$ {fixedCostRent.toFixed(2)}</p>
+         </div>
+      </div>
+
+      {/* TABLE DESKTOP */}
+      <div className="hidden md:block bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm">
          <table className="w-full text-left">
             <thead className="bg-gray-50 border-b border-gray-100">
                <tr>
@@ -571,27 +678,7 @@ export const OrgFinancials = () => {
                        </td>
                        <td className="px-8 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                           {!isAuto ? (
-                            <button onClick={async () => {
-                              try {
-                                const linkedProjectionRows = expenseProjections.filter((p) => p.executedTransactionId === t.id);
-                                await deleteTransaction(t.id);
-                                linkedProjectionRows.forEach((row) => {
-                                  if (row.source === 'STOCK' || row.source === 'MOVEMENT') {
-                                    deleteProjectionItem(row.id);
-                                    return;
-                                  }
-                                  updateProjectionItem(row.id, {
-                                    isExecuted: false,
-                                    executedTransactionId: undefined,
-                                    previousRentValue: undefined
-                                  });
-                                });
-                                await fetchFinancialData();
-                              } catch (error) {
-                                console.error("Erro ao remover transacao:", error);
-                                alert("Nao foi possivel remover a transacao.");
-                              }
-                            }} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                            <button onClick={() => setPendingDeleteTransaction(t)} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
                           ) : (
                             <span className="text-[9px] text-gray-300 font-bold uppercase">Gerenciado em Inscritos</span>
                           )}
@@ -610,8 +697,34 @@ export const OrgFinancials = () => {
             </tbody>
          </table>
       </div>
+
+      {pendingDeleteTransaction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setPendingDeleteTransaction(null)} />
+          <div className="relative z-10 w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl">
+            <h3 className="text-xl font-black text-gray-900">Excluir lancamento?</h3>
+            <p className="mt-2 text-sm text-gray-500">
+              Deseja realmente excluir esse lancamento? Esta acao nao pode ser desfeita.
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => setPendingDeleteTransaction(null)}
+                className="flex-1 rounded-xl bg-gray-100 py-3 font-bold text-gray-600 hover:bg-gray-200 transition-colors"
+                disabled={isDeletingTransaction}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDeleteTransaction}
+                className="flex-1 rounded-xl bg-red-600 py-3 font-black text-white hover:bg-red-700 transition-colors disabled:opacity-70"
+                disabled={isDeletingTransaction}
+              >
+                {isDeletingTransaction ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-
-

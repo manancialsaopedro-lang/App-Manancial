@@ -1,13 +1,13 @@
-
+﻿
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ShoppingCart, Package, Plus, Minus, Trash2, Search, User, ClipboardList, CheckCircle, Wallet, ArrowRight, X, AlertTriangle, Settings } from 'lucide-react';
+import { ShoppingCart, Package, Plus, Minus, Trash2, Search, User, ClipboardList, CheckCircle, Wallet, ArrowRight, X, AlertTriangle, Settings, Pencil } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../../store';
 import { Card } from '../../components/Shared';
 import { Product, PaymentMethod, Person, Sale, SaleItem } from '../../types';
 import { listProducts, updateProduct as updateProductApi } from '../../lib/api/products';
 import { listPeople } from '../../lib/api/people';
-import { listSales, createSale, updateSale } from '../../lib/api/sales';
+import { listSales, createSale, updateSale, deleteSale } from '../../lib/api/sales';
 import { createTransaction } from '../../lib/api/transactions';
 
 export const OrgCanteen = () => {
@@ -29,13 +29,13 @@ export const OrgCanteen = () => {
   const [personSearch, setPersonSearch] = useState("");
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
 
-  // Estado Modal de Confirmação (Review Venda Direta)
+  // Estado Modal de Confirmacao (Review Venda Direta)
   const [reviewModal, setReviewModal] = useState<{ show: boolean, method: PaymentMethod | null }>({ show: false, method: null });
 
-  // Estado Gerenciamento Pendências
+  // Estado Gerenciamento Pendencias
   const [selectedDebtorId, setSelectedDebtorId] = useState<string | null>(null);
   
-  // Estado Modal de Pagamento de Pendência (Configurado em Passos)
+  // Estado Modal de Pagamento de Pendencia (Configurado em Passos)
   const [paymentModal, setPaymentModal] = useState<{ 
     show: boolean, 
     step: 'SELECT_METHOD' | 'CONFIRM',
@@ -44,6 +44,8 @@ export const OrgCanteen = () => {
     amount: number,
     method?: PaymentMethod 
   }>({ show: false, step: 'SELECT_METHOD', type: 'ALL', amount: 0 });
+  const [isDebtActionLoading, setIsDebtActionLoading] = useState(false);
+  const [debtFeedback, setDebtFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const fetchCanteenData = useCallback(async () => {
     try {
@@ -80,7 +82,7 @@ export const OrgCanteen = () => {
     setSearchParams(next, { replace: true });
   };
 
-  // --- LÓGICA PDV ---
+  // --- LOGICA PDV ---
   const addToCart = (p: Product) => {
     if (p.stock <= 0) return alert("Sem estoque!");
     setCart(prev => {
@@ -101,8 +103,8 @@ export const OrgCanteen = () => {
 
   const initiateCheckout = (method: PaymentMethod) => {
     if (cart.length === 0) return;
-    if (method === 'Pendência' && !selectedPerson) {
-      alert("Para marcar como pendência, é obrigatório selecionar uma pessoa.");
+    if (method === 'Pendencia' && !selectedPerson) {
+      alert("Para marcar como pendencia, e obrigatorio selecionar uma pessoa.");
       return;
     }
     setReviewModal({ show: true, method });
@@ -184,7 +186,8 @@ export const OrgCanteen = () => {
       .slice(0, 5); 
   }, [personSearch, people]);
 
-  // --- LÓGICA PENDÊNCIAS ---
+
+  // --- LOGICA PENDENCIAS ---
   const debtors = useMemo(() => {
     const map: Record<string, { personName: string, totalDebt: number, sales: Sale[] }> = {};
     
@@ -201,6 +204,110 @@ export const OrgCanteen = () => {
   }, [sales]);
 
   const selectedDebtor = selectedDebtorId ? debtors.find(d => d.id === selectedDebtorId) : null;
+
+  const restoreStockFromItems = async (items: SaleItem[]) => {
+    const quantityByProduct: Record<string, number> = {};
+    items.forEach(item => {
+      quantityByProduct[item.productId] = (quantityByProduct[item.productId] || 0) + item.quantity;
+    });
+
+    await Promise.all(
+      Object.entries(quantityByProduct).map(async ([productId, qty]) => {
+        const product = products.find(p => p.id === productId);
+        if (!product) return;
+        await updateProductApi(productId, { stock: product.stock + qty });
+      })
+    );
+  };
+
+  const openEditDebtModal = async (sale: Sale) => {
+    const typedName = window.prompt(
+      'Digite o nome da pessoa que deve receber esta pendencia:',
+      sale.personName || ''
+    );
+    if (!typedName) return;
+
+    const normalized = typedName.trim().toLowerCase();
+    if (!normalized) return;
+
+    const exact = people.find(p => p.name.trim().toLowerCase() === normalized);
+    const partial = people.find(p => p.name.toLowerCase().includes(normalized));
+    const target = exact || partial;
+
+    if (!target) {
+      setDebtFeedback({ type: 'error', message: 'Pessoa nao encontrada. Tente novamente com um nome valido.' });
+      return;
+    }
+
+    if (sale.personId === target.id) {
+      setDebtFeedback({ type: 'error', message: 'A compra ja esta vinculada a esta pessoa.' });
+      return;
+    }
+
+    try {
+      setIsDebtActionLoading(true);
+      setDebtFeedback(null);
+      await updateSale(sale.id, {
+        personId: target.id,
+        personName: target.name
+      });
+      await fetchCanteenData();
+      setDebtFeedback({ type: 'success', message: `Pendencia transferida para ${target.name}.` });
+    } catch (error) {
+      console.error('Erro ao editar pendencia:', error);
+      setDebtFeedback({ type: 'error', message: 'Nao foi possivel editar esta pendencia.' });
+    } finally {
+      setIsDebtActionLoading(false);
+    }
+  };
+
+  const deleteSingleDebt = async (sale: Sale) => {
+    const confirmed = window.confirm(
+      `Excluir a compra pendente de ${sale.personName || 'Cliente'} no valor de R$ ${sale.total.toFixed(2)}? Esta acao vai devolver os itens ao estoque.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setIsDebtActionLoading(true);
+      setDebtFeedback(null);
+      await restoreStockFromItems(sale.items);
+      await deleteSale(sale.id);
+      await fetchCanteenData();
+      setDebtFeedback({ type: 'success', message: 'Compra pendente excluida com sucesso.' });
+    } catch (error) {
+      console.error('Erro ao excluir compra pendente:', error);
+      setDebtFeedback({ type: 'error', message: 'Nao foi possivel excluir esta compra pendente.' });
+    } finally {
+      setIsDebtActionLoading(false);
+    }
+  };
+
+  const deleteAllDebtsFromSelectedDebtor = async () => {
+    if (!selectedDebtorId || !selectedDebtor) return;
+
+    const confirmed = window.confirm(
+      `Excluir TODAS as ${selectedDebtor.sales.length} compras pendentes de ${selectedDebtor.personName}? Esta acao vai devolver os itens ao estoque.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setIsDebtActionLoading(true);
+      setDebtFeedback(null);
+
+      const allItems = selectedDebtor.sales.flatMap(sale => sale.items);
+      await restoreStockFromItems(allItems);
+      await Promise.all(selectedDebtor.sales.map(sale => deleteSale(sale.id)));
+
+      await fetchCanteenData();
+      setSelectedDebtorId(null);
+      setDebtFeedback({ type: 'success', message: 'Todas as pendencias da pessoa foram excluidas.' });
+    } catch (error) {
+      console.error('Erro ao excluir pendencias da pessoa:', error);
+      setDebtFeedback({ type: 'error', message: 'Nao foi possivel excluir todas as pendencias.' });
+    } finally {
+      setIsDebtActionLoading(false);
+    }
+  };
 
   const openPaymentModal = (type: 'SINGLE' | 'ALL', sale?: Sale, totalAmount?: number) => {
     setPaymentModal({
@@ -265,13 +372,14 @@ export const OrgCanteen = () => {
 
       await fetchCanteenData();
       setPaymentModal({ show: false, step: 'SELECT_METHOD', type: 'ALL', amount: 0 });
+      setDebtFeedback({ type: 'success', message: 'Pagamento registrado com sucesso.' });
     } catch (error) {
       console.error("Erro ao registrar pagamento:", error);
-      alert("Não foi possível registrar o pagamento.");
+      alert("Nao foi possivel registrar o pagamento.");
     }
   };
 
-  // Cálculo de itens para o resumo da confirmação
+  // Calculo de itens para o resumo da confirmacao
   const paymentSummaryItems = useMemo(() => {
     if (!selectedDebtor) return [];
     
@@ -287,14 +395,17 @@ export const OrgCanteen = () => {
   }, [paymentModal, selectedDebtor]);
 
   return (
-    <div className="space-y-6 animate-in fade-in relative">
+    <div
+      className="space-y-6 animate-in fade-in relative md:pt-0"
+      style={{ paddingTop: 'max(env(safe-area-inset-top), 0.75rem)' }}
+    >
       {/* Mobile-Friendly Tabs */}
       <div className="flex flex-col md:flex-row gap-4 mb-8">
         <button onClick={() => changeTab('pos')} className={`flex-1 py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all ${activeTab === 'pos' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>
           <ShoppingCart size={18} /> <span className="hidden md:inline">Vender (PDV)</span><span className="md:hidden">Vender</span>
         </button>
         <button onClick={() => changeTab('debts')} className={`flex-1 py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all ${activeTab === 'debts' ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>
-          <ClipboardList size={18} /> <span className="hidden md:inline">Pendências</span><span className="md:hidden">Fiado</span>
+          <ClipboardList size={18} /> <span className="hidden md:inline">Pendencias</span><span className="md:hidden">Fiado</span>
           {debtors.length > 0 && <span className="bg-white text-purple-600 px-2 py-0.5 rounded-full text-xs font-bold">{debtors.length}</span>}
         </button>
         <button onClick={() => changeTab('stock')} className={`flex-1 py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all ${activeTab === 'stock' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>
@@ -305,7 +416,7 @@ export const OrgCanteen = () => {
       {/* --- ABA POS (Venda) --- */}
       {activeTab === 'pos' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Catálogo */}
+          {/* Catalogo */}
           <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-4">
             {products.map(p => (
               <button 
@@ -328,11 +439,11 @@ export const OrgCanteen = () => {
           <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 flex flex-col h-auto lg:h-[600px] shadow-xl">
              <h3 className="font-black text-xl mb-6 flex items-center gap-2"><ShoppingCart className="text-orange-500" /> Carrinho Atual</h3>
              
-             {/* Seleção de Pessoa */}
+             {/* Selecao de Pessoa */}
              <div className="mb-6 relative">
                <div className="flex items-center gap-2 mb-2">
                  <User size={16} className="text-gray-400" />
-                 <span className="text-xs font-bold uppercase text-gray-400">Cliente (Opcional para à vista)</span>
+                 <span className="text-xs font-bold uppercase text-gray-400">Cliente (Opcional para a vista)</span>
                </div>
                
                {!selectedPerson ? (
@@ -388,14 +499,14 @@ export const OrgCanteen = () => {
                 <div className="grid grid-cols-2 gap-3">
                    <button onClick={() => initiateCheckout('Dinheiro')} className="py-3 rounded-xl bg-emerald-100 text-emerald-700 font-black hover:bg-emerald-200 transition-colors text-xs">DINHEIRO</button>
                    <button onClick={() => initiateCheckout('Pix')} className="py-3 rounded-xl bg-gray-900 text-white font-black hover:bg-black transition-colors text-xs">PIX</button>
-                   <button onClick={() => initiateCheckout('Crédito')} className="py-3 rounded-xl bg-blue-100 text-blue-700 font-black hover:bg-blue-200 transition-colors text-xs">CRÉDITO</button>
-                   <button onClick={() => initiateCheckout('Débito')} className="py-3 rounded-xl bg-orange-100 text-orange-700 font-black hover:bg-orange-200 transition-colors text-xs">DÉBITO</button>
+                   <button onClick={() => initiateCheckout('Credito')} className="py-3 rounded-xl bg-blue-100 text-blue-700 font-black hover:bg-blue-200 transition-colors text-xs">CREDITO</button>
+                   <button onClick={() => initiateCheckout('Debito')} className="py-3 rounded-xl bg-orange-100 text-orange-700 font-black hover:bg-orange-200 transition-colors text-xs">DEBITO</button>
                    <button 
-                      onClick={() => initiateCheckout('Pendência')} 
+                      onClick={() => initiateCheckout('Pendencia')} 
                       disabled={!selectedPerson}
                       className="col-span-2 py-3 rounded-xl bg-purple-100 text-purple-700 font-black hover:bg-purple-200 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
                    >
-                      <ClipboardList size={16} /> PENDÊNCIA (FIADO)
+                      <ClipboardList size={16} /> PENDENCIA (FIADO)
                    </button>
                 </div>
              </div>
@@ -403,13 +514,18 @@ export const OrgCanteen = () => {
         </div>
       )}
 
-      {/* --- ABA GERENCIAR PENDÊNCIAS --- */}
+      {/* --- ABA GERENCIAR PENDENCIAS --- */}
       {activeTab === 'debts' && (
         <div className="relative">
+          {debtFeedback && (
+            <div className={`mb-4 rounded-2xl border px-4 py-3 text-sm font-semibold ${debtFeedback.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+              {debtFeedback.message}
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {debtors.length === 0 && (
               <div className="col-span-full text-center py-20 text-gray-400 font-medium">
-                 Nenhuma pendência em aberto no momento.
+                 Nenhuma pendencia em aberto no momento.
               </div>
             )}
             {debtors.map(debtor => (
@@ -458,7 +574,7 @@ export const OrgCanteen = () => {
                   </div>
 
                   <div className="mb-8 p-6 bg-gray-900 text-white rounded-[2rem] flex flex-col items-center text-center">
-                     <span className="text-gray-400 font-bold uppercase text-xs mb-2">Dívida Total Acumulada</span>
+                     <span className="text-gray-400 font-bold uppercase text-xs mb-2">Divida Total Acumulada</span>
                      <span className="text-5xl font-black mb-6">R$ {selectedDebtor.totalDebt.toFixed(2)}</span>
                      <button 
                        onClick={() => openPaymentModal('ALL', undefined, selectedDebtor.totalDebt)}
@@ -466,15 +582,22 @@ export const OrgCanteen = () => {
                      >
                        <CheckCircle size={18} /> QUITAR TUDO
                      </button>
+                     <button 
+                       onClick={deleteAllDebtsFromSelectedDebtor}
+                       className="w-full mt-3 py-4 bg-red-500 hover:bg-red-400 text-white rounded-xl font-black transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                       disabled={isDebtActionLoading}
+                     >
+                       <Trash2 size={18} /> EXCLUIR TUDO
+                     </button>
                   </div>
 
-                  <h3 className="font-black text-gray-900 text-lg mb-4 flex items-center gap-2"><ClipboardList size={20} /> Histórico de Compras</h3>
+                  <h3 className="font-black text-gray-900 text-lg mb-4 flex items-center gap-2"><ClipboardList size={20} /> Historico de Compras</h3>
                   <div className="space-y-4">
                      {selectedDebtor.sales.map(sale => (
                        <div key={sale.id} className="border border-gray-100 rounded-2xl p-4 hover:bg-gray-50 transition-colors">
                           <div className="flex justify-between items-start mb-3">
                              <div className="text-xs text-gray-400 font-bold">
-                                {new Date(sale.date).toLocaleDateString()} às {new Date(sale.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                {new Date(sale.date).toLocaleDateString()} as {new Date(sale.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                              </div>
                              <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Pendente</span>
                           </div>
@@ -488,14 +611,31 @@ export const OrgCanteen = () => {
                              ))}
                           </div>
 
-                          <div className="pt-3 border-t border-gray-100 flex justify-between items-center">
+                          <div className="pt-3 border-t border-gray-100 flex flex-col gap-3">
                              <span className="font-black text-gray-900">Total: R$ {sale.total.toFixed(2)}</span>
-                             <button 
-                               onClick={() => openPaymentModal('SINGLE', sale)}
-                               className="px-4 py-2 bg-white border-2 border-gray-200 hover:border-emerald-500 hover:text-emerald-600 text-gray-500 rounded-xl text-xs font-bold transition-all"
-                             >
-                               Pagar esta compra
-                             </button>
+                             <div className="grid grid-cols-3 gap-2">
+                               <button
+                                 onClick={() => openEditDebtModal(sale)}
+                                 className="px-2 py-2 bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 disabled:opacity-60"
+                                 disabled={isDebtActionLoading}
+                               >
+                                 <Pencil size={13} /> Editar
+                               </button>
+                               <button
+                                 onClick={() => deleteSingleDebt(sale)}
+                                 className="px-2 py-2 bg-red-50 text-red-700 border border-red-100 hover:bg-red-100 rounded-xl text-[11px] font-bold transition-all disabled:opacity-60"
+                                 disabled={isDebtActionLoading}
+                               >
+                                 Excluir
+                               </button>
+                               <button 
+                                 onClick={() => openPaymentModal('SINGLE', sale)}
+                                 className="px-2 py-2 bg-white border border-gray-200 hover:border-emerald-500 hover:text-emerald-600 text-gray-600 rounded-xl text-[11px] font-bold transition-all disabled:opacity-60"
+                                 disabled={isDebtActionLoading}
+                               >
+                                 Pagar
+                               </button>
+                             </div>
                           </div>
                        </div>
                      ))}
@@ -506,7 +646,7 @@ export const OrgCanteen = () => {
         </div>
       )}
 
-      {/* --- ABA ESTOQUE (AGORA COM EDITOR AVANÇADO) --- */}
+      {/* --- ABA ESTOQUE (AGORA COM EDITOR AVANCADO) --- */}
       {activeTab === 'stock' && (
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row justify-end gap-3">
@@ -516,7 +656,7 @@ export const OrgCanteen = () => {
             >
                <Settings size={18} /> Editor de Estoque Completo
             </button>
-            <button onClick={() => navigate('/org/canteen/stock/new')} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2"><Plus size={18} /> Cadastrar Rápido</button>
+            <button onClick={() => navigate('/org/canteen/stock/new')} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2"><Plus size={18} /> Cadastrar Rapido</button>
           </div>
 
           <div className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden">
@@ -526,7 +666,7 @@ export const OrgCanteen = () => {
                       <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400">Produto</th>
                       <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 text-center">Estoque</th>
                       <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 text-right">Venda</th>
-                      <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 text-center">Ajuste Rápido</th>
+                      <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 text-center">Ajuste Rapido</th>
                    </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -564,7 +704,7 @@ export const OrgCanteen = () => {
         </div>
       )}
 
-      {/* MODAL DE REVISÃO DE PEDIDO DIRETO */}
+      {/* MODAL DE REVISAO DE PEDIDO DIRETO */}
       {reviewModal.show && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setReviewModal({ show: false, method: null })} />
@@ -580,8 +720,8 @@ export const OrgCanteen = () => {
                     <span className="font-black text-gray-900">{selectedPerson ? selectedPerson.name : 'Venda Avulsa'}</span>
                  </div>
                  <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                    <span className="text-gray-500 font-bold text-xs uppercase">Método</span>
-                    <span className={`font-black uppercase text-xs px-2 py-1 rounded ${reviewModal.method === 'Pendência' ? 'bg-purple-100 text-purple-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                    <span className="text-gray-500 font-bold text-xs uppercase">Metodo</span>
+                    <span className={`font-black uppercase text-xs px-2 py-1 rounded ${reviewModal.method === 'Pendencia' ? 'bg-purple-100 text-purple-600' : 'bg-emerald-100 text-emerald-600'}`}>
                       {reviewModal.method}
                     </span>
                  </div>
@@ -608,13 +748,13 @@ export const OrgCanteen = () => {
         </div>
       )}
 
-      {/* MODAL DE PAGAMENTO DE DÍVIDA (MULTI-STEP) */}
+      {/* MODAL DE PAGAMENTO DE DIVIDA (MULTI-STEP) */}
       {paymentModal.show && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setPaymentModal({ ...paymentModal, show: false })} />
            <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm relative z-10 p-8 animate-in zoom-in-95">
               
-              {/* PASSO 1: SELECIONAR MÉTODO */}
+              {/* PASSO 1: SELECIONAR METODO */}
               {paymentModal.step === 'SELECT_METHOD' && (
                 <>
                   <h2 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2">
@@ -625,13 +765,13 @@ export const OrgCanteen = () => {
                      <span className="text-gray-400 font-bold uppercase text-xs">Valor a Receber</span>
                      <div className="text-4xl font-black text-emerald-600 my-2">R$ {paymentModal.amount.toFixed(2)}</div>
                      <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">
-                        {paymentModal.type === 'ALL' ? 'Quitação Total' : 'Pagamento de Compra Única'}
+                        {paymentModal.type === 'ALL' ? 'Quitacao Total' : 'Pagamento de Compra Unica'}
                      </span>
                   </div>
 
-                  <p className="text-xs font-bold text-gray-400 uppercase mb-3">Selecione o Método:</p>
+                  <p className="text-xs font-bold text-gray-400 uppercase mb-3">Selecione o Metodo:</p>
                   <div className="grid grid-cols-2 gap-3 mb-6">
-                     {['Pix', 'Dinheiro', 'Crédito', 'Débito'].map(m => (
+                     {['Pix', 'Dinheiro', 'Credito', 'Debito'].map(m => (
                        <button 
                          key={m}
                          onClick={() => selectPaymentMethod(m as PaymentMethod)}
@@ -646,13 +786,13 @@ export const OrgCanteen = () => {
                 </>
               )}
 
-              {/* PASSO 2: CONFIRMAÇÃO DO RECEBIMENTO */}
+              {/* PASSO 2: CONFIRMACAO DO RECEBIMENTO */}
               {paymentModal.step === 'CONFIRM' && (
                 <>
                   <h2 className="text-xl font-black text-gray-900 mb-2 flex items-center gap-2">
                      <CheckCircle className="text-emerald-500" /> Confirmar?
                   </h2>
-                  <p className="text-gray-500 text-sm mb-6">Verifique os dados antes de lançar no caixa.</p>
+                  <p className="text-gray-500 text-sm mb-6">Verifique os dados antes de lancar no caixa.</p>
 
                   <div className="bg-gray-50 rounded-2xl p-4 mb-6 space-y-3">
                      <div className="flex justify-between items-center border-b border-gray-200 pb-2">
@@ -660,7 +800,7 @@ export const OrgCanteen = () => {
                         <span className="font-black text-gray-900">{selectedDebtor?.personName}</span>
                      </div>
                      <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                        <span className="text-gray-500 font-bold text-xs uppercase">Método</span>
+                        <span className="text-gray-500 font-bold text-xs uppercase">Metodo</span>
                         <span className="font-black text-gray-900 uppercase">{paymentModal.method}</span>
                      </div>
                      

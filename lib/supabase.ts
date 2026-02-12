@@ -67,17 +67,25 @@ export const supabase = (): SupabaseClient => {
   return client;
 };
 
+const getAuthRedirectUrl = () => {
+  const configured = getEnv("VITE_SUPABASE_REDIRECT_URL");
+  if (configured) return configured;
+
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return `${window.location.origin}/#/auth/confirm`;
+};
+
 export const signInWithGoogle = async () => {
-  const redirectTo =
-    getEnv("VITE_SUPABASE_REDIRECT_URL") ||
-    (typeof window !== "undefined"
-      ? `${window.location.origin}/auth/callback`
-      : "");
+  const redirectTo = getAuthRedirectUrl();
 
   return supabase().auth.signInWithOAuth({
     provider: "google",
     options: {
       redirectTo,
+      skipBrowserRedirect: true,
     },
   });
 };
@@ -89,6 +97,7 @@ export const signUpWithEmail = async (email: string, password: string, name?: st
     email,
     password,
     options: {
+      emailRedirectTo: getAuthRedirectUrl(),
       data: {
         name: name || undefined,
         full_name: name || undefined

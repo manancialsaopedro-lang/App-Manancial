@@ -148,30 +148,38 @@ export const OrgDashboard = () => {
   );
 
   const renderCollectedCard = () => (
-    <Card className="p-6 h-full border hover:border-emerald-200 transition-colors bg-white relative overflow-hidden">
-      <div className="flex justify-between items-start mb-2 relative z-10">
-         <div className="flex items-center gap-3 text-emerald-500">
-            <Wallet size={24} />
-            <span className="font-bold uppercase text-xs tracking-widest text-gray-400">Arrecadado</span>
-         </div>
+    <Card className="p-6 h-full border border-emerald-100 hover:border-emerald-300 transition-colors bg-gradient-to-br from-white to-emerald-50/40 relative overflow-hidden">
+      <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-emerald-100/70 blur-2xl" />
+      <div className="flex justify-between items-start mb-3 relative z-10">
+        <div className="flex items-center gap-3 text-emerald-500">
+          <Wallet size={22} />
+          <span className="font-bold uppercase text-xs tracking-widest text-emerald-700">Arrecadada</span>
+        </div>
+        <span className="text-[11px] px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 font-black">
+          {totalExpectedRevenue > 0 ? ((totalCollectedRevenue / totalExpectedRevenue) * 100).toFixed(1) : '0.0'}%
+        </span>
       </div>
-      <span className="text-3xl font-black text-gray-900 relative z-10">R$ {totalCollectedRevenue.toLocaleString('pt-BR', { notation: 'compact' })}</span>
-      <div className="mt-4 w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-         <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${totalExpectedRevenue > 0 ? (totalCollectedRevenue/totalExpectedRevenue)*100 : 0}%` }} />
+      <span className="text-3xl font-black text-gray-900 relative z-10">
+        R$ {totalCollectedRevenue.toLocaleString('pt-BR', { notation: 'compact' })}
+      </span>
+      <p className="mt-1 text-xs text-gray-500 font-semibold">Entrada confirmada das inscricoes</p>
+      <div className="mt-4 w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+        <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${totalExpectedRevenue > 0 ? (totalCollectedRevenue/totalExpectedRevenue)*100 : 0}%` }} />
       </div>
     </Card>
   );
 
   const renderForecastCard = () => (
-    <Card className="p-6 h-full border hover:border-blue-200 transition-colors bg-white">
+    <Card className="p-6 h-full border border-blue-100 hover:border-blue-300 transition-colors bg-gradient-to-br from-white to-blue-50/50">
       <div className="flex justify-between items-start mb-2">
-         <div className="flex items-center gap-3 text-gray-400">
-            <DollarSign size={24} />
-            <span className="font-bold uppercase text-xs tracking-widest text-gray-400">Potencial</span>
+         <div className="flex items-center gap-3 text-blue-600">
+            <DollarSign size={22} />
+            <span className="font-bold uppercase text-xs tracking-widest text-blue-700">Potencial a Receber</span>
          </div>
       </div>
       <span className="text-3xl font-black text-gray-900">R$ {totalExpectedRevenue.toLocaleString('pt-BR', { notation: 'compact' })}</span>
-      <p className="text-xs text-gray-400 mt-2 font-medium">Receita máx. estimada</p>
+      <p className="text-xs text-gray-500 mt-2 font-semibold">Meta total prevista de inscricoes</p>
+      <p className="text-[11px] text-gray-500 mt-1 font-bold">Falta receber: R$ {remainingRevenue.toLocaleString('pt-BR', { notation: 'compact' })}</p>
     </Card>
   );
 
@@ -279,8 +287,8 @@ export const OrgDashboard = () => {
   );
 
   const renderAdherenceCard = () => (
-    <Card className="h-full p-8 flex flex-col justify-center items-center relative overflow-hidden bg-white">
-       <h3 className="text-sm font-black text-gray-900 mb-6 w-full text-left relative z-10 uppercase tracking-wide">Aderência</h3>
+    <Card className="h-full p-8 flex flex-col justify-center items-center relative overflow-hidden bg-gradient-to-br from-white to-indigo-50/40 border border-indigo-100">
+       <h3 className="text-sm font-black text-indigo-700 mb-6 w-full text-left relative z-10 uppercase tracking-wide">Aderencia</h3>
        
        <div className="relative w-full max-w-[160px] aspect-square flex items-center justify-center z-10">
           <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
@@ -300,9 +308,10 @@ export const OrgDashboard = () => {
             <span className="text-3xl font-black text-gray-900">{Math.round(adherenceRate * 100)}%</span>
           </div>
        </div>
-       <p className="text-xs font-bold text-gray-400 mt-4 text-center">
+       <p className="text-xs font-bold text-gray-500 mt-3 text-center">
          {paidPeople}/{totalPeople} pagos
        </p>
+       <p className="text-[11px] font-semibold text-gray-500 mt-1 text-center">{pendingPeople} pendente(s) para fechamento</p>
     </Card>
   );
 
