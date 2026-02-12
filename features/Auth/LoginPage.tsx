@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Shield, Mail, Lock, ArrowRight, Chrome, Info, User, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { isSupabaseConfigured, signInWithEmailPassword, signInWithGoogle, signUpWithEmail } from '../../lib/supabase';
-import { InstallPWAButton } from '../../components/InstallPWAButton';
 
 type NoticeType = 'success' | 'error' | 'info';
 
@@ -153,8 +152,6 @@ export const LoginPage = () => {
               <span>{notice.message}</span>
             </div>
           )}
-
-          {isRegister && !showRegisterSuccess && <InstallPWAButton />}
 
           {showRegisterSuccess ? (
             <div className="text-center">

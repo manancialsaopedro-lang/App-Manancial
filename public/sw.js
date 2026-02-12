@@ -1,12 +1,16 @@
-const SHELL_CACHE = 'manancial-shell-v1';
-const RUNTIME_CACHE = 'manancial-runtime-v1';
+const SHELL_CACHE = 'manancial-shell-v3';
+const RUNTIME_CACHE = 'manancial-runtime-v3';
 
 const APP_SHELL = [
   '/',
   '/index.html',
   '/index.css',
   '/manifest.webmanifest',
-  '/offline.html'
+  '/offline.html',
+  '/env.js',
+  '/icons/icon-180.png',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -50,8 +54,14 @@ async function networkFirst(request) {
     cache.put(request, fresh.clone());
     return fresh;
   } catch (error) {
-    const cache = await caches.open(SHELL_CACHE);
-    const fallback = await cache.match('/offline.html') || await cache.match('/index.html');
+    const runtimeCache = await caches.open(RUNTIME_CACHE);
+    const runtimeMatch = await runtimeCache.match(request);
+    if (runtimeMatch) {
+      return runtimeMatch;
+    }
+
+    const shellCache = await caches.open(SHELL_CACHE);
+    const fallback = await shellCache.match('/index.html') || await shellCache.match('/offline.html');
     return fallback || Response.error();
   }
 }

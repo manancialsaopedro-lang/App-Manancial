@@ -161,20 +161,20 @@ root.render(
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    if (import.meta.env.PROD) {
-      navigator.serviceWorker
-        .register('/sw.js')
-        .then((registration) => {
-          console.log('Service worker registrado:', registration.scope);
-        })
-        .catch((error) => {
-          console.error('Falha ao registrar service worker:', error);
-        });
-      return;
-    }
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((registration) => {
+        console.log('Service worker registrado:', registration.scope);
+        registration.update();
 
-    navigator.serviceWorker.getRegistrations().then((registrations) => {
-      registrations.forEach((registration) => registration.unregister());
-    });
+        // Ensures the current page becomes controlled after first install.
+        if (!navigator.serviceWorker.controller && !sessionStorage.getItem('sw-reloaded')) {
+          sessionStorage.setItem('sw-reloaded', '1');
+          window.location.reload();
+        }
+      })
+      .catch((error) => {
+        console.error('Falha ao registrar service worker:', error);
+      });
   });
 }

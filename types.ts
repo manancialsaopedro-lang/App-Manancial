@@ -97,6 +97,7 @@ export interface Product {
   stock: number;
   minStock: number;
   category: string;
+  isActive?: boolean;
 }
 
 export interface SaleItem {
@@ -234,3 +235,5 @@ export interface AppState {
 
   toggleTheme: () => void;
 }
+
+

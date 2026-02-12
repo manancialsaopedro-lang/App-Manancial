@@ -1,12 +1,21 @@
 {
   "name": "App Manancial",
   "short_name": "Manancial",
-  "start_url": "/#/",
+  "description": "Aplicativo de gestao do Acampamento Manancial.",
+  "id": "/",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
   "icons": [
+    {
+      "src": "/icons/icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "/icons/icon-192.png",
       "sizes": "192x192",

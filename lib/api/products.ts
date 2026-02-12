@@ -14,9 +14,11 @@ type ProductDbRow = {
   min_stock?: number | null;
   minStock?: number | null;
   category?: string | null;
+  is_active?: boolean | null;
+  isActive?: boolean | null;
 };
 
-const PRODUCTS_SELECT = "id,name,cost_price,sell_price,stock,min_stock,category";
+const PRODUCTS_SELECT = "id,name,cost_price,sell_price,stock,min_stock,category,is_active";
 
 const createRandomId = (): string => {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -33,6 +35,7 @@ const fromDb = (row: ProductDbRow): Product => ({
   stock: Number(row.stock ?? 0),
   minStock: Number(row.min_stock ?? row.minStock ?? 0),
   category: row.category ?? "Geral",
+  isActive: row.is_active ?? row.isActive ?? true,
 });
 
 const toDb = (payload: Partial<Product>) => {
@@ -45,6 +48,7 @@ const toDb = (payload: Partial<Product>) => {
   if (payload.stock !== undefined) row.stock = payload.stock;
   if (payload.minStock !== undefined) row.min_stock = payload.minStock;
   if (payload.category !== undefined) row.category = payload.category;
+  if (payload.isActive !== undefined) row.is_active = payload.isActive;
 
   return row;
 };
@@ -64,7 +68,11 @@ const handleProductsError = (action: string, rawError: unknown): Error => {
 };
 
 export const listProducts = async (): Promise<Product[]> => {
-  const { data, error } = await supabase().from(TABLE).select(PRODUCTS_SELECT).order("name", { ascending: true });
+  const { data, error } = await supabase()
+    .from(TABLE)
+    .select(PRODUCTS_SELECT)
+    .eq("is_active", true)
+    .order("name", { ascending: true });
 
   if (error) throw handleProductsError("Nao foi possivel listar produtos", error);
   return ((data ?? []) as ProductDbRow[]).map(fromDb);
@@ -101,4 +109,10 @@ export const deleteProduct = async (id: string): Promise<void> => {
   const { error } = await supabase().from(TABLE).delete().eq("id", id);
 
   if (error) throw handleProductsError("Nao foi possivel remover produto", error);
+};
+
+export const archiveProduct = async (id: string): Promise<void> => {
+  const { error } = await supabase().from(TABLE).update({ is_active: false }).eq("id", id);
+
+  if (error) throw handleProductsError("Nao foi possivel arquivar produto", error);
 };

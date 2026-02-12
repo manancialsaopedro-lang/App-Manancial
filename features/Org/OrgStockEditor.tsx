@@ -1,16 +1,23 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Search, Trash2, AlertTriangle, CheckCircle, X } from 'lucide-react';
+import { ArrowLeft, Search, Trash2, AlertTriangle, CheckCircle, X, Plus } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { Product } from '../../types';
-import { deleteProduct as deleteProductApi, listProducts, upsertProduct } from '../../lib/api/products';
+import { archiveProduct, createProduct, listProducts, upsertProduct } from '../../lib/api/products';
 import { createTransaction, listTransactions } from '../../lib/api/transactions';
+
+const LOW_STOCK_THRESHOLD = 5;
 
 export const OrgStockEditor = () => {
   const navigate = useNavigate();
-  const { products, setProducts, updateProduct, setTransactions, addProjectionEntry } = useAppStore();
+  const { products, setProducts, updateProduct, setTransactions, addProjectionEntry, deleteProduct } = useAppStore();
   const [search, setSearch] = useState('');
   const [showStockCostReview, setShowStockCostReview] = useState(false);
+  const [pendingDeleteProduct, setPendingDeleteProduct] = useState<Product | null>(null);
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const deletingProductIdRef = useRef<string | null>(null);
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -39,27 +46,69 @@ export const OrgStockEditor = () => {
      return ((sell - cost) / sell) * 100;
   };
 
-  const commitProductUpdate = async (product: Product) => {
+  const commitProductUpdate = async (productId: string) => {
+    if (deletingProductIdRef.current === productId) return;
+
+    const product = products.find((item) => item.id === productId);
+    if (!product) return;
+
     try {
       await upsertProduct(product);
+      if (deletingProductIdRef.current === productId) return;
       await fetchProducts();
     } catch (error) {
       console.error("Erro ao salvar produto:", error);
-      alert("Não foi possível salvar o produto.");
+      alert("Nao foi possivel salvar o produto.");
     }
   };
 
-  const handleDeleteProduct = async (product: Product) => {
-    const confirmed = window.confirm(`Excluir "${product.name}" do estoque?`);
-    if (!confirmed) return;
+  const handleDeleteProduct = (product: Product) => {
+    setDeleteError(null);
+    setPendingDeleteProduct(product);
+  };
+
+  const confirmDeleteProduct = async () => {
+    if (!pendingDeleteProduct) return;
+
+    deletingProductIdRef.current = pendingDeleteProduct.id;
+    setIsDeletingProduct(true);
 
     try {
-      await deleteProductApi(product.id);
-      setProducts(products.filter(p => p.id !== product.id));
+      await archiveProduct(pendingDeleteProduct.id);
+      deleteProduct(pendingDeleteProduct.id);
       await fetchProducts();
+      setPendingDeleteProduct(null);
     } catch (error) {
       console.error("Erro ao remover produto:", error);
-      alert("Nao foi possivel remover o produto.");
+      const message = error instanceof Error ? error.message : "Erro desconhecido";
+      setDeleteError(`Nao foi possivel remover o produto. Motivo: ${message}`);
+    } finally {
+      setIsDeletingProduct(false);
+      deletingProductIdRef.current = null;
+    }
+  };
+
+  const handleAddProduct = async () => {
+    if (isAddingProduct) return;
+
+    setIsAddingProduct(true);
+    try {
+      const now = new Date();
+      const code = `${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}`;
+      await createProduct({
+        name: `Novo Produto ${code}`,
+        category: 'Geral',
+        stock: 0,
+        minStock: LOW_STOCK_THRESHOLD,
+        costPrice: 0,
+        sellPrice: 0,
+      });
+      await fetchProducts();
+    } catch (error) {
+      console.error('Erro ao adicionar produto:', error);
+      alert('Nao foi possivel adicionar produto.');
+    } finally {
+      setIsAddingProduct(false);
     }
   };
 
@@ -155,6 +204,14 @@ export const OrgStockEditor = () => {
         >
           Registrar Gasto do Estoque Atual
         </button>
+        <button
+          onClick={handleAddProduct}
+          disabled={isAddingProduct}
+          className="w-full md:w-auto px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-60"
+        >
+          <Plus size={16} />
+          {isAddingProduct ? 'Adicionando...' : 'Adicionar Linha'}
+        </button>
       </div>
 
       <div className="md:hidden space-y-3">
@@ -167,13 +224,13 @@ export const OrgStockEditor = () => {
                   <input
                     value={p.name}
                     onChange={(e) => updateProduct(p.id, { name: e.target.value })}
-                    onBlur={() => commitProductUpdate(p)}
+                    onBlur={() => commitProductUpdate(p.id)}
                     className="w-full bg-transparent font-black text-base outline-none border-b border-transparent focus:border-blue-500"
                   />
                   <input
                     value={p.category}
                     onChange={(e) => updateProduct(p.id, { category: e.target.value })}
-                    onBlur={() => commitProductUpdate(p)}
+                    onBlur={() => commitProductUpdate(p.id)}
                     className="w-full bg-transparent font-medium text-gray-500 text-sm outline-none border-b border-transparent focus:border-blue-500"
                   />
 
@@ -182,15 +239,15 @@ export const OrgStockEditor = () => {
                        type="number"
                        value={p.stock}
                        onChange={(e) => updateProduct(p.id, { stock: Number(e.target.value) })}
-                       onBlur={() => commitProductUpdate(p)}
-                       className={`w-full rounded-lg py-2 px-2 text-center font-bold text-sm outline-none focus:ring-2 focus:ring-blue-200 ${p.stock < p.minStock ? 'text-red-500 bg-red-50' : 'text-gray-900 bg-gray-50'}`}
+                       onBlur={() => commitProductUpdate(p.id)}
+                       className={`w-full rounded-lg py-2 px-2 text-center font-bold text-sm outline-none focus:ring-2 focus:ring-blue-200 ${p.stock < LOW_STOCK_THRESHOLD ? 'text-red-500 bg-red-50' : 'text-gray-900 bg-gray-50'}`}
                      />
                      <input
                        type="number"
                        step="0.01"
                        value={p.costPrice}
                        onChange={(e) => updateProduct(p.id, { costPrice: Number(e.target.value) })}
-                       onBlur={() => commitProductUpdate(p)}
+                       onBlur={() => commitProductUpdate(p.id)}
                        className="w-full border border-gray-200 rounded-lg py-2 px-2 text-center font-medium text-sm outline-none focus:border-blue-500"
                      />
                      <input
@@ -198,7 +255,7 @@ export const OrgStockEditor = () => {
                        step="0.01"
                        value={p.sellPrice}
                        onChange={(e) => updateProduct(p.id, { sellPrice: Number(e.target.value) })}
-                       onBlur={() => commitProductUpdate(p)}
+                       onBlur={() => commitProductUpdate(p.id)}
                        className="w-full border border-gray-200 rounded-lg py-2 px-2 text-center font-black text-sm outline-none focus:border-blue-500"
                      />
                   </div>
@@ -246,7 +303,7 @@ export const OrgStockEditor = () => {
                              <input 
                                value={p.name}
                                onChange={(e) => updateProduct(p.id, { name: e.target.value })}
-                               onBlur={() => commitProductUpdate(p)}
+                               onBlur={() => commitProductUpdate(p.id)}
                                className="w-full bg-transparent font-bold text-gray-900 outline-none border-b border-transparent focus:border-blue-500 transition-all"
                              />
                           </td>
@@ -254,7 +311,7 @@ export const OrgStockEditor = () => {
                              <input 
                                value={p.category}
                                onChange={(e) => updateProduct(p.id, { category: e.target.value })}
-                               onBlur={() => commitProductUpdate(p)}
+                               onBlur={() => commitProductUpdate(p.id)}
                                className="w-full bg-transparent font-medium text-gray-500 text-sm outline-none border-b border-transparent focus:border-blue-500 transition-all"
                              />
                           </td>
@@ -263,8 +320,8 @@ export const OrgStockEditor = () => {
                                type="number"
                                value={p.stock}
                                onChange={(e) => updateProduct(p.id, { stock: Number(e.target.value) })}
-                               onBlur={() => commitProductUpdate(p)}
-                               className={`w-full bg-gray-50 rounded-lg py-1 px-2 text-center font-bold text-sm outline-none focus:ring-2 focus:ring-blue-200 ${p.stock < p.minStock ? 'text-red-500 bg-red-50' : 'text-gray-900'}`}
+                               onBlur={() => commitProductUpdate(p.id)}
+                               className={`w-full bg-gray-50 rounded-lg py-1 px-2 text-center font-bold text-sm outline-none focus:ring-2 focus:ring-blue-200 ${p.stock < LOW_STOCK_THRESHOLD ? 'text-red-500 bg-red-50' : 'text-gray-900'}`}
                              />
                           </td>
                           <td className="px-6 py-3">
@@ -275,7 +332,7 @@ export const OrgStockEditor = () => {
                                   step="0.01"
                                   value={p.costPrice}
                                   onChange={(e) => updateProduct(p.id, { costPrice: Number(e.target.value) })}
-                                  onBlur={() => commitProductUpdate(p)}
+                                  onBlur={() => commitProductUpdate(p.id)}
                                   className="w-full bg-white border border-gray-200 rounded-lg py-1 pl-6 pr-2 text-right font-medium text-sm outline-none focus:border-blue-500"
                                 />
                              </div>
@@ -288,7 +345,7 @@ export const OrgStockEditor = () => {
                                   step="0.01"
                                   value={p.sellPrice}
                                   onChange={(e) => updateProduct(p.id, { sellPrice: Number(e.target.value) })}
-                                  onBlur={() => commitProductUpdate(p)}
+                                  onBlur={() => commitProductUpdate(p.id)}
                                   className="w-full bg-white border border-gray-200 rounded-lg py-1 pl-6 pr-2 text-right font-black text-gray-900 text-sm outline-none focus:border-blue-500"
                                 />
                              </div>
@@ -370,6 +427,55 @@ export const OrgStockEditor = () => {
           </div>
         </div>
       )}
+
+      {pendingDeleteProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setPendingDeleteProduct(null)} />
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md relative z-10 p-8 animate-in zoom-in-95">
+            <h2 className="text-2xl font-black text-gray-900 mb-2 flex items-center gap-2">
+              <AlertTriangle className="text-red-500" /> Excluir Produto?
+            </h2>
+            <p className="text-gray-500 mb-6">Confirme a exclusao do item abaixo.</p>
+
+            <div className="bg-gray-50 rounded-2xl p-4 mb-6 space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500 font-bold text-xs uppercase">Produto</span>
+                <span className="font-black text-gray-900">{pendingDeleteProduct.name}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500 font-bold text-xs uppercase">Categoria</span>
+                <span className="font-bold text-gray-700">{pendingDeleteProduct.category}</span>
+              </div>
+            </div>
+
+            {deleteError && (
+              <div className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPendingDeleteProduct(null)}
+                className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl font-bold transition-colors"
+                disabled={isDeletingProduct}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDeleteProduct}
+                className="flex-1 py-4 bg-red-600 text-white rounded-xl font-black hover:bg-red-700 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                disabled={isDeletingProduct}
+              >
+                {isDeletingProduct ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+
+
