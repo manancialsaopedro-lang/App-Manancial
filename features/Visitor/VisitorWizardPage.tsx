@@ -294,7 +294,7 @@ export const VisitorWizardPage: React.FC = () => {
                 onClick={() => setStep(1)}
                 className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-teal-500 text-white font-bold text-base shadow-lg shadow-cyan-500/30 active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
               >
-                <span>Dizer Olá</span>
+                <span>Quero me Conectar</span>
                 <ChevronRight className="w-5 h-5" />
               </button>
             </div>

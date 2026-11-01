@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Wrench, 
   X, 
@@ -24,8 +24,26 @@ export const DevToolbar: React.FC = () => {
   const [isSelectingPerson, setIsSelectingPerson] = useState(false);
   
   const navigate = useNavigate();
+  const location = useLocation();
   const { isDarkMode, people, devRole, setDevRole, simulatedPersonId, setSimulatedPersonId } = useAppStore();
   const { activeRole, simulatedPerson } = useCurrentRole();
+
+  // Ocultar completamente a barra dev no wizard de recepção de visitantes e páginas públicas
+  const pathname = (location.pathname || '').toLowerCase();
+  const hash = (typeof window !== 'undefined' && window.location.hash ? window.location.hash.toLowerCase() : '');
+  
+  const isVisitorOrPublic = 
+    pathname.includes('visitante') || 
+    pathname.includes('boas-vindas') || 
+    pathname.includes('completar-cadastro') || 
+    pathname.includes('cadastro-membro') ||
+    hash.includes('visitante') ||
+    hash.includes('boas-vindas') ||
+    hash.includes('completar-cadastro');
+
+  if (isVisitorOrPublic) {
+    return null;
+  }
 
   const rolesList: { role: UserRole; label: string; icon: any; color: string; desc: string; category: string }[] = [
     { 
