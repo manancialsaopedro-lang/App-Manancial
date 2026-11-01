@@ -1,9 +1,69 @@
 
 import { TeamId, Product, Proof, ScheduleItem, Material, ProjectionItem } from './types';
 
-export const CAMP_TOTAL_PRICE = 432;
+export const CAMP_TOTAL_PRICE = 582;
 export const INSTALLMENT_COUNT = 6;
-export const INSTALLMENT_VALUE = Math.floor(CAMP_TOTAL_PRICE / INSTALLMENT_COUNT); // R$ 72,00
+export const INSTALLMENT_VALUE = Math.round(CAMP_TOTAL_PRICE / INSTALLMENT_COUNT); // R$ 97,00
+
+// Informações Oficiais do Acampamento Manancial 2027
+export const CAMP_2027_CONFIG = {
+  title: 'Acampamento Manancial 2027',
+  year: '2027',
+  dates: 'De 05 a 09 de Fevereiro de 2027',
+  startDate: '2027-02-05',
+  endDate: '2027-02-09',
+  durationDays: 5,
+  location: 'São Pedro - SP',
+  verseReference: 'Salmos 25:14',
+  verseText: 'O segredo do Senhor é para aqueles que o temem, e ele lhes mostrará a sua aliança.',
+  theme: 'Intimidade & Aliança',
+  subtitle: 'Venha viver dias de graça, paz e renovação! Deus te espera!',
+  slogan: 'Dias inesquecíveis na presença de Deus!',
+  flyerImage: '/acampamento-2027.jpg',
+  pixKey: 'pix@igrejamanancial.com.br',
+  pricing: {
+    total: 582,
+    installments: 6,
+    installmentValue: 97,
+    paymentMethods: ['PIX', 'Cartão de Débito', 'Cartão de Crédito'] as const,
+  },
+  pillars: [
+    {
+      id: 'intimidade',
+      title: 'Intimidade com o Senhor',
+      subtitle: 'Comunhão Profunda',
+      description: 'Momentos intensos de oração no quarto secreto, quebra de rotina e proximidade espiritual genuína com o Pai.',
+      color: 'from-amber-500 to-orange-500',
+    },
+    {
+      id: 'louvor',
+      title: 'Louvor e Adoração',
+      subtitle: 'Céus Abertos',
+      description: 'Cultos ao ar livre e vigílias com ministrações proféticas que tocam o trono da graça e renovam as forças.',
+      color: 'from-blue-500 to-cyan-500',
+    },
+    {
+      id: 'oracao',
+      title: 'Oração e Fraternidade',
+      subtitle: 'Corpo de Cristo',
+      description: 'Partilha fraternal, oração mútua, novas amizades bíblicas e restauração de laços entre irmãos da congregação.',
+      color: 'from-emerald-500 to-teal-500',
+    },
+    {
+      id: 'encontro',
+      title: 'Encontro com Deus',
+      subtitle: 'Divisor de Águas',
+      description: 'Uma experiência de transformação sobrenatural para marcar a sua história espiritual e de toda a sua família.',
+      color: 'from-purple-500 to-pink-500',
+    },
+  ],
+  packingList: [
+    { category: 'Espiritual & Individual', items: ['Bíblia e caderno de anotações', 'Caneta e garrafinha de água', 'Coração aberto para o mover de Deus'] },
+    { category: 'Dormitório & Banho', items: ['Roupa de cama completa (lençol, fronha)', 'Travesseiro e cobertor/edredom leve', 'Toalhas de banho e rosto', 'Itens de higiene pessoal (escova, sabonete, etc.)'] },
+    { category: 'Vestuário & Convivência', items: ['Roupas confortáveis para o dia', 'Agasalho para a noite', 'Tênis confortável para as gincanas', 'Roupas adequadas para cultos à noite', 'Roupa de banho apropriada para piscina'] },
+    { category: 'Saúde & Conforto', items: ['Protetor solar e repelente', 'Medicamentos de uso contínuo (com receita)', 'Lanterna pequena e carregador de celular'] }
+  ]
+};
 
 // Reduzido para 3 equipes + org/none
 export const TEAM_UI: Record<TeamId, { color: string; border: string; text: string; light: string; name: string }> = {

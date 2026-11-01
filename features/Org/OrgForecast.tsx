@@ -4,6 +4,7 @@ import { ArrowLeft, Target, Calculator, Plus, Trash2, Save, X, Edit2, AlertTrian
 import { useAppStore } from '../../store';
 import { Card } from '../../components/Shared';
 import { ProjectionItem, PaymentMethod, TransactionCategory } from '../../types';
+import { CAMP_TOTAL_PRICE } from '../../constants';
 import { createTransaction, deleteTransaction, listTransactions } from '../../lib/api/transactions';
 
 export const OrgForecast = () => {
@@ -40,7 +41,7 @@ export const OrgForecast = () => {
   const paidPax = people.filter(p => p.amountPaid >= p.totalPrice).length;
 
   const TARGET_PAX = 60;
-  const TARGET_TICKET = 430;
+  const TARGET_TICKET = CAMP_TOTAL_PRICE;
   const TARGET_REVENUE = TARGET_PAX * TARGET_TICKET;
 
   const revenueGap = TARGET_REVENUE - potentialRevenue;
@@ -242,7 +243,7 @@ export const OrgForecast = () => {
                   <span className="text-sm font-black text-gray-400">R$ {TARGET_REVENUE.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500 font-bold uppercase">Projecao Atual ({currentPax}x 432)</span>
+                  <span className="text-xs text-gray-500 font-bold uppercase">Projecao Atual ({currentPax}x {CAMP_TOTAL_PRICE})</span>
                   <span className="text-base font-black text-emerald-600">R$ {potentialRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between items-center text-xs opacity-70">

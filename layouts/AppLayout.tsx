@@ -1,8 +1,8 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   Shield, PieChart, Users, ArrowLeft, Wallet, ShoppingBag, ChevronRight, X, ArrowRightLeft,
-  Trophy, Flag, Clock, CalendarCheck, Home, ScrollText, Grid
+  Trophy, Flag, Clock, CalendarCheck, Home, ScrollText, Grid, Sparkles, UserCheck
 } from 'lucide-react';
 import { Sector } from '../types';
 import { useAppStore } from '../store';
@@ -26,12 +26,17 @@ export const AppLayout = ({ sector }: { sector: Sector }) => {
       { path: 'time', icon: Clock, label: 'Cronograma' },
       { path: 'list', icon: Users, label: 'Participantes' },
       { path: 'proofs', icon: Flag, label: 'Provas' },
+    ],
+    membro: [
+      { path: 'home', icon: Home, label: 'Meu Espaço' },
+      { path: 'cronograma', icon: Clock, label: 'Cronograma' },
+      { path: 'placar', icon: Trophy, label: 'Placar ao Vivo' },
     ]
   };
 
   const currentSidebarMenu = sidebarMenus[sector as keyof typeof sidebarMenus] || [];
-  const themeColor = sector === 'gincana' ? 'bg-orange-600' : 'bg-blue-600';
-  const activeColorClass = sector === 'gincana' ? 'text-orange-600' : 'text-blue-600';
+  const themeColor = sector === 'gincana' ? 'bg-orange-600' : sector === 'membro' ? 'bg-emerald-600' : 'bg-blue-600';
+  const activeColorClass = sector === 'gincana' ? 'text-orange-600' : sector === 'membro' ? 'text-emerald-500' : 'text-blue-600';
   const appSurfaceClass = isDarkMode ? 'bg-[#0b0f19] text-slate-100' : 'bg-[#fbfbfd] text-gray-900';
   const panelClass = isDarkMode ? 'bg-[#121a2a] border-white/10' : 'bg-white border-gray-100';
   const contentClass = isDarkMode ? 'bg-[#0f1627]' : 'bg-pattern';
@@ -42,6 +47,48 @@ export const AppLayout = ({ sector }: { sector: Sector }) => {
   };
 
   const renderBottomBar = () => {
+    if (sector === 'membro') {
+      return (
+        <nav className={`xl:hidden fixed bottom-0 left-0 w-full backdrop-blur-xl border-t pb-safe z-50 px-4 ${mobileBarClass}`}>
+          <div className="flex justify-between items-end h-16 pb-1">
+            <button
+              onClick={handleExit}
+              className="flex flex-col items-center justify-center w-16 mb-1 text-gray-400 hover:text-gray-300 transition-all active:scale-90"
+            >
+              <Grid size={22} strokeWidth={2} />
+              <span className="text-[9px] font-bold mt-1">Menu</span>
+            </button>
+
+            <NavLink
+              to="/membro/cronograma"
+              className={({ isActive }) => `flex flex-col items-center justify-center w-16 mb-1 transition-all active:scale-90 ${isActive ? activeColorClass : 'text-gray-400'}`}
+            >
+              <Clock size={22} strokeWidth={2} />
+              <span className="text-[9px] font-bold mt-1">Horários</span>
+            </NavLink>
+
+            <div className="relative -top-3">
+              <NavLink
+                to="/membro/home"
+                className={({ isActive }) => `flex items-center justify-center w-14 h-14 rounded-full shadow-xl transition-transform active:scale-95 border-4 border-[#fbfbfd] ${isActive ? 'bg-emerald-600 text-white' : 'bg-gray-900 text-white'}`}
+              >
+                <Sparkles size={24} strokeWidth={2.5} />
+              </NavLink>
+              <span className="block text-center text-[9px] font-bold text-gray-500 mt-1">Meu Perfil</span>
+            </div>
+
+            <NavLink
+              to="/membro/placar"
+              className={({ isActive }) => `flex flex-col items-center justify-center w-16 mb-1 transition-all active:scale-90 ${isActive ? activeColorClass : 'text-gray-400'}`}
+            >
+              <Trophy size={22} strokeWidth={2} />
+              <span className="text-[9px] font-bold mt-1">Placar</span>
+            </NavLink>
+          </div>
+        </nav>
+      );
+    }
+
     if (sector === 'org') {
       return (
         <nav className={`xl:hidden fixed bottom-0 left-0 w-full backdrop-blur-xl border-t pb-safe z-50 px-4 ${mobileBarClass}`}>
@@ -116,7 +163,7 @@ export const AppLayout = ({ sector }: { sector: Sector }) => {
   };
 
   return (
-    <div className={`flex flex-col xl:flex-row h-screen font-sans overflow-hidden relative transition-colors duration-300 ${appSurfaceClass}`}>
+    <div className={`flex flex-col xl:flex-row h-[100dvh] font-sans overflow-hidden relative transition-colors duration-300 ${appSurfaceClass}`}>
       <div
         className={`hidden xl:flex fixed top-0 left-0 h-full w-4 z-50 group items-center justify-start ${isOpen ? 'pointer-events-none' : 'pointer-events-auto hover:w-12 transition-all duration-300'}`}
         onClick={() => setIsOpen(true)}

@@ -1,20 +1,53 @@
 
 export type TeamId = 'alianca' | 'segredo' | 'caminho' | 'org' | 'none';
-export type Sector = 'welcome' | 'org' | 'gincana';
+export type Sector = 'welcome' | 'org' | 'gincana' | 'membro';
 export type AgeGroup = 'Adulto' | 'Jovem' | 'Criança' | 'Indefinido';
 export type PersonType = 'Membro' | 'Visitante';
 export type PaymentStatus = 'PAGO' | 'PENDENTE';
 
-// Atualizado para incluir Crédito, Débito e Pendência
-export type PaymentMethod = 'Pix' | 'Dinheiro' | 'Crédito' | 'Débito' | 'Pendência' | 'Outro';
+// Métodos de pagamento aceitos (suporta variações com/sem acentuação para compatibilidade)
+export type PaymentMethod =
+  | 'Pix'
+  | 'Dinheiro'
+  | 'Crédito'
+  | 'Débito'
+  | 'Pendência'
+  | 'Credito'
+  | 'Debito'
+  | 'Pendencia'
+  | 'Outro';
 
-// --- AUTH TYPES (Supabase Structure Prep) ---
+// --- ROLES & PERMISSÕES (ARQUITETURA EM DUAS CAMADAS) ---
+// 1. Papéis Globais do App da Igreja (365 dias do ano)
+export type ChurchRole = 'pastor' | 'membro';
+
+// 2. Papéis Contextuais do Sub-App de Acampamento & Gincana (Eventos / Retiros)
+export type CampRole =
+  | 'coordenacao'
+  | 'jurado'
+  | 'lider_equipe'
+  | 'cantina'
+  | 'acampante';
+
+// Papel Unificado para compatibilidade com o sistema
+export type UserRole =
+  | 'pastoral'      // Pastor / Liderança ministerial
+  | 'membro'        // Membro da congregação
+  | 'organizacao'   // Sub-app Acampamento: Staff / Caixa
+  | 'gincana'       // Sub-app Acampamento: Coordenação
+  | 'lider_equipe'  // Sub-app Acampamento: Líder de Tribo
+  | 'admin'         // Compatibilidade legada (mapeado para pastor)
+  | 'editor'        // Compatibilidade legada
+  | 'viewer';       // Compatibilidade legada
+
+// --- AUTH TYPES ---
 export interface User {
   id: string;
   email: string;
   name: string;
   avatar_url?: string;
-  role: 'admin' | 'editor' | 'viewer';
+  role: UserRole;
+  personId?: string; // Vínculo com registro em Person (para participantes)
 }
 
 export interface Person {
@@ -234,6 +267,14 @@ export interface AppState {
   settleAllCustomerDebt: (personId: string, method: PaymentMethod) => void; // Pagar tudo
 
   toggleTheme: () => void;
+
+  // --- MODO DESENVOLVEDOR (Dev Role Switcher) ---
+  isDevMode: boolean;
+  devRole: UserRole | null;
+  simulatedPersonId: string | null;
+  toggleDevMode: () => void;
+  setDevRole: (role: UserRole | null) => void;
+  setSimulatedPersonId: (personId: string | null) => void;
 }
 
 

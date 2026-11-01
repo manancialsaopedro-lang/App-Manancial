@@ -37,7 +37,8 @@ export const GymDashboard = () => {
   const AGE_GROUP_LABELS: Record<AgeGroup, string> = {
     Adulto: 'Adultos',
     Jovem: 'Jovens',
-    Criança: 'Crianças'
+    Criança: 'Crianças',
+    Indefinido: 'Indefinido'
   };
   
   // Status Materiais

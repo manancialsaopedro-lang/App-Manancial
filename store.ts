@@ -8,6 +8,7 @@ import { createAuthSlice, AuthSlice } from './store/slices/authSlice';
 import { createPeopleSlice, PeopleSlice } from './store/slices/peopleSlice';
 import { createGymkhanaSlice, GymkhanaSlice } from './store/slices/gymkhanaSlice';
 import { createFinancialSlice, FinancialSlice } from './store/slices/financialSlice';
+import { createDevSlice, DevSlice } from './store/slices/devSlice';
 
 // Combine all slices into one AppState
 export const useAppStore = create<AppState>()(
@@ -17,6 +18,7 @@ export const useAppStore = create<AppState>()(
       ...createPeopleSlice(...a) as PeopleSlice,
       ...createGymkhanaSlice(...a) as GymkhanaSlice,
       ...createFinancialSlice(...a) as FinancialSlice,
+      ...createDevSlice(...a) as DevSlice,
     }),
     { 
       name: 'manancial_v7_complete',
