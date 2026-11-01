@@ -81,31 +81,50 @@ export const DevLayout: React.FC = () => {
           id: 'igreja',
           label: 'Dados da Igreja',
           icon: Church,
-          path: '/dev/igreja',
+          path: '/igreja',
         },
         {
           id: 'solicitacoes',
           label: 'Solicitações',
           icon: Inbox,
-          path: '/dev/solicitacoes',
+          path: '/solicitacoes',
           badge: 'Novo',
         },
         {
           id: 'notificacoes',
           label: 'Notificações WhatsApp',
           icon: MessageSquare,
-          path: '/dev/notificacoes',
+          path: '/notificacoes',
         },
         {
           id: 'membros',
           label: 'Membros & Presença',
           icon: Users,
           subItems: [
-            { label: 'Lista de Membros', path: '/gestao/membros' },
-            { label: 'Chamada & Presença', path: '/gestao/presenca' },
-            { label: 'Mensagens em 1 Toque', path: '/gestao/mensagens' },
-            { label: 'Relatórios de Culto', path: '/gestao/relatorios' },
+            { label: 'Lista de Membros', path: '/membros' },
+            { label: 'Chamada & Presença', path: '/presenca' },
+            { label: 'Mensagens em 1 Toque', path: '/mensagens' },
+            { label: 'Relatórios de Culto', path: '/relatorios' },
+            { label: 'Visitantes Cadastrados', path: '/visitantes' },
           ],
+        },
+        {
+          id: 'celulas',
+          label: 'Células & Grupos',
+          icon: Layers,
+          path: '/celulas',
+        },
+        {
+          id: 'cursos',
+          label: 'Cursos & Discipulado',
+          icon: GraduationCap,
+          path: '/cursos',
+        },
+        {
+          id: 'eventos',
+          label: 'Eventos & Calendário',
+          icon: Calendar,
+          path: '/eventos',
         },
       ],
     },
@@ -209,7 +228,9 @@ export const DevLayout: React.FC = () => {
               const Icon = item.icon;
               const hasSubmenu = !!item.subItems && item.subItems.length > 0;
               const isExpanded = !!expandedMenus[item.id];
-              const isCurrentActive = item.path ? location.pathname === item.path : false;
+              const isCurrentActive = item.path
+                ? location.pathname === item.path || (item.path === '/igreja' && location.pathname === '/')
+                : false;
 
               if (hasSubmenu) {
                 return (

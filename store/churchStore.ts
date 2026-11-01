@@ -530,7 +530,7 @@ interface ChurchStoreState {
   getBirthdaysThisWeek: () => ChurchMember[];
   getAbsentMembersAlert: () => ChurchMember[];
   getAttendanceCountForSession: (sessionId: string) => number;
-  generateWhatsAppUrl: (phone: string, templateId: string, memberName: string) => string;
+  generateWhatsAppUrl: (phoneOrMemberId: string, templateId?: string, memberName?: string) => string;
 }
 
 export const useChurchStore = create<ChurchStoreState>()(
@@ -770,17 +770,23 @@ export const useChurchStore = create<ChurchStoreState>()(
         return state.attendances.filter((a) => a.sessionId === sessionId).length;
       },
 
-      generateWhatsAppUrl: (phone, templateId, memberName) => {
+      generateWhatsAppUrl: (phoneOrMemberId, templateId = 'ola', memberName) => {
         const state = get();
         const template = state.templates.find((t) => t.id === templateId) || state.templates[0];
         
-        let cleanPhone = phone.replace(/\D/g, '');
+        // Match member if argument is member ID
+        const foundMember = state.members.find((m) => m.id === phoneOrMemberId);
+        const rawPhone = foundMember ? foundMember.phoneWhatsApp : phoneOrMemberId;
+        const resolvedName = memberName || (foundMember ? foundMember.fullName : 'Irmão(ã)');
+
+        let cleanPhone = (rawPhone || '').replace(/\D/g, '');
         if (cleanPhone.length === 10 || cleanPhone.length === 11) {
           cleanPhone = '55' + cleanPhone;
         }
 
-        const firstName = memberName.split(' ')[0] || memberName;
-        const message = template.messageBody
+        const firstName = resolvedName.split(' ')[0] || resolvedName;
+        const messageBody = template ? template.messageBody : 'Graça e Paz, {{nome}}!';
+        const message = messageBody
           .replace(/\{\{nome\}\}/g, firstName)
           .replace(/\{\{culto\}\}/g, 'Culto da Família')
           .replace(/\{\{horario\}\}/g, '19:00');

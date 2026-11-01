@@ -76,8 +76,15 @@ import { DevLayout } from './features/DevPortal/layouts/DevLayout';
 import { DevChurchInfoPage } from './features/DevPortal/pages/DevChurchInfoPage';
 import { DevRequestsPage } from './features/DevPortal/pages/DevRequestsPage';
 import { DevNotificationsPage } from './features/DevPortal/pages/DevNotificationsPage';
+import { DevMembersPage } from './features/DevPortal/pages/DevMembersPage';
+import { DevAttendancePage } from './features/DevPortal/pages/DevAttendancePage';
+import { DevWhatsAppMessagesPage } from './features/DevPortal/pages/DevWhatsAppMessagesPage';
 import { DevGenericPage } from './features/DevPortal/pages/DevGenericPage';
 import { DevVisitorsPage } from './features/DevPortal/pages/DevVisitorsPage';
+import { DevReportsPage } from './features/DevPortal/pages/DevReportsPage';
+import { DevCellsPage } from './features/DevPortal/pages/DevCellsPage';
+import { DevCoursesPage } from './features/DevPortal/pages/DevCoursesPage';
+import { DevEventsPage } from './features/DevPortal/pages/DevEventsPage';
 
 // Dev Toolbar
 import { DevToolbar } from './components/DevToolbar';
@@ -122,12 +129,27 @@ const App = () => {
           <Route path="igreja" element={<DevChurchInfoPage />} />
           <Route path="solicitacoes" element={<DevRequestsPage />} />
           <Route path="notificacoes" element={<DevNotificationsPage />} />
+          <Route path="membros" element={<DevMembersPage />} />
+          <Route path="presenca" element={<DevAttendancePage />} />
+          <Route path="mensagens" element={<DevWhatsAppMessagesPage />} />
+          <Route path="relatorios" element={<DevReportsPage />} />
+          <Route path="celulas" element={<DevCellsPage />} />
+          <Route path="cursos" element={<DevCoursesPage />} />
+          <Route path="eventos" element={<DevEventsPage />} />
+          <Route path="visitantes" element={<DevVisitorsPage />} />
+          <Route path="dev/igreja" element={<DevChurchInfoPage />} />
+          <Route path="dev/solicitacoes" element={<DevRequestsPage />} />
+          <Route path="dev/notificacoes" element={<DevNotificationsPage />} />
+          <Route path="gestao/membros" element={<DevMembersPage />} />
+          <Route path="gestao/presenca" element={<DevAttendancePage />} />
+          <Route path="gestao/mensagens" element={<DevWhatsAppMessagesPage />} />
+          <Route path="gestao/relatorios" element={<DevReportsPage />} />
         </Route>
 
-        {/* Gestão Antiga de Membros & Presença */}
-        <Route path="/gestao/membros" element={<RequireAuth><ChurchMembersPage /></RequireAuth>} />
-        <Route path="/gestao/presenca" element={<RequireAuth><ChurchAttendancePage /></RequireAuth>} />
-        <Route path="/gestao/mensagens" element={<RequireAuth><ChurchWhatsAppPage /></RequireAuth>} />
+        {/* Redirecionamentos de conveniência */}
+        <Route path="/gestao/membros" element={<Navigate to="/membros" replace />} />
+        <Route path="/gestao/presenca" element={<Navigate to="/presenca" replace />} />
+        <Route path="/gestao/mensagens" element={<Navigate to="/mensagens" replace />} />
         <Route path="/gestao/relatorios" element={<RequireAuth><ChurchReportsPage /></RequireAuth>} />
 
         {/* Submódulo Acampamento Manancial (Preservado e Isolado) */}
@@ -211,13 +233,15 @@ const App = () => {
           <Route path="solicitacoes" element={<DevRequestsPage />} />
           <Route path="notificacoes" element={<DevNotificationsPage />} />
           
-          {/* Subpáginas com empty state coerente */}
-          <Route path="membros" element={<DevGenericPage title="Gestão de Membros" description="Módulo de cadastro eclesiástico com ficha completa em desenvolvimento." />} />
+          {/* Subpáginas com visual Manancial Gestão */}
+          <Route path="membros" element={<DevMembersPage />} />
+          <Route path="membros/lista" element={<DevMembersPage />} />
           <Route path="membros/visitantes" element={<DevVisitorsPage />} />
           <Route path="membros/:sub" element={<DevGenericPage title="Ficha de Membro" description="Visualização detalhada e histórico eclesiástico do participante." />} />
-          <Route path="celulas" element={<DevGenericPage title="Células & Grupos Familiares" description="Gerenciamento de líderes, encontros semanais e relatórios de célula." />} />
-          <Route path="cursos" element={<DevGenericPage title="Cursos & Treinamentos" description="Turmas de batismo, discipulado e escola ministerial." />} />
-          <Route path="eventos" element={<DevGenericPage title="Eventos & Cultos Especiais" description="Calendário anual de conferências e programações da igreja." />} />
+          <Route path="celulas" element={<DevCellsPage />} />
+          <Route path="cursos" element={<DevCoursesPage />} />
+          <Route path="eventos" element={<DevEventsPage />} />
+          <Route path="relatorios" element={<DevReportsPage />} />
           <Route path="tags" element={<DevGenericPage title="Tags & Segmentações" description="Segmentação de membros por dons, ministérios e faixas etárias." />} />
           <Route path="logs" element={<DevGenericPage title="Histórico & Auditoria" description="Logs de operações administrativas e registros do sistema." />} />
           <Route path="ajuda" element={<DevGenericPage title="Central de Ajuda" description="Guias de uso e suporte ao administrador da igreja." />} />
