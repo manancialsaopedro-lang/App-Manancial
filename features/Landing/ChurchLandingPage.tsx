@@ -17,8 +17,18 @@ import {
   Compass,
   Flame,
   ChevronRight,
-  ExternalLink
+  ExternalLink,
+  ZoomIn,
+  X,
+  Copy,
+  Check,
+  CreditCard,
+  QrCode,
+  MessageCircle,
+  Share2,
+  BookOpen
 } from 'lucide-react';
+import { CAMP_2027_CONFIG } from '../../constants';
 
 interface WorshipSchedule {
   dayOfWeek: string;
@@ -56,6 +66,46 @@ export const ChurchLandingPage: React.FC = () => {
   const [subject, setSubject] = useState('');
   const [isSent, setIsSent] = useState(false);
 
+  // Camp Poster & Share State
+  const [isPosterModalOpen, setIsPosterModalOpen] = useState(false);
+  const [copiedPix, setCopiedPix] = useState(false);
+
+  const handleCopyPix = () => {
+    navigator.clipboard.writeText(CAMP_2027_CONFIG.pixKey);
+    setCopiedPix(true);
+    setTimeout(() => setCopiedPix(false), 3000);
+  };
+
+  const handleShareCamp = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: CAMP_2027_CONFIG.title,
+        text: `Acampamento Manancial 2027 em São Pedro - SP (05 a 09 de Fevereiro). "O segredo do Senhor é para aqueles que o temem..." (Salmos 25:14). Participe conosco!`,
+        url: window.location.href,
+      }).catch(() => {});
+    } else {
+      handleCopyPix();
+    }
+  };
+
+  const openGoogleMaps = () => {
+    window.open('https://www.google.com/maps/search/?api=1&query=Sao+Pedro+SP', '_blank');
+  };
+
+  const openWhatsAppCamp = () => {
+    const text = encodeURIComponent(
+      `Olá! Gostaria de mais informações e garantir minha vaga no Acampamento Manancial 2027 em São Pedro - SP!`
+    );
+    window.open(`https://wa.me/5511976543210?text=${text}`, '_blank');
+  };
+
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   const handlePrayerSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !subject.trim()) return;
@@ -91,10 +141,35 @@ export const ChurchLandingPage: React.FC = () => {
 
           {/* Center Navigation Links (Desktop) */}
           <nav className="hidden md:flex items-center gap-6 text-xs font-bold uppercase tracking-wider text-cyan-100/80">
-            <a href="#cultos" className="hover:text-cyan-300 transition-colors">Cultos</a>
-            <a href="#retiro" className="hover:text-cyan-300 transition-colors">Acampamento</a>
-            <a href="#oracao" className="hover:text-cyan-300 transition-colors">Oração</a>
-            <a href="#sobre" className="hover:text-cyan-300 transition-colors">Sobre Nós</a>
+            <button
+              type="button"
+              onClick={() => scrollToSection('cultos')}
+              className="hover:text-cyan-300 transition-colors"
+            >
+              Cultos
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection('retiro')}
+              className="hover:text-amber-200 transition-colors text-amber-300 font-black flex items-center gap-1.5"
+            >
+              <Tent size={14} className="text-amber-400" />
+              <span>Acampamento 2027</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection('oracao')}
+              className="hover:text-cyan-300 transition-colors"
+            >
+              Oração
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection('sobre')}
+              className="hover:text-cyan-300 transition-colors"
+            >
+              Sobre Nós
+            </button>
           </nav>
 
           {/* Right Action: Área de Gestão */}
@@ -108,6 +183,39 @@ export const ChurchLandingPage: React.FC = () => {
               <ArrowRight size={14} />
             </button>
           </div>
+        </div>
+
+        {/* Mobile Navigation Pills (Navegação rápida sem recarregar a rota) */}
+        <div className="flex md:hidden items-center gap-2 overflow-x-auto pt-2.5 pb-1 border-t border-cyan-900/40 text-[11px] font-bold text-cyan-100/90 no-scrollbar">
+          <button
+            type="button"
+            onClick={() => scrollToSection('retiro')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/25 text-amber-300 border border-amber-500/40 font-black shrink-0 active:scale-95 transition-all"
+          >
+            <Tent size={12} className="text-amber-400" />
+            <span>Acampamento 2027</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToSection('cultos')}
+            className="px-3 py-1.5 rounded-lg bg-cyan-900/40 hover:bg-cyan-900/70 shrink-0 active:scale-95 transition-all"
+          >
+            Cultos
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToSection('oracao')}
+            className="px-3 py-1.5 rounded-lg bg-cyan-900/40 hover:bg-cyan-900/70 shrink-0 active:scale-95 transition-all"
+          >
+            Oração
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollToSection('sobre')}
+            className="px-3 py-1.5 rounded-lg bg-cyan-900/40 hover:bg-cyan-900/70 shrink-0 active:scale-95 transition-all"
+          >
+            Sobre
+          </button>
         </div>
       </header>
 
@@ -138,21 +246,32 @@ export const ChurchLandingPage: React.FC = () => {
           </p>
 
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3.5">
-            <a
-              href="#cultos"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-cyan-950 text-xs font-black uppercase tracking-wider shadow-xl shadow-cyan-950/40 transition-all active:scale-95"
+            <button
+              type="button"
+              onClick={() => scrollToSection('retiro')}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-stone-950 text-xs font-black uppercase tracking-wider shadow-xl shadow-amber-950/40 transition-all active:scale-95"
+            >
+              <Tent size={16} />
+              <span>Acampamento 2027</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => scrollToSection('cultos')}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-cyan-950 text-xs font-black uppercase tracking-wider shadow-xl shadow-cyan-950/40 transition-all active:scale-95"
             >
               <Calendar size={16} />
               <span>Conhecer Nossos Cultos</span>
-            </a>
+            </button>
 
-            <a
-              href="#oracao"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-[#0a3f4a] hover:bg-[#0c4e5c] text-cyan-200 text-xs font-black uppercase tracking-wider border border-cyan-700/50 transition-all active:scale-95"
+            <button
+              type="button"
+              onClick={() => scrollToSection('oracao')}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[#0a3f4a] hover:bg-[#0c4e5c] text-cyan-200 text-xs font-black uppercase tracking-wider border border-cyan-700/50 transition-all active:scale-95"
             >
               <Heart size={16} className="text-rose-400" />
               <span>Enviar Pedido de Oração</span>
-            </a>
+            </button>
           </div>
         </div>
       </section>
@@ -198,50 +317,383 @@ export const ChurchLandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* 4. DESTAQUE ESPECIAL: ACAMPAMENTO & RETIRO 2027 */}
-      <section id="retiro" className="py-14 px-4 bg-gradient-to-br from-amber-500 via-orange-500 to-rose-600 text-white">
-        <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-8">
-          <div className="space-y-3 text-center lg:text-left">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 border border-white/20 text-xs font-black uppercase tracking-wider">
-              <Tent size={14} />
-              <span>Temporada Oficial 2027</span>
+      {/* 4. DESTAQUE ESPECIAL: ACAMPAMENTO MANANCIAL 2027 (INFORMAÇÕES COMPLETAS & CARTAZ) */}
+      <section id="retiro" className="py-16 sm:py-20 px-4 bg-gradient-to-br from-[#120e09] via-[#211609] to-[#0d181e] text-white relative overflow-hidden border-y border-amber-900/40">
+        {/* Glow atmosférico de fundo */}
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-0 left-10 w-96 h-96 bg-orange-600/10 rounded-full blur-[130px] pointer-events-none" />
+
+        <div className="max-w-6xl mx-auto relative z-10 space-y-12">
+          {/* Header da Seção */}
+          <div className="text-center max-w-3xl mx-auto space-y-3.5">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-bold text-xs uppercase tracking-widest shadow-inner">
+              <Tent size={14} className="text-amber-400" />
+              <span>Temporada Oficial 2027 • Inscrições Abertas</span>
             </div>
 
-            <h3 className="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
-              Acampamento Manancial 25:14
-            </h3>
+            <div className="pt-1">
+              <span className="text-xs uppercase font-extrabold tracking-widest text-amber-400/90 block mb-1">
+                Salmos 25:14
+              </span>
+              <p className="text-base sm:text-xl italic font-serif text-amber-100/90 max-w-2xl mx-auto leading-relaxed">
+                "O segredo do Senhor é para aqueles que o temem, e ele lhes mostrará a sua aliança."
+              </p>
+            </div>
 
-            <p className="text-xs sm:text-sm text-white/90 max-w-xl leading-relaxed">
-              São Pedro - SP (05 a 09 de Fevereiro). 5 dias de imersão espiritual, gincana das tribos, comunhão profunda e experiências inesquecíveis.
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white leading-tight">
+              Acampamento <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-orange-300 to-amber-200">Manancial 2027</span>
+            </h2>
+
+            <p className="text-sm sm:text-base text-amber-100/80 font-medium">
+              Venha viver dias de graça, paz e renovação! <span className="text-amber-300 font-bold">Deus te espera!</span>
             </p>
-
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-1 text-xs font-bold text-orange-100">
-              <span className="flex items-center gap-1">📍 São Pedro - SP</span>
-              <span className="flex items-center gap-1">🎟️ R$ 582 ou 6x de R$ 97</span>
-              <span className="flex items-center gap-1">🏆 Gincana das Tribos</span>
-            </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0">
-            <button
-              type="button"
-              onClick={() => navigate('/acampamento/informacoes')}
-              className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-white text-orange-950 text-xs font-black uppercase tracking-wider shadow-xl hover:bg-orange-50 transition-all active:scale-95 flex items-center justify-center gap-2"
-            >
-              <span>Ver Detalhes do Retiro</span>
-              <ArrowRight size={14} />
-            </button>
+          {/* Grid Principal: Foto Oficial + Painel de Informações */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
+            {/* Coluna Esquerda: Cartaz Oficial do Acampamento (5 colunas no desktop) */}
+            <div className="lg:col-span-5 flex flex-col items-center">
+              <div className="relative group w-full max-w-md mx-auto rounded-3xl overflow-hidden border-2 border-amber-500/40 shadow-2xl shadow-amber-950/70 bg-black/40">
+                {/* Imagem do Cartaz */}
+                <img
+                  src="/acampamento-2027.jpg"
+                  alt="Cartaz Oficial Acampamento Manancial 2027"
+                  className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-[1.02] cursor-pointer"
+                  onClick={() => setIsPosterModalOpen(true)}
+                  loading="lazy"
+                />
 
-            <button
-              type="button"
-              onClick={() => navigate('/gincana/placar')}
-              className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-orange-900/40 hover:bg-orange-900/60 text-white text-xs font-black uppercase tracking-wider border border-white/20 transition-all flex items-center justify-center gap-2"
-            >
-              <Flame size={14} className="text-yellow-300" />
-              <span>Placar ao Vivo</span>
-            </button>
+                {/* Selo Flutuante de Cartaz Oficial */}
+                <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/70 backdrop-blur-md border border-amber-400/30 text-[10px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5 shadow-lg">
+                  <Sparkles size={11} className="text-amber-400" />
+                  <span>Cartaz Oficial 2027</span>
+                </div>
+
+                {/* Botão Hover Overlay para Ampliar */}
+                <button
+                  type="button"
+                  onClick={() => setIsPosterModalOpen(true)}
+                  className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 text-white font-bold text-xs uppercase tracking-wider backdrop-blur-[2px]"
+                >
+                  <div className="w-12 h-12 rounded-full bg-amber-500 text-stone-950 flex items-center justify-center shadow-xl transform transition-transform group-hover:scale-110">
+                    <ZoomIn size={22} />
+                  </div>
+                  <span>Clique para ver cartaz completo</span>
+                </button>
+              </div>
+
+              {/* Botões rápidos abaixo da foto */}
+              <div className="flex items-center justify-center gap-3 w-full max-w-md mt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsPosterModalOpen(true)}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-xs font-bold transition-all active:scale-95"
+                >
+                  <ZoomIn size={14} />
+                  <span>Ampliar Foto</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleShareCamp}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold transition-all active:scale-95"
+                >
+                  <Share2 size={14} />
+                  <span>Compartilhar</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Coluna Direita: Detalhes, Pilares & Investimento (7 colunas no desktop) */}
+            <div className="lg:col-span-7 space-y-6">
+              {/* Badges de Data e Localização */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Data */}
+                <div className="p-4 rounded-2xl bg-white/5 border border-amber-500/20 backdrop-blur-sm flex items-start gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-400 flex items-center justify-center text-amber-950 shrink-0 shadow-md">
+                    <Calendar size={18} />
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-black text-amber-400 tracking-wider">
+                      Quando Acontece
+                    </span>
+                    <h4 className="text-sm sm:text-base font-black text-white mt-0.5">
+                      05 a 09 de Fevereiro de 2027
+                    </h4>
+                    <p className="text-[11px] text-amber-200/70 mt-0.5">
+                      5 dias inesquecíveis (Feriado de Carnaval)
+                    </p>
+                  </div>
+                </div>
+
+                {/* Localização */}
+                <div className="p-4 rounded-2xl bg-white/5 border border-amber-500/20 backdrop-blur-sm flex items-start justify-between gap-3.5">
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-500 to-rose-400 flex items-center justify-center text-orange-950 shrink-0 shadow-md">
+                      <MapPin size={18} />
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-black text-orange-400 tracking-wider">
+                        Local do Retiro
+                      </span>
+                      <h4 className="text-sm sm:text-base font-black text-white mt-0.5">
+                        São Pedro - SP
+                      </h4>
+                      <p className="text-[11px] text-orange-200/70 mt-0.5">
+                        Estrutura completa na natureza
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={openGoogleMaps}
+                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-orange-200 transition-all text-xs shrink-0 self-center"
+                    title="Ver mapa no Google"
+                  >
+                    <ExternalLink size={14} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Os 4 Pilares da Experiência (Plaquinhas de Madeira do Cartaz) */}
+              <div className="p-5 rounded-3xl bg-amber-950/30 border border-amber-500/25 backdrop-blur-sm space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-amber-400" />
+                    <span>Pilares do Acampamento</span>
+                  </h4>
+                  <span className="text-[10px] font-bold text-amber-400/80 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
+                    Propósito Espiritual
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="p-3 rounded-xl bg-black/30 border border-amber-500/20 flex items-center gap-3">
+                    <span className="text-xl">❤️</span>
+                    <div>
+                      <h5 className="text-xs font-black text-white">Intimidade com o Senhor</h5>
+                      <p className="text-[10px] text-amber-100/70">Oração no secreto e busca genuína</p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-black/30 border border-amber-500/20 flex items-center gap-3">
+                    <span className="text-xl">🎵</span>
+                    <div>
+                      <h5 className="text-xs font-black text-white">Louvor e Adoração</h5>
+                      <p className="text-[10px] text-amber-100/70">Celebrações e adoração profética</p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-black/30 border border-amber-500/20 flex items-center gap-3">
+                    <span className="text-xl">🙏</span>
+                    <div>
+                      <h5 className="text-xs font-black text-white">Oração e Fraternidade</h5>
+                      <p className="text-[10px] text-amber-100/70">Comunhão, união e cuidado mútuo</p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-black/30 border border-amber-500/20 flex items-center gap-3">
+                    <span className="text-xl">✝️</span>
+                    <div>
+                      <h5 className="text-xs font-black text-white">Encontro com Deus</h5>
+                      <p className="text-[10px] text-amber-100/70">Divisor de águas para sua história</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bloco de Investimento e Condições de Pagamento */}
+              <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-amber-900/40 via-amber-950/60 to-black/60 border-2 border-amber-500/40 shadow-xl space-y-4">
+                <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">⚜️</span>
+                    <h4 className="text-sm font-black uppercase tracking-widest text-amber-300">
+                      Investimento Oficial
+                    </h4>
+                  </div>
+                  <span className="text-[11px] font-bold text-amber-200/80">
+                    Tudo Incluso (Hospedagem + Alimentação + Programação)
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Opção PIX */}
+                  <div className="p-4 rounded-2xl bg-black/40 border border-emerald-500/30 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1">
+                          <QrCode size={13} /> Chave PIX
+                        </span>
+                        <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-md border border-emerald-500/30">
+                          À Vista
+                        </span>
+                      </div>
+                      <div className="text-2xl font-black text-white tracking-tight">
+                        R$ 582<span className="text-sm font-normal text-slate-300">,00</span>
+                      </div>
+                      <p className="text-[11px] text-emerald-200/80 font-mono mt-1 break-all">
+                        {CAMP_2027_CONFIG.pixKey}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleCopyPix}
+                      className={`mt-3.5 inline-flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 ${
+                        copiedPix
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
+                      }`}
+                    >
+                      {copiedPix ? (
+                        <>
+                          <Check size={14} />
+                          <span>Chave PIX Copiada!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={14} />
+                          <span>Copiar Chave PIX</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Opção Cartão Parcelado */}
+                  <div className="p-4 rounded-2xl bg-black/40 border border-amber-500/30 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1">
+                          <CreditCard size={13} /> Cartão de Débito ou Crédito
+                        </span>
+                        <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-md border border-amber-500/30">
+                          Sem Juros
+                        </span>
+                      </div>
+                      <div className="text-2xl font-black text-white tracking-tight">
+                        <span className="text-sm font-bold text-amber-400 uppercase mr-1">Em até</span>
+                        06x <span className="text-base font-normal text-slate-300">de</span> R$ 97<span className="text-sm font-normal text-slate-300">,00</span>
+                      </div>
+                      <p className="text-[11px] text-amber-200/70 mt-1">
+                        Facilidade para toda a família poder participar junta.
+                      </p>
+                    </div>
+
+                    <div className="mt-3.5 flex items-center justify-center py-2 px-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-[11px] font-bold">
+                      💳 Aceitamos as principais bandeiras
+                    </div>
+                  </div>
+                </div>
+
+                {/* Slogan do Rodapé */}
+                <div className="text-center pt-2 text-xs font-black uppercase tracking-widest text-amber-300/90 flex items-center justify-center gap-2">
+                  <span>✨</span>
+                  <span>Dias inesquecíveis na presença de Deus!</span>
+                  <span>✨</span>
+                </div>
+              </div>
+
+              {/* Botões de Ação Principais */}
+              <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={openWhatsAppCamp}
+                  className="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-xs font-black uppercase tracking-wider shadow-xl shadow-emerald-950/40 transition-all active:scale-95"
+                >
+                  <MessageCircle size={16} />
+                  <span>Garantir Vaga no WhatsApp</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/acampamento/informacoes')}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-white hover:bg-amber-50 text-stone-900 text-xs font-black uppercase tracking-wider shadow-lg transition-all active:scale-95"
+                >
+                  <BookOpen size={15} />
+                  <span>Guia & Bagagem</span>
+                  <ArrowRight size={14} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/gincana/placar')}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-orange-900/50 hover:bg-orange-900/80 text-orange-200 text-xs font-black uppercase tracking-wider border border-orange-500/30 transition-all active:scale-95"
+                >
+                  <Flame size={15} className="text-amber-400" />
+                  <span>Placar Gincana</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* MODAL / LIGHTBOX PARA VISUALIZAR O CARTAZ OFICIAL EM TELA CHEIA */}
+        {isPosterModalOpen && (
+          <div
+            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in"
+            onClick={() => setIsPosterModalOpen(false)}
+          >
+            <div
+              className="relative max-w-2xl w-full bg-stone-950 border border-amber-500/40 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header do Modal */}
+              <div className="flex items-center justify-between p-4 border-b border-stone-800 bg-stone-900/80">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+                  <span className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">
+                    Cartaz Oficial • Acampamento Manancial 2027
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsPosterModalOpen(false)}
+                  className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all"
+                  title="Fechar"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Imagem do Cartaz em Alta Resolução */}
+              <div className="p-3 sm:p-4 overflow-y-auto flex items-center justify-center bg-black/60">
+                <img
+                  src="/acampamento-2027.jpg"
+                  alt="Cartaz Oficial Acampamento Manancial 2027"
+                  className="w-auto max-h-[70vh] rounded-2xl shadow-2xl object-contain border border-amber-500/20"
+                />
+              </div>
+
+              {/* Rodapé do Modal */}
+              <div className="p-3.5 border-t border-stone-800 bg-stone-900/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <span className="text-amber-200/80 text-[11px] font-medium">
+                  De 05 a 09 de Fevereiro de 2027 • São Pedro - SP
+                </span>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleShareCamp}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold transition-all text-xs border border-amber-500/30"
+                  >
+                    <Share2 size={13} />
+                    <span>Compartilhar</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsPosterModalOpen(false)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold transition-all text-xs"
+                  >
+                    <span>Fechar</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* 5. FORMULÁRIO DE PEDIDO DE ORAÇÃO & CUIDADO PASTORAL */}
@@ -332,7 +784,7 @@ export const ChurchLandingPage: React.FC = () => {
       </section>
 
       {/* 6. FOOTER INSTITUCIONAL */}
-      <footer className="bg-[#051c22] text-slate-400 py-10 px-4 border-t border-cyan-950">
+      <footer id="sobre" className="bg-[#051c22] text-slate-400 py-10 px-4 border-t border-cyan-950">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
           <div className="space-y-1">
             <h5 className="text-sm font-black text-white">Comunidade Evangélica Manancial</h5>

@@ -153,9 +153,10 @@ const App = () => {
         <Route path="/gestao/relatorios" element={<RequireAuth><ChurchReportsPage /></RequireAuth>} />
 
         {/* Submódulo Acampamento Manancial (Preservado e Isolado) */}
+        <Route path="/retiro" element={<Navigate to="/landing" replace />} />
         <Route path="/acampamento" element={<RequireAuth><CampWelcomePage /></RequireAuth>} />
         <Route path="/acampamento/home" element={<RequireAuth><CampWelcomePage /></RequireAuth>} />
-        <Route path="/acampamento/informacoes" element={<RequireAuth><CampInfoPage /></RequireAuth>} />
+        <Route path="/acampamento/informacoes" element={<CampInfoPage />} />
         <Route path="/acampamento/pagamentos" element={<RequireAuth><CampPastorPaymentsPage /></RequireAuth>} />
         <Route path="/gestao/acampamento" element={<Navigate to="/acampamento/pagamentos" replace />} />
         
