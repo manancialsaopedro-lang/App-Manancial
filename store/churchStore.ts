@@ -33,7 +33,12 @@ export const PRE_REGISTERED_MEMBERS: ChurchMember[] = [
     fullName: 'Caio Augusto',
     phoneWhatsApp: '19993843839',
     role: 'Líder',
-    ministry: 'Nenhum',
+    ministry: 'Louvor',
+    isWorshipMember: true,
+    worshipDisplayName: 'Caio',
+    worshipRole: 'Teclado e Voz',
+    worshipCategory: 'Teclado',
+    isWorshipLeader: true,
     status: 'Ativo',
     registrationStatus: 'PENDENTE',
     inviteToken: 'tok_caio_99384',
@@ -216,7 +221,12 @@ export const PRE_REGISTERED_MEMBERS: ChurchMember[] = [
     fullName: 'Paulo Smaniotto (Paulinho)',
     phoneWhatsApp: '19998917842',
     role: 'Membro',
-    ministry: 'Nenhum',
+    ministry: 'Louvor',
+    isWorshipMember: true,
+    worshipDisplayName: 'Paulinho',
+    worshipRole: 'Guitarra e Voz',
+    worshipCategory: 'Guitarra',
+    isWorshipLeader: false,
     status: 'Ativo',
     registrationStatus: 'PENDENTE',
     inviteToken: 'tok_paulinho_99891',
@@ -229,7 +239,12 @@ export const PRE_REGISTERED_MEMBERS: ChurchMember[] = [
     fullName: 'Pedro Smaniotto',
     phoneWhatsApp: '19999298753',
     role: 'Membro',
-    ministry: 'Nenhum',
+    ministry: 'Louvor',
+    isWorshipMember: true,
+    worshipDisplayName: 'Pedro Smanioto',
+    worshipRole: 'Violão',
+    worshipCategory: 'Violão',
+    isWorshipLeader: false,
     status: 'Ativo',
     registrationStatus: 'PENDENTE',
     inviteToken: 'tok_pedro_99929',
@@ -292,8 +307,13 @@ export const PRE_REGISTERED_MEMBERS: ChurchMember[] = [
     id: 'm-silvia-smaniotto',
     fullName: 'Silvia Smaniotto',
     phoneWhatsApp: '19997920782',
-    role: 'Membro',
-    ministry: 'Nenhum',
+    role: 'Líder',
+    ministry: 'Louvor',
+    isWorshipMember: true,
+    worshipDisplayName: 'Silvia',
+    worshipRole: 'Ministra',
+    worshipCategory: 'Vocais',
+    isWorshipLeader: true,
     status: 'Ativo',
     registrationStatus: 'PENDENTE',
     inviteToken: 'tok_silvia_99792',
@@ -370,6 +390,108 @@ export const PRE_REGISTERED_MEMBERS: ChurchMember[] = [
     status: 'Ativo',
     registrationStatus: 'PENDENTE',
     inviteToken: 'tok_wilson_81141',
+    consecutiveAbsences: 0,
+    createdAt: '2026-11-01'
+  },
+  {
+    id: 'm-elaine',
+    fullName: 'Elaine',
+    phoneWhatsApp: '',
+    role: 'Membro',
+    ministry: 'Louvor',
+    isWorshipMember: true,
+    worshipDisplayName: 'Elaine',
+    worshipRole: 'Vocal',
+    worshipCategory: 'Vocais',
+    isWorshipLeader: false,
+    status: 'Ativo',
+    registrationStatus: 'PENDENTE',
+    inviteToken: 'tok_elaine_louvor',
+    consecutiveAbsences: 0,
+    createdAt: '2026-11-01'
+  },
+  {
+    id: 'm-janaina',
+    fullName: 'Janaina',
+    phoneWhatsApp: '',
+    role: 'Membro',
+    ministry: 'Louvor',
+    isWorshipMember: true,
+    worshipDisplayName: 'Janaina',
+    worshipRole: 'Vocal',
+    worshipCategory: 'Vocais',
+    isWorshipLeader: false,
+    status: 'Ativo',
+    registrationStatus: 'PENDENTE',
+    inviteToken: 'tok_janaina_louvor',
+    consecutiveAbsences: 0,
+    createdAt: '2026-11-01'
+  },
+  {
+    id: 'm-herica',
+    fullName: 'Herica',
+    phoneWhatsApp: '',
+    role: 'Membro',
+    ministry: 'Louvor',
+    isWorshipMember: true,
+    worshipDisplayName: 'Herica',
+    worshipRole: 'Vocal',
+    worshipCategory: 'Vocais',
+    isWorshipLeader: false,
+    status: 'Ativo',
+    registrationStatus: 'PENDENTE',
+    inviteToken: 'tok_herica_louvor',
+    consecutiveAbsences: 0,
+    createdAt: '2026-11-01'
+  },
+  {
+    id: 'm-lucas-bombo',
+    fullName: 'Lucas Bombo',
+    phoneWhatsApp: '',
+    role: 'Membro',
+    ministry: 'Louvor',
+    isWorshipMember: true,
+    worshipDisplayName: 'Lucas Bombo',
+    worshipRole: 'Violão',
+    worshipCategory: 'Violão',
+    isWorshipLeader: false,
+    status: 'Ativo',
+    registrationStatus: 'PENDENTE',
+    inviteToken: 'tok_lucas_louvor',
+    consecutiveAbsences: 0,
+    createdAt: '2026-11-01'
+  },
+  {
+    id: 'm-carlinhos',
+    fullName: 'Carlinhos',
+    phoneWhatsApp: '',
+    role: 'Membro',
+    ministry: 'Louvor',
+    isWorshipMember: true,
+    worshipDisplayName: 'Carlinhos',
+    worshipRole: 'Baixo e Voz',
+    worshipCategory: 'Baixo',
+    isWorshipLeader: false,
+    status: 'Ativo',
+    registrationStatus: 'PENDENTE',
+    inviteToken: 'tok_carlinhos_louvor',
+    consecutiveAbsences: 0,
+    createdAt: '2026-11-01'
+  },
+  {
+    id: 'm-alexandre',
+    fullName: 'Alexandre',
+    phoneWhatsApp: '',
+    role: 'Membro',
+    ministry: 'Louvor',
+    isWorshipMember: true,
+    worshipDisplayName: 'Alexandre',
+    worshipRole: 'Bateria',
+    worshipCategory: 'Bateria',
+    isWorshipLeader: false,
+    status: 'Ativo',
+    registrationStatus: 'PENDENTE',
+    inviteToken: 'tok_alexandre_louvor',
     consecutiveAbsences: 0,
     createdAt: '2026-11-01'
   }
@@ -544,21 +666,114 @@ export const useChurchStore = create<ChurchStoreState>()(
       activeSessionId: 'ses-today',
 
       addMember: (memberData) => {
+        const isWorship = memberData.ministry === 'Louvor' || !!memberData.isWorshipMember;
         const newMember: ChurchMember = {
           ...memberData,
           id: 'm_' + Date.now(),
+          ministry: isWorship ? 'Louvor' : (memberData.ministry || 'Nenhum'),
+          isWorshipMember: isWorship,
+          worshipDisplayName: isWorship ? (memberData.worshipDisplayName || memberData.fullName) : undefined,
+          worshipRole: isWorship ? (memberData.worshipRole || 'Vocal') : undefined,
+          worshipCategory: isWorship ? (memberData.worshipCategory || 'Vocais') : undefined,
+          isWorshipLeader: isWorship ? !!memberData.isWorshipLeader : false,
           consecutiveAbsences: 0,
           registrationStatus: memberData.registrationStatus || 'PENDENTE',
           inviteToken: memberData.inviteToken || 'tok_' + Math.random().toString(36).substring(2, 9),
           createdAt: new Date().toISOString()
         };
         set((state) => ({ members: [newMember, ...state.members] }));
+
+        // Persiste também na tabela unificada public.church_members
+        const cleanPhone = (newMember.phoneWhatsApp || '').replace(/\D/g, '');
+        const whatsappInt = cleanPhone && !cleanPhone.startsWith('55') ? `55${cleanPhone}` : cleanPhone;
+        void supabase()
+          .from('church_members')
+          .insert({
+            id: newMember.id,
+            full_name: newMember.fullName,
+            phone: cleanPhone,
+            whatsapp: whatsappInt,
+            email: newMember.email || null,
+            birth_date: newMember.birthDate || null,
+            baptism_date: newMember.baptismDate || null,
+            role: newMember.role,
+            ministry: newMember.ministry,
+            is_worship_member: !!newMember.isWorshipMember,
+            worship_display_name: newMember.worshipDisplayName || newMember.fullName,
+            worship_role: newMember.worshipRole || 'Vocal',
+            worship_category: newMember.worshipCategory || 'Vocais',
+            is_worship_leader: !!newMember.isWorshipLeader,
+            status: newMember.status === 'Afastado' ? 'INATIVO' : 'ATIVO',
+            member_type: newMember.role === 'Visitante' ? 'Visitante' : 'Membro',
+            source: 'MANUAL',
+            address: newMember.address || null,
+            notes: newMember.pastoralNotes || null,
+            registration_status: newMember.registrationStatus || 'PENDENTE',
+            invite_token: newMember.inviteToken,
+            family_group_id: newMember.familyGroupId || null
+          })
+          .then(({ error }) => {
+            if (error) console.warn('Erro ao inserir membro em church_members:', error);
+          });
       },
 
       updateMember: (id, updates) => {
+        let updatedTarget: ChurchMember | null = null;
         set((state) => ({
-          members: state.members.map((m) => (m.id === id ? { ...m, ...updates } : m))
+          members: state.members.map((m) => {
+            if (m.id !== id) return m;
+            const nextMinistry = updates.ministry !== undefined ? updates.ministry : m.ministry;
+            const isWorship =
+              updates.isWorshipMember !== undefined
+                ? updates.isWorshipMember
+                : nextMinistry === 'Louvor';
+            updatedTarget = {
+              ...m,
+              ...updates,
+              ministry: isWorship ? 'Louvor' : (nextMinistry === 'Louvor' ? 'Nenhum' : nextMinistry),
+              isWorshipMember: isWorship,
+              worshipDisplayName: isWorship
+                ? (updates.worshipDisplayName ?? m.worshipDisplayName ?? updates.fullName ?? m.fullName)
+                : m.worshipDisplayName,
+              worshipRole: isWorship ? (updates.worshipRole ?? m.worshipRole ?? 'Vocal') : m.worshipRole,
+              worshipCategory: isWorship ? (updates.worshipCategory ?? m.worshipCategory ?? 'Vocais') : m.worshipCategory,
+              isWorshipLeader: isWorship ? (updates.isWorshipLeader ?? m.isWorshipLeader ?? false) : false,
+            };
+            return updatedTarget;
+          })
         }));
+
+        if (updatedTarget) {
+          const target = updatedTarget as ChurchMember;
+          const cleanPhone = (target.phoneWhatsApp || '').replace(/\D/g, '');
+          const whatsappInt = cleanPhone && !cleanPhone.startsWith('55') ? `55${cleanPhone}` : cleanPhone;
+          void supabase()
+            .from('church_members')
+            .update({
+              full_name: target.fullName,
+              phone: cleanPhone,
+              whatsapp: whatsappInt,
+              email: target.email || null,
+              birth_date: target.birthDate || null,
+              baptism_date: target.baptismDate || null,
+              role: target.role,
+              ministry: target.ministry,
+              is_worship_member: !!target.isWorshipMember,
+              worship_display_name: target.worshipDisplayName || target.fullName,
+              worship_role: target.worshipRole || 'Vocal',
+              worship_category: target.worshipCategory || 'Vocais',
+              is_worship_leader: !!target.isWorshipLeader,
+              address: target.address || null,
+              notes: target.pastoralNotes || null,
+              registration_status: target.registrationStatus || 'PENDENTE',
+              family_group_id: target.familyGroupId || null,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .then(({ error }) => {
+              if (error) console.warn('Erro ao atualizar membro em church_members:', error);
+            });
+        }
       },
 
       deleteMember: (id) => {
@@ -566,6 +781,14 @@ export const useChurchStore = create<ChurchStoreState>()(
           members: state.members.filter((m) => m.id !== id),
           attendances: state.attendances.filter((a) => a.memberId !== id)
         }));
+
+        void supabase()
+          .from('church_members')
+          .delete()
+          .eq('id', id)
+          .then(({ error }) => {
+            if (error) console.warn('Erro ao remover membro em church_members:', error);
+          });
       },
 
       toggleAttendance: (sessionId, memberId, method: 'Portaria' | 'WhatsApp' | 'QR Code' | 'Líder' = 'Portaria') => {
@@ -689,7 +912,8 @@ export const useChurchStore = create<ChurchStoreState>()(
         try {
           const { data, error } = await supabase()
             .from('church_members')
-            .select('*');
+            .select('*')
+            .order('full_name', { ascending: true });
 
           if (data && data.length > 0 && !error) {
             set((state) => {
@@ -697,22 +921,33 @@ export const useChurchStore = create<ChurchStoreState>()(
               
               for (const row of data) {
                 const existing = memberMap.get(row.id);
+                const isWorship = !!row.is_worship_member || row.ministry === 'Louvor';
+                const resolvedMinistry: ChurchMinistry = isWorship
+                  ? 'Louvor'
+                  : ((row.ministry as ChurchMinistry) || existing?.ministry || 'Nenhum');
+
                 if (existing) {
                   memberMap.set(row.id, {
                     ...existing,
                     fullName: row.full_name || existing.fullName,
-                    phoneWhatsApp: row.phone || row.whatsapp || existing.phoneWhatsApp,
+                    phoneWhatsApp: row.phone ?? row.whatsapp ?? existing.phoneWhatsApp,
                     email: row.email || existing.email,
                     birthDate: row.birth_date || existing.birthDate,
                     baptismDate: row.baptism_date || existing.baptismDate,
                     role: (row.role as ChurchRole) || existing.role,
-                    ministry: (row.ministry as ChurchMinistry) || existing.ministry,
+                    ministry: resolvedMinistry,
+                    isWorshipMember: isWorship,
+                    worshipDisplayName: row.worship_display_name || existing.worshipDisplayName || row.full_name,
+                    worshipRole: row.worship_role || existing.worshipRole,
+                    worshipCategory: row.worship_category || existing.worshipCategory,
+                    isWorshipLeader: row.is_worship_leader ?? existing.isWorshipLeader ?? false,
+                    worshipTeamId: row.worship_team_id || existing.worshipTeamId,
                     address: row.address || existing.address,
                     registrationStatus: (row.registration_status as any) || existing.registrationStatus,
                     inviteToken: row.invite_token || existing.inviteToken,
                     familyGroupId: row.family_group_id || existing.familyGroupId,
                   });
-                } else if (row.source === 'PRE_CADASTRO' || row.source === 'MANUAL') {
+                } else {
                   memberMap.set(row.id, {
                     id: row.id,
                     fullName: row.full_name,
@@ -721,8 +956,14 @@ export const useChurchStore = create<ChurchStoreState>()(
                     birthDate: row.birth_date,
                     baptismDate: row.baptism_date,
                     role: (row.role as ChurchRole) || 'Membro',
-                    ministry: (row.ministry as ChurchMinistry) || 'Nenhum',
-                    status: 'Ativo',
+                    ministry: resolvedMinistry,
+                    isWorshipMember: isWorship,
+                    worshipDisplayName: row.worship_display_name || row.full_name,
+                    worshipRole: row.worship_role || undefined,
+                    worshipCategory: row.worship_category || undefined,
+                    isWorshipLeader: !!row.is_worship_leader,
+                    worshipTeamId: row.worship_team_id || undefined,
+                    status: row.status === 'INATIVO' ? 'Afastado' : 'Ativo',
                     registrationStatus: (row.registration_status as any) || 'PENDENTE',
                     inviteToken: row.invite_token,
                     familyGroupId: row.family_group_id,
@@ -808,6 +1049,12 @@ export const useChurchStore = create<ChurchStoreState>()(
             existingMap.set(pre.id, {
               ...pre,
               ...existing,
+              ministry: existing.ministry && existing.ministry !== 'Nenhum' ? existing.ministry : pre.ministry,
+              isWorshipMember: existing.isWorshipMember ?? pre.isWorshipMember,
+              worshipDisplayName: existing.worshipDisplayName || pre.worshipDisplayName,
+              worshipRole: existing.worshipRole || pre.worshipRole,
+              worshipCategory: existing.worshipCategory || pre.worshipCategory,
+              isWorshipLeader: existing.isWorshipLeader ?? pre.isWorshipLeader,
               inviteToken: existing.inviteToken || pre.inviteToken,
               familyGroupId: existing.familyGroupId || pre.familyGroupId,
               registrationStatus: existing.registrationStatus || pre.registrationStatus || 'PENDENTE',

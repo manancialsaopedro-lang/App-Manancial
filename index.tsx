@@ -64,7 +64,12 @@ import { OfflinePage } from './features/Offline/OfflinePage';
 
 // Features - Member
 import { MemberHome } from './features/Member/MemberHome';
+import { ChurchMemberLayout } from './features/Church/layouts/ChurchMemberLayout';
 import { ChurchMemberHome } from './features/Church/ChurchMemberHome';
+import { ChurchMemberPastoralPage } from './features/Church/pages/member/ChurchMemberPastoralPage';
+import { ChurchMemberEventsPage } from './features/Church/pages/member/ChurchMemberEventsPage';
+import { ChurchMemberStudyPage } from './features/Church/pages/member/ChurchMemberStudyPage';
+import { ChurchMemberProfilePage } from './features/Church/pages/member/ChurchMemberProfilePage';
 import { MemberCompleteRegistrationPage } from './features/Member/MemberCompleteRegistrationPage';
 
 // Features - Visitor Wizard & Landing Page (Aberto / Sem Auth)
@@ -86,8 +91,15 @@ import { DevCellsPage } from './features/DevPortal/pages/DevCellsPage';
 import { DevCoursesPage } from './features/DevPortal/pages/DevCoursesPage';
 import { DevEventsPage } from './features/DevPortal/pages/DevEventsPage';
 
-// Dev Toolbar
-import { DevToolbar } from './components/DevToolbar';
+// Features - Ecossistema Hub & Ministério de Louvor
+import { EcosystemHubPage } from './features/Hub/EcosystemHubPage';
+import { LouvorHubPage } from './features/Worship/LouvorHubPage';
+import WorshipApp from './features/Worship/WorshipApp';
+import { ChurchCanteenPage } from './features/Canteen/ChurchCanteenPage';
+import { ChurchFinancialPage } from './features/Financial/ChurchFinancialPage';
+
+// AssistiveTouch Dev (Role & Environment Switcher flutuante estilo iOS)
+import { AssistiveTouchDev } from './components/AssistiveTouchDev';
 
 const RequireAuth = ({ children }: { children?: React.ReactNode }) => {
   const { user, authReady } = useAppStore();
@@ -123,28 +135,43 @@ const App = () => {
         <Route path="/completar-cadastro" element={<MemberCompleteRegistrationPage />} />
         <Route path="/cadastro-membro" element={<MemberCompleteRegistrationPage />} />
 
-        {/* Portal de Gestão Principal (Estilo Basiléia) - Abre como Primeira Tela do App */}
-        <Route path="/" element={<DevLayout />}>
-          <Route index element={<DevChurchInfoPage />} />
-          <Route path="igreja" element={<DevChurchInfoPage />} />
-          <Route path="solicitacoes" element={<DevRequestsPage />} />
-          <Route path="notificacoes" element={<DevNotificationsPage />} />
-          <Route path="membros" element={<DevMembersPage />} />
-          <Route path="presenca" element={<DevAttendancePage />} />
-          <Route path="mensagens" element={<DevWhatsAppMessagesPage />} />
-          <Route path="relatorios" element={<DevReportsPage />} />
-          <Route path="celulas" element={<DevCellsPage />} />
-          <Route path="cursos" element={<DevCoursesPage />} />
-          <Route path="eventos" element={<DevEventsPage />} />
-          <Route path="visitantes" element={<DevVisitorsPage />} />
-          <Route path="dev/igreja" element={<DevChurchInfoPage />} />
-          <Route path="dev/solicitacoes" element={<DevRequestsPage />} />
-          <Route path="dev/notificacoes" element={<DevNotificationsPage />} />
-          <Route path="gestao/membros" element={<DevMembersPage />} />
-          <Route path="gestao/presenca" element={<DevAttendancePage />} />
-          <Route path="gestao/mensagens" element={<DevWhatsAppMessagesPage />} />
-          <Route path="gestao/relatorios" element={<DevReportsPage />} />
+        {/* Hub Central do Ecossistema Manancial (Modo Desenvolvedor / Seletor de Ambientes) */}
+        <Route path="/" element={<EcosystemHubPage />} />
+        <Route path="/hub" element={<EcosystemHubPage />} />
+
+        {/* Portal de Gestão Principal (Pastores & Liderança) */}
+        <Route element={<DevLayout />}>
+          <Route path="/igreja" element={<DevChurchInfoPage />} />
+          <Route path="/solicitacoes" element={<DevRequestsPage />} />
+          <Route path="/notificacoes" element={<DevNotificationsPage />} />
+          <Route path="/membros" element={<DevMembersPage />} />
+          <Route path="/presenca" element={<DevAttendancePage />} />
+          <Route path="/mensagens" element={<DevWhatsAppMessagesPage />} />
+          <Route path="/relatorios" element={<DevReportsPage />} />
+          <Route path="/celulas" element={<DevCellsPage />} />
+          <Route path="/cursos" element={<DevCoursesPage />} />
+          <Route path="/eventos" element={<DevEventsPage />} />
+          <Route path="/visitantes" element={<DevVisitorsPage />} />
+          <Route path="/dev/igreja" element={<DevChurchInfoPage />} />
+          <Route path="/dev/solicitacoes" element={<DevRequestsPage />} />
+          <Route path="/dev/notificacoes" element={<DevNotificationsPage />} />
+          <Route path="/gestao" element={<Navigate to="/igreja" replace />} />
+          <Route path="/gestao/membros" element={<DevMembersPage />} />
+          <Route path="/gestao/presenca" element={<DevAttendancePage />} />
+          <Route path="/gestao/mensagens" element={<DevWhatsAppMessagesPage />} />
+          <Route path="/gestao/relatorios" element={<DevReportsPage />} />
         </Route>
+
+        {/* Ministério de Louvor Manancial (Módulo Oficial Integrado / Louvor App) */}
+        <Route path="/louvor/*" element={<WorshipApp />} />
+        <Route path="/app/*" element={<WorshipApp />} />
+
+        {/* Novo Módulo Oficial: Cantina & Caixa da Igreja (Multi-evento) */}
+        <Route path="/cantina" element={<ChurchCanteenPage />} />
+        <Route path="/caixa" element={<Navigate to="/cantina" replace />} />
+
+        {/* Novo Módulo Oficial: Financeiro & Tesouraria Manancial */}
+        <Route path="/financeiro" element={<ChurchFinancialPage />} />
 
         {/* Redirecionamentos de conveniência */}
         <Route path="/gestao/membros" element={<Navigate to="/membros" replace />} />
@@ -179,10 +206,10 @@ const App = () => {
           <Route path="forecast" element={<OrgForecast />} />
           <Route path="collected" element={<OrgCollected />} />
           
-          <Route path="financials" element={<OrgFinancials />} />
+          <Route path="financials" element={<ChurchFinancialPage />} />
           <Route path="financials/:id" element={<TransactionDetail />} />
           
-          <Route path="canteen" element={<OrgCanteen />} />
+          <Route path="canteen" element={<ChurchCanteenPage />} />
           <Route path="canteen/stock/new" element={<OrgStockQuickWizard />} />
           <Route path="canteen/stock" element={<OrgStockEditor />} />
           <Route path="history" element={<OrgPurchaseHistory />} />
@@ -216,8 +243,14 @@ const App = () => {
           <Route path="time" element={<ScheduleManager />} />
         </Route>
 
-        {/* Espaço do Membro da Igreja (App Principal) */}
-        <Route path="/igreja/membro" element={<RequireAuth><ChurchMemberHome /></RequireAuth>} />
+        {/* Espaço do Membro da Igreja (App Principal com Subpáginas e Barra Mobile) */}
+        <Route path="/igreja/membro" element={<RequireAuth><ChurchMemberLayout /></RequireAuth>}>
+          <Route index element={<ChurchMemberHome />} />
+          <Route path="atendimento" element={<ChurchMemberPastoralPage />} />
+          <Route path="eventos" element={<ChurchMemberEventsPage />} />
+          <Route path="ensino" element={<ChurchMemberStudyPage />} />
+          <Route path="perfil" element={<ChurchMemberProfilePage />} />
+        </Route>
 
         {/* Sub-App: Membro / Participante no Acampamento */}
         <Route path="/membro" element={<RequireAuth><AppLayout sector="membro" /></RequireAuth>}>
@@ -250,7 +283,7 @@ const App = () => {
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
-      <DevToolbar />
+      <AssistiveTouchDev />
     </HashRouter>
   );
 };

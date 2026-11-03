@@ -28,9 +28,13 @@ import {
   ExternalLink,
   Globe,
   Clock,
-  CheckSquare
+  CheckSquare,
+  Music,
+  Search
 } from 'lucide-react';
 import { useAppStore } from '../../../store';
+import { CommandPalette } from '../../../components/ui/CommandPalette';
+import { TooltipProvider } from '../../../components/ui/Tooltip';
 
 interface NavSubItem {
   label: string;
@@ -61,10 +65,17 @@ export const DevLayout: React.FC = () => {
   });
   const [unreadNotifications, setUnreadNotifications] = useState(3);
   const [showNotificationToast, setShowNotificationToast] = useState(false);
+  const [spotlightOpen, setSpotlightOpen] = useState(false);
+  const [customToastMessage, setCustomToastMessage] = useState<string | null>(null);
 
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAppStore();
+
+  const triggerCustomToast = (msg: string) => {
+    setCustomToastMessage(msg);
+    setTimeout(() => setCustomToastMessage(null), 3500);
+  };
 
   const toggleSubmenu = (menuId: string) => {
     setExpandedMenus((prev) => ({
@@ -126,6 +137,12 @@ export const DevLayout: React.FC = () => {
           icon: Calendar,
           path: '/eventos',
         },
+        {
+          id: 'louvor',
+          label: 'Min. de Louvor',
+          icon: Music,
+          path: '/app/dashboard',
+        },
       ],
     },
     {
@@ -163,9 +180,9 @@ export const DevLayout: React.FC = () => {
           label: 'Operação Financeira',
           icon: Wallet,
           subItems: [
+            { label: 'Financeiro & Tesouraria', path: '/financeiro' },
+            { label: 'Cantina & PDV Oficial', path: '/cantina' },
             { label: 'Central do Caixa', path: '/org/cashier-hub' },
-            { label: 'Cantina / PDV', path: '/org/canteen' },
-            { label: 'Movimentações', path: '/org/financials' },
             { label: 'Fechamento Diário', path: '/org/closing' },
           ],
         },
@@ -214,6 +231,26 @@ export const DevLayout: React.FC = () => {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Quick Spotlight Search Trigger in Sidebar */}
+      <div className="px-3 pt-3">
+        <button
+          type="button"
+          onClick={() => {
+            setMobileMenuOpen(false);
+            setSpotlightOpen(true);
+          }}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-cyan-950/70 hover:bg-cyan-950 border border-cyan-800/50 text-cyan-200/80 hover:text-white text-xs font-semibold transition-all shadow-inner"
+        >
+          <span className="flex items-center gap-2">
+            <Search size={14} className="text-cyan-400" />
+            <span>Busca Rápida...</span>
+          </span>
+          <kbd className="px-1.5 py-0.5 text-[10px] font-black bg-cyan-900/80 text-cyan-300 rounded border border-cyan-700/60">
+            ⌘K
+          </kbd>
+        </button>
       </div>
 
       {/* Nav Menu Categories */}
@@ -312,29 +349,47 @@ export const DevLayout: React.FC = () => {
         ))}
       </div>
 
-      {/* Footer / Quick Link to Landing Page */}
+      {/* Footer / Quick Link to Landing Page & Ecosystem Hub */}
       <div className="p-3 border-t border-cyan-900/40 bg-cyan-950/40 space-y-2">
         <button
           type="button"
-          onClick={() => navigate('/landing')}
+          onClick={() => navigate('/')}
           className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-200 text-xs font-bold transition-all border border-cyan-500/30"
         >
-          <Globe size={14} />
-          <span>Ver Landing Page Pública</span>
+          <Home size={14} />
+          <span>Hub do Ecossistema</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate('/landing')}
+          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-cyan-300 text-[11px] font-semibold transition-all border border-white/5"
+        >
+          <Globe size={13} />
+          <span>Ver Landing Page</span>
         </button>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#f4f8f9] flex flex-col lg:flex-row text-slate-800">
-      {/* Toast Feedback */}
-      {showNotificationToast && (
-        <div className="fixed top-5 right-5 z-[100] bg-cyan-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-cyan-700 animate-in fade-in slide-in-from-top-3">
-          <Bell size={18} className="text-cyan-300" />
-          <span className="text-xs font-medium">Você não tem novas notificações no momento.</span>
-        </div>
-      )}
+    <TooltipProvider delayDuration={150}>
+      <div className="min-h-screen bg-[#f4f8f9] flex flex-col lg:flex-row text-slate-800">
+        {/* Global Spotlight Command Palette (Ctrl+K / Cmd+K) */}
+        <CommandPalette
+          open={spotlightOpen}
+          onOpenChange={setSpotlightOpen}
+          onToast={triggerCustomToast}
+        />
+
+        {/* Toast Feedback */}
+        {(showNotificationToast || customToastMessage) && (
+          <div className="fixed top-5 right-5 z-[100] bg-cyan-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-cyan-700 animate-in fade-in slide-in-from-top-3">
+            <Bell size={18} className="text-cyan-300" />
+            <span className="text-xs font-medium">
+              {customToastMessage || 'Você não tem novas notificações no momento.'}
+            </span>
+          </div>
+        )}
 
       {/* Desktop Sidebar (lg+) */}
       <aside className="hidden lg:block w-64 h-screen sticky top-0 shrink-0 border-r border-cyan-950/20 shadow-xl z-30">
@@ -381,12 +436,38 @@ export const DevLayout: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Header Actions: Landing Link, Notifications & Avatar */}
-          <div className="flex items-center gap-3">
+          {/* Right Header Actions: Spotlight Search, Ecosystem Hub, Landing Link, Notifications & Avatar */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Spotlight Search Trigger (⌘K / Ctrl+K) */}
+            <button
+              type="button"
+              onClick={() => setSpotlightOpen(true)}
+              className="inline-flex items-center gap-2.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-500 bg-slate-100/90 hover:bg-slate-200/80 hover:text-slate-800 border border-slate-200/90 transition-all shadow-2xs group"
+              title="Busca Rápida Spotlight (⌘K / Ctrl+K)"
+            >
+              <Search size={14} className="text-cyan-700 group-hover:scale-110 transition-transform" />
+              <span className="hidden md:inline text-slate-500 group-hover:text-slate-800">
+                Buscar membro ou ação...
+              </span>
+              <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-black text-cyan-900 bg-white rounded border border-slate-200 shadow-2xs">
+                ⌘K
+              </kbd>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all"
+              title="Voltar ao Hub do Ecossistema"
+            >
+              <Home size={14} className="text-cyan-700" />
+              <span className="hidden sm:inline">Hub Inicial</span>
+            </button>
+
             <button
               type="button"
               onClick={() => navigate('/landing')}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-cyan-900 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 transition-all"
+              className="hidden xl:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-cyan-900 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 transition-all"
             >
               <Globe size={14} />
               <span>Landing Page</span>
@@ -426,5 +507,6 @@ export const DevLayout: React.FC = () => {
         </main>
       </div>
     </div>
+    </TooltipProvider>
   );
 };

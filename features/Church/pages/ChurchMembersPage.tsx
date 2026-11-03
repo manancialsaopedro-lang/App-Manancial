@@ -87,9 +87,12 @@ export const ChurchMembersPage: React.FC = () => {
       m.fullName.toLowerCase().includes(search.toLowerCase()) ||
       m.phoneWhatsApp.includes(search) ||
       (m.ministry && m.ministry.toLowerCase().includes(search.toLowerCase())) ||
+      (m.worshipRole && m.worshipRole.toLowerCase().includes(search.toLowerCase())) ||
       (m.familyGroupId && FAMILY_LABELS[m.familyGroupId]?.toLowerCase().includes(search.toLowerCase()));
 
-    const matchesRole = roleFilter === 'todos' || m.role === roleFilter;
+    const matchesRole =
+      roleFilter === 'todos' ||
+      (roleFilter === 'Louvor' ? (m.ministry === 'Louvor' || !!m.isWorshipMember) : m.role === roleFilter);
 
     const matchesRegStatus = 
       regStatusFilter === 'todos' ||
@@ -127,11 +130,18 @@ export const ChurchMembersPage: React.FC = () => {
     e.preventDefault();
     if (!editFormData.fullName || !editFormData.phoneWhatsApp) return;
 
+    const isWorship = editFormData.ministry === 'Louvor' || !!editFormData.isWorshipMember;
+
     addMember({
       fullName: editFormData.fullName,
       phoneWhatsApp: editFormData.phoneWhatsApp,
       role: (editFormData.role as ChurchRole) || 'Membro',
-      ministry: (editFormData.ministry as ChurchMinistry) || 'Nenhum',
+      ministry: isWorship ? 'Louvor' : ((editFormData.ministry as ChurchMinistry) || 'Nenhum'),
+      isWorshipMember: isWorship,
+      worshipDisplayName: isWorship ? (editFormData.worshipDisplayName || editFormData.fullName) : undefined,
+      worshipRole: isWorship ? (editFormData.worshipRole || 'Vocal') : undefined,
+      worshipCategory: isWorship ? (editFormData.worshipCategory || 'Vocais') : undefined,
+      isWorshipLeader: isWorship ? !!editFormData.isWorshipLeader : false,
       status: editFormData.status || 'Ativo',
       birthDate: editFormData.birthDate,
       baptismDate: editFormData.baptismDate,
@@ -156,6 +166,7 @@ export const ChurchMembersPage: React.FC = () => {
   const totalCount = members.length;
   const pendingCount = members.filter((m) => m.registrationStatus !== 'CONCLUIDO').length;
   const completedCount = members.filter((m) => m.registrationStatus === 'CONCLUIDO').length;
+  const worshipCount = members.filter((m) => m.ministry === 'Louvor' || !!m.isWorshipMember).length;
 
   return (
     <div className={`min-h-[100dvh] flex flex-col pb-28 ${themeColors.bg} transition-colors duration-500`}>
@@ -302,30 +313,43 @@ export const ChurchMembersPage: React.FC = () => {
             </div>
           </div>
 
-          {/* FILTRO DE FUNÇÕES ECLESIÁSTICAS */}
+          {/* FILTRO DE FUNÇÕES ECLESIÁSTICAS E MIN. LOUVOR */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-            {['todos', 'Membro', 'Líder', 'Pastor', 'Presbítero', 'Diácono', 'Visitante'].map((role) => (
+            {['todos', 'Louvor', 'Membro', 'Líder', 'Pastor', 'Presbítero', 'Diácono', 'Visitante'].map((role) => (
               <button
                 key={role}
                 onClick={() => setRoleFilter(role)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
                   roleFilter === role
-                    ? 'bg-cyan-600 text-white shadow-sm'
+                    ? role === 'Louvor'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'bg-cyan-600 text-white shadow-sm'
                     : isDarkMode
                     ? 'bg-slate-800/80 text-slate-400 hover:text-white'
                     : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'
                 }`}
               >
-                {role === 'todos' ? 'Todas Funções' : role}
+                {role === 'todos' ? 'Todas Funções' : role === 'Louvor' ? `🎵 Min. Louvor (${worshipCount})` : role}
               </button>
             ))}
           </div>
         </div>
 
-        {/* CONTADOR DE RESULTADOS */}
-        <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+        {/* CONTADOR DE RESULTADOS E ATALHO DO LOUVOR APP */}
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 px-1">
           <span>{filteredMembers.length} {filteredMembers.length === 1 ? 'membro exibido' : 'membros exibidos'}</span>
-          <span>Base oficial da Igreja Manancial</span>
+          <button
+            type="button"
+            onClick={() => {
+              const louvorUrl = `${window.location.origin}${window.location.pathname.replace(/\/$/, '')}/#/louvor`;
+              navigator.clipboard.writeText(louvorUrl);
+              showToast('Link exclusivo do "Louvor App" copiado para enviar ao grupo!');
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-400 border border-indigo-500/30 font-bold text-[11px] transition-all"
+          >
+            <Copy size={12} />
+            <span>Copiar Link do Louvor App</span>
+          </button>
         </div>
 
         {/* LISTA DE CARDS DE MEMBROS */}
@@ -361,11 +385,15 @@ export const ChurchMembersPage: React.FC = () => {
                             <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
                               {member.role}
                             </span>
-                            {member.ministry && member.ministry !== 'Nenhum' && (
+                            {(member.ministry === 'Louvor' || member.isWorshipMember) ? (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-500 dark:text-indigo-400 truncate">
+                                🎵 Louvor • {member.worshipRole || 'Vocal'}
+                              </span>
+                            ) : member.ministry && member.ministry !== 'Nenhum' ? (
                               <span className="text-[10px] font-medium text-slate-400 truncate">
                                 • {member.ministry}
                               </span>
-                            )}
+                            ) : null}
                           </div>
                         </div>
                       </div>
@@ -543,13 +571,23 @@ export const ChurchMembersPage: React.FC = () => {
                     <label className={`block text-xs font-bold mb-1 ${themeColors.textMain}`}>Ministério</label>
                     <select
                       value={editFormData.ministry || 'Nenhum'}
-                      onChange={(e) => setEditFormData({ ...editFormData, ministry: e.target.value as any })}
+                      onChange={(e) => {
+                        const val = e.target.value as ChurchMinistry;
+                        setEditFormData({
+                          ...editFormData,
+                          ministry: val,
+                          isWorshipMember: val === 'Louvor',
+                          worshipCategory: editFormData.worshipCategory || 'Vocais',
+                          worshipRole: editFormData.worshipRole || 'Vocal',
+                          worshipDisplayName: editFormData.worshipDisplayName || editFormData.fullName || '',
+                        });
+                      }}
                       className={`w-full px-3 py-2 rounded-xl border text-xs sm:text-sm ${
                         isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200'
                       }`}
                     >
                       <option value="Nenhum">Nenhum</option>
-                      <option value="Louvor">Louvor</option>
+                      <option value="Louvor">Louvor (Sincroniza com App de Louvor)</option>
                       <option value="Recepção">Recepção</option>
                       <option value="Infantil">Infantil</option>
                       <option value="Mídia & Som">Mídia & Som</option>
@@ -572,6 +610,74 @@ export const ChurchMembersPage: React.FC = () => {
                     />
                   </div>
                 </div>
+
+                {(editFormData.ministry === 'Louvor' || editFormData.isWorshipMember) && (
+                  <div className={`p-3.5 rounded-2xl border space-y-3 ${
+                    isDarkMode ? 'bg-indigo-950/25 border-indigo-800/50' : 'bg-indigo-50/70 border-indigo-200'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black uppercase tracking-wider text-indigo-500">
+                        🎵 Configuração no App do Min. de Louvor
+                      </span>
+                      <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer text-indigo-500">
+                        <input
+                          type="checkbox"
+                          checked={!!editFormData.isWorshipLeader}
+                          onChange={(e) => setEditFormData({ ...editFormData, isWorshipLeader: e.target.checked })}
+                          className="rounded border-indigo-400"
+                        />
+                        Líder / Ministro(a)
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      <div>
+                        <label className={`block text-[11px] font-bold mb-1 ${themeColors.textMain}`}>Categoria</label>
+                        <select
+                          value={editFormData.worshipCategory || 'Vocais'}
+                          onChange={(e) => setEditFormData({ ...editFormData, worshipCategory: e.target.value })}
+                          className={`w-full px-2.5 py-2 rounded-xl border text-xs ${
+                            isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200'
+                          }`}
+                        >
+                          <option value="Vocais">Vocais</option>
+                          <option value="Violão">Violão</option>
+                          <option value="Guitarra">Guitarra</option>
+                          <option value="Baixo">Baixo</option>
+                          <option value="Bateria">Bateria</option>
+                          <option value="Teclado">Teclado</option>
+                          <option value="Mídia">Mídia</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className={`block text-[11px] font-bold mb-1 ${themeColors.textMain}`}>Função / Instrumento</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Vocal, Teclado e Voz..."
+                          value={editFormData.worshipRole || ''}
+                          onChange={(e) => setEditFormData({ ...editFormData, worshipRole: e.target.value })}
+                          className={`w-full px-2.5 py-2 rounded-xl border text-xs ${
+                            isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200'
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className={`block text-[11px] font-bold mb-1 ${themeColors.textMain}`}>Nome na Escala</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Paulinho, Silvia..."
+                          value={editFormData.worshipDisplayName || ''}
+                          onChange={(e) => setEditFormData({ ...editFormData, worshipDisplayName: e.target.value })}
+                          className={`w-full px-2.5 py-2 rounded-xl border text-xs ${
+                            isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200'
+                          }`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className={`block text-xs font-bold mb-1 ${themeColors.textMain}`}>Anotações Pastorais Confidenciais</label>
@@ -796,13 +902,23 @@ export const ChurchMembersPage: React.FC = () => {
                   <label className={`block text-xs font-bold mb-1 ${themeColors.textMain}`}>Ministério</label>
                   <select
                     value={editFormData.ministry || 'Nenhum'}
-                    onChange={(e) => setEditFormData({ ...editFormData, ministry: e.target.value as any })}
+                    onChange={(e) => {
+                      const val = e.target.value as ChurchMinistry;
+                      setEditFormData({
+                        ...editFormData,
+                        ministry: val,
+                        isWorshipMember: val === 'Louvor',
+                        worshipCategory: editFormData.worshipCategory || 'Vocais',
+                        worshipRole: editFormData.worshipRole || 'Vocal',
+                        worshipDisplayName: editFormData.worshipDisplayName || editFormData.fullName || '',
+                      });
+                    }}
                     className={`w-full px-3 py-2 rounded-xl border text-xs sm:text-sm ${
                       isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200'
                     }`}
                   >
                     <option value="Nenhum">Nenhum</option>
-                    <option value="Louvor">Louvor</option>
+                    <option value="Louvor">Louvor (App de Louvor)</option>
                     <option value="Recepção">Recepção</option>
                     <option value="Infantil">Infantil</option>
                     <option value="Mídia & Som">Mídia & Som</option>
@@ -812,6 +928,61 @@ export const ChurchMembersPage: React.FC = () => {
                   </select>
                 </div>
               </div>
+
+              {(editFormData.ministry === 'Louvor' || editFormData.isWorshipMember) && (
+                <div className={`p-3 rounded-2xl border space-y-2.5 ${
+                  isDarkMode ? 'bg-indigo-950/25 border-indigo-800/50' : 'bg-indigo-50/70 border-indigo-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-indigo-500">
+                      🎵 App do Min. de Louvor
+                    </span>
+                    <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer text-indigo-500">
+                      <input
+                        type="checkbox"
+                        checked={!!editFormData.isWorshipLeader}
+                        onChange={(e) => setEditFormData({ ...editFormData, isWorshipLeader: e.target.checked })}
+                        className="rounded border-indigo-400"
+                      />
+                      Líder / Ministro(a)
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={`block text-[11px] font-bold mb-1 ${themeColors.textMain}`}>Categoria</label>
+                      <select
+                        value={editFormData.worshipCategory || 'Vocais'}
+                        onChange={(e) => setEditFormData({ ...editFormData, worshipCategory: e.target.value })}
+                        className={`w-full px-2.5 py-1.5 rounded-xl border text-xs ${
+                          isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200'
+                        }`}
+                      >
+                        <option value="Vocais">Vocais</option>
+                        <option value="Violão">Violão</option>
+                        <option value="Guitarra">Guitarra</option>
+                        <option value="Baixo">Baixo</option>
+                        <option value="Bateria">Bateria</option>
+                        <option value="Teclado">Teclado</option>
+                        <option value="Mídia">Mídia</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className={`block text-[11px] font-bold mb-1 ${themeColors.textMain}`}>Função / Instrumento</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Vocal, Violão..."
+                        value={editFormData.worshipRole || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, worshipRole: e.target.value })}
+                        className={`w-full px-2.5 py-1.5 rounded-xl border text-xs ${
+                          isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200'
+                        }`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center justify-end gap-2 pt-3">
                 <button

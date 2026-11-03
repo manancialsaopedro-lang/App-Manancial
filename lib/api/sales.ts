@@ -68,7 +68,9 @@ const mapSaleRow = (row: DbSaleRow): Sale => {
     paymentMethod: row.paymentMethod ?? row.payment_method ?? "Outro",
     personId: row.personId ?? row.person_id,
     personName: row.personName ?? row.person_name,
-    status: row.status
+    status: row.status,
+    eventId: (row as any).eventId ?? (row as any).event_id,
+    eventName: (row as any).eventName ?? (row as any).event_name
   };
 };
 
@@ -82,6 +84,8 @@ const toSaleDb = (payload: Partial<Sale>) => {
   if (payload.personId !== undefined) row.person_id = payload.personId;
   if (payload.personName !== undefined) row.person_name = payload.personName;
   if (payload.status !== undefined) row.status = payload.status;
+  if (payload.eventId !== undefined) (row as any).event_id = payload.eventId;
+  if (payload.eventName !== undefined) (row as any).event_name = payload.eventName;
   return row;
 };
 

@@ -45,6 +45,13 @@ export interface ChurchMember {
   registrationStatus?: 'PENDENTE' | 'CONCLUIDO';
   inviteToken?: string;
   familyGroupId?: string;
+  // Campos unificados do Ministério de Louvor
+  isWorshipMember?: boolean;
+  worshipDisplayName?: string;
+  worshipRole?: string;
+  worshipCategory?: string;
+  isWorshipLeader?: boolean;
+  worshipTeamId?: string;
 }
 
 export interface ChurchService {

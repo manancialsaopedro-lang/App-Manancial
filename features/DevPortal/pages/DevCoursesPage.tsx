@@ -25,7 +25,7 @@ export interface CourseStudent {
   id: string;
   studentName: string;
   phoneWhatsApp: string;
-  courseTitle: 'Batismo nas Águas' | 'Novos Convertidos' | 'Escola Bíblica de Maturidade' | 'Academia de Líderes';
+  courseTitle: 'Curso de Teologia' | 'Batismo nas Águas' | 'Novos Convertidos' | 'Escola Bíblica de Maturidade' | 'Academia de Líderes';
   teacherName: string;
   startDate: string;
   completedLessons: number;
@@ -37,6 +37,18 @@ export interface CourseStudent {
 const STORAGE_KEY = 'manancial_church_courses';
 
 const INITIAL_STUDENTS: CourseStudent[] = [
+  {
+    id: 'teo-1',
+    studentName: 'Sidney',
+    phoneWhatsApp: '(22) 99888-7766',
+    courseTitle: 'Curso de Teologia',
+    teacherName: 'Pr. Adenilson Freitas',
+    startDate: '2026-02-03',
+    completedLessons: 4,
+    totalLessons: 12,
+    status: 'Em Andamento',
+    notes: 'Aulas às terças-feiras com o Pr. Adenilson Freitas.',
+  },
   {
     id: '1',
     studentName: 'Gabriel Siqueira Rocha',
@@ -100,6 +112,7 @@ const INITIAL_STUDENTS: CourseStudent[] = [
 ];
 
 const COURSE_TYPES = [
+  'Curso de Teologia',
   'Batismo nas Águas',
   'Novos Convertidos',
   'Escola Bíblica de Maturidade',

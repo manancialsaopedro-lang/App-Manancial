@@ -119,7 +119,17 @@ export interface JudgeEvaluation {
 
 // --- NOVOS TIPOS PARA ORGANIZAÇÃO ---
 
-export type TransactionCategory = 'INSCRICAO' | 'CANTINA' | 'ALUGUEL_CHACARA' | 'OUTROS';
+export type TransactionCategory =
+  | 'DIZIMO'
+  | 'OFERTA'
+  | 'INSCRICAO'
+  | 'CANTINA'
+  | 'DESPESA_FIXA'
+  | 'MINISTERIO'
+  | 'MANUTENCAO'
+  | 'ACAO_SOCIAL'
+  | 'ALUGUEL_CHACARA'
+  | 'OUTROS';
 export type TransactionType = 'ENTRADA' | 'SAIDA';
 
 export interface Product {
@@ -158,6 +168,10 @@ export interface Transaction {
   
   // Novo campo para preservar o histórico de itens quando uma pendência é paga
   items?: SaleItem[];
+
+  // Campos para Cantina Multi-evento
+  eventId?: string;
+  eventName?: string;
 }
 
 export interface Sale {
@@ -173,6 +187,10 @@ export interface Sale {
   
   // Novo campo para controlar se a venda foi paga (para pendências)
   status: 'PAID' | 'PENDING';
+
+  // Campos para Cantina Multi-evento
+  eventId?: string;
+  eventName?: string;
 }
 
 // --- PROJECTION TYPE ---

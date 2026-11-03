@@ -55,6 +55,12 @@ const DEFAULT_CHURCH_DATA: ChurchData = {
       description: 'Culto de Celebração & Jovens',
     },
     {
+      id: '2b',
+      dayOfWeek: 'Terça-feira',
+      time: '19:30',
+      description: 'Curso de Teologia — Pr. Adenilson Freitas',
+    },
+    {
       id: '3',
       dayOfWeek: 'Quarta-feira',
       time: '19:30',
