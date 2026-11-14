@@ -41,7 +41,10 @@ export const InstallPWAButton = () => {
     setVisible(false);
   };
 
-  if (!visible || location.pathname !== '/login') {
+  const isLouvorLogin = location.pathname === '/louvor/login' || location.pathname === '/app/login';
+  const isMainLogin = location.pathname === '/login';
+
+  if (!visible || (!isMainLogin && !isLouvorLogin)) {
     return null;
   }
 
@@ -51,7 +54,7 @@ export const InstallPWAButton = () => {
       onClick={handleInstallClick}
       className="fixed bottom-24 right-4 z-50 rounded-full bg-gray-900 text-white px-4 py-2 text-sm font-bold shadow-xl hover:bg-gray-800 active:scale-95 transition"
     >
-      Instalar App
+      {isLouvorLogin ? 'Instalar Louvor App' : 'Instalar App'}
     </button>
   );
 };

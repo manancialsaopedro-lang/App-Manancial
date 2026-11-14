@@ -1,10 +1,13 @@
 
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from './store';
 import { useAuthSync } from './hooks/useAuthSync';
+import { useCurrentRole } from './hooks/useCurrentRole';
+import { UserRole } from './types';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ManancialSplashScreen } from './components/splash/ManancialSplashScreen';
 
 // Layouts
 import { AppLayout } from './layouts/AppLayout';
@@ -102,11 +105,11 @@ import { ChurchFinancialPage } from './features/Financial/ChurchFinancialPage';
 import { AssistiveTouchDev } from './components/AssistiveTouchDev';
 
 const RequireAuth = ({ children }: { children?: React.ReactNode }) => {
-  const { user, authReady } = useAppStore();
+  const { user, authReady, isDarkMode } = useAppStore();
   const location = useLocation();
 
   if (!authReady) {
-    return <div className="p-6 text-gray-500">Carregando…</div>;
+    return <ManancialSplashScreen standalone isDarkMode={isDarkMode} />;
   }
 
   if (!user) {
@@ -114,6 +117,51 @@ const RequireAuth = ({ children }: { children?: React.ReactNode }) => {
   }
 
   return <>{children}</>;
+};
+
+const RequireRole = ({
+  allowed,
+  children,
+}: {
+  allowed: UserRole[];
+  children?: React.ReactNode;
+}) => {
+  const { activeRole, defaultRoute } = useCurrentRole();
+  if (!allowed.includes(activeRole)) {
+    return <Navigate to={defaultRoute} replace />;
+  }
+  return <>{children}</>;
+};
+
+const RoleHomeRedirect = () => {
+  const { defaultRoute } = useCurrentRole();
+  return <Navigate to={defaultRoute} replace />;
+};
+
+const RootRoute = () => {
+  const { user, authReady, isDarkMode, toggleTheme } = useAppStore();
+  const { defaultRoute } = useCurrentRole();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  if (!authReady) {
+    return <ManancialSplashScreen standalone isDarkMode={isDarkMode} />;
+  }
+
+  if (user) {
+    const from = (location.state as any)?.from?.pathname || defaultRoute;
+    return <Navigate to={from} replace />;
+  }
+
+  return (
+    <ManancialSplashScreen
+      standalone
+      isDarkMode={isDarkMode}
+      onToggleTheme={toggleTheme}
+      onEnterLanding={() => navigate('/landing')}
+      onEnterAuth={() => navigate('/login')}
+    />
+  );
 };
 
 // Wrapper component to use hooks
@@ -135,12 +183,18 @@ const App = () => {
         <Route path="/completar-cadastro" element={<MemberCompleteRegistrationPage />} />
         <Route path="/cadastro-membro" element={<MemberCompleteRegistrationPage />} />
 
-        {/* Hub Central do Ecossistema Manancial (Modo Desenvolvedor / Seletor de Ambientes) */}
-        <Route path="/" element={<EcosystemHubPage />} />
+        {/* Rota Raiz: Pré-Page fluida se deslogado / Redirecionamento de papel se autenticado */}
+        <Route path="/" element={<RootRoute />} />
         <Route path="/hub" element={<EcosystemHubPage />} />
 
         {/* Portal de Gestão Principal (Pastores & Liderança) */}
-        <Route element={<DevLayout />}>
+        <Route
+          element={
+            <RequireRole allowed={['pastoral', 'admin']}>
+              <DevLayout />
+            </RequireRole>
+          }
+        >
           <Route path="/igreja" element={<DevChurchInfoPage />} />
           <Route path="/solicitacoes" element={<DevRequestsPage />} />
           <Route path="/notificacoes" element={<DevNotificationsPage />} />
@@ -167,28 +221,69 @@ const App = () => {
         <Route path="/app/*" element={<WorshipApp />} />
 
         {/* Novo Módulo Oficial: Cantina & Caixa da Igreja (Multi-evento) */}
-        <Route path="/cantina" element={<ChurchCanteenPage />} />
+        <Route
+          path="/cantina"
+          element={
+            <RequireRole allowed={['pastoral', 'admin', 'organizacao', 'editor']}>
+              <ChurchCanteenPage />
+            </RequireRole>
+          }
+        />
         <Route path="/caixa" element={<Navigate to="/cantina" replace />} />
 
         {/* Novo Módulo Oficial: Financeiro & Tesouraria Manancial */}
-        <Route path="/financeiro" element={<ChurchFinancialPage />} />
+        <Route
+          path="/financeiro"
+          element={
+            <RequireRole allowed={['pastoral', 'admin', 'organizacao', 'editor']}>
+              <ChurchFinancialPage />
+            </RequireRole>
+          }
+        />
 
         {/* Redirecionamentos de conveniência */}
         <Route path="/gestao/membros" element={<Navigate to="/membros" replace />} />
         <Route path="/gestao/presenca" element={<Navigate to="/presenca" replace />} />
         <Route path="/gestao/mensagens" element={<Navigate to="/mensagens" replace />} />
-        <Route path="/gestao/relatorios" element={<RequireAuth><ChurchReportsPage /></RequireAuth>} />
+        <Route
+          path="/gestao/relatorios"
+          element={
+            <RequireAuth>
+              <RequireRole allowed={['pastoral', 'admin']}>
+                <ChurchReportsPage />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
 
         {/* Submódulo Acampamento Manancial (Preservado e Isolado) */}
-        <Route path="/retiro" element={<Navigate to="/landing" replace />} />
+        <Route path="/retiro" element={<Navigate to="/acampamento" replace />} />
         <Route path="/acampamento" element={<RequireAuth><CampWelcomePage /></RequireAuth>} />
         <Route path="/acampamento/home" element={<RequireAuth><CampWelcomePage /></RequireAuth>} />
         <Route path="/acampamento/informacoes" element={<CampInfoPage />} />
-        <Route path="/acampamento/pagamentos" element={<RequireAuth><CampPastorPaymentsPage /></RequireAuth>} />
+        <Route
+          path="/acampamento/pagamentos"
+          element={
+            <RequireAuth>
+              <RequireRole allowed={['pastoral', 'admin', 'organizacao', 'editor']}>
+                <CampPastorPaymentsPage />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
         <Route path="/gestao/acampamento" element={<Navigate to="/acampamento/pagamentos" replace />} />
         
         {/* Módulo Organização */}
-        <Route path="/org" element={<RequireAuth><AppLayout sector="org" /></RequireAuth>}>
+        <Route
+          path="/org"
+          element={
+            <RequireAuth>
+              <RequireRole allowed={['pastoral', 'admin', 'organizacao', 'editor']}>
+                <AppLayout sector="org" />
+              </RequireRole>
+            </RequireAuth>
+          }
+        >
           <Route index element={<Navigate to="home" />} />
           
           <Route path="home" element={<OrgHome />} />
@@ -219,20 +314,62 @@ const App = () => {
           <Route path="purchases" element={<Navigate to="financials" />} />
         </Route>
 
-        {/* Módulo Gincana */}
+        {/* Módulo Gincana (placar e cronograma liberados para todos; coordenação e provas restritas) */}
         <Route path="/gincana" element={<RequireAuth><AppLayout sector="gincana" /></RequireAuth>}>
           <Route index element={<Navigate to="dash" />} />
-          <Route path="dash" element={<GymDashboard />} />
+          <Route
+            path="dash"
+            element={
+              <RequireRole allowed={['pastoral', 'admin', 'gincana', 'lider_equipe']}>
+                <GymDashboard />
+              </RequireRole>
+            }
+          />
           
           <Route path="placar" element={<ScorePage />} />
-          <Route path="equipes-geral" element={<TeamsOverview />} />
+          <Route
+            path="equipes-geral"
+            element={
+              <RequireRole allowed={['pastoral', 'admin', 'gincana', 'lider_equipe']}>
+                <TeamsOverview />
+              </RequireRole>
+            }
+          />
 
-          <Route path="list" element={<PeopleList mode="gincana" />} />
-          <Route path="equipes/:teamId" element={<TeamDetail />} />
+          <Route
+            path="list"
+            element={
+              <RequireRole allowed={['pastoral', 'admin', 'gincana', 'lider_equipe']}>
+                <PeopleList mode="gincana" />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="equipes/:teamId"
+            element={
+              <RequireRole allowed={['pastoral', 'admin', 'gincana', 'lider_equipe']}>
+                <TeamDetail />
+              </RequireRole>
+            }
+          />
           
-          <Route path="materiais" element={<MaterialsManager />} />
+          <Route
+            path="materiais"
+            element={
+              <RequireRole allowed={['pastoral', 'admin', 'gincana', 'lider_equipe']}>
+                <MaterialsManager />
+              </RequireRole>
+            }
+          />
           
-          <Route path="proofs">
+          <Route
+            path="proofs"
+            element={
+              <RequireRole allowed={['pastoral', 'admin', 'gincana', 'lider_equipe']}>
+                <Outlet />
+              </RequireRole>
+            }
+          >
             <Route index element={<ProofsList />} />
             <Route path=":proofId" element={<ProofDetail />} />
             <Route path=":proofId/executar" element={<ProofRun />} />
@@ -261,7 +398,16 @@ const App = () => {
         </Route>
 
         {/* Novo Portal de Gestão Eclesiástica & Dev (Estilo Basiléia com cores Manancial) */}
-        <Route path="/dev" element={<RequireAuth><DevLayout /></RequireAuth>}>
+        <Route
+          path="/dev"
+          element={
+            <RequireAuth>
+              <RequireRole allowed={['pastoral', 'admin']}>
+                <DevLayout />
+              </RequireRole>
+            </RequireAuth>
+          }
+        >
           <Route index element={<Navigate to="igreja" replace />} />
           <Route path="igreja" element={<DevChurchInfoPage />} />
           <Route path="solicitacoes" element={<DevRequestsPage />} />

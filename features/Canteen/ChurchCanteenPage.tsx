@@ -29,7 +29,9 @@ import {
   AlertTriangle,
   Receipt,
   UserCheck,
-  Edit2
+  Edit2,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { Product, PaymentMethod, Person, Sale, SaleItem } from '../../types';
@@ -62,7 +64,9 @@ export const ChurchCanteenPage: React.FC = () => {
     sales,
     setSales,
     settleSale,
-    settleAllCustomerDebt
+    settleAllCustomerDebt,
+    isDarkMode,
+    toggleTheme
   } = useAppStore();
 
   // Abas do Módulo: 'pdv' | 'comandas' | 'estoque' | 'fechamento'
@@ -478,7 +482,7 @@ export const ChurchCanteenPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#070c14] text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-black">
+    <div className={`min-h-screen bg-[#070c14] text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-black transition-colors duration-300 ${!isDarkMode ? 'theme-light-adapt' : ''}`}>
       {/* Toast Notificação */}
       {toastMessage && (
         <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[100] px-4 py-2.5 rounded-2xl bg-slate-900/95 border border-cyan-400/40 text-white text-xs sm:text-sm font-bold shadow-2xl backdrop-blur-xl flex items-center gap-2 animate-in fade-in slide-in-from-top-3">
@@ -493,9 +497,9 @@ export const ChurchCanteenPage: React.FC = () => {
           {/* Logo & Seletor de Evento */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/financeiro')}
               className="p-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
-              title="Voltar ao Hub"
+              title="Voltar ao Financeiro"
             >
               <ArrowLeft size={18} />
             </button>
@@ -583,11 +587,21 @@ export const ChurchCanteenPage: React.FC = () => {
             </div>
 
             <button
-              onClick={() => navigate('/igreja')}
-              className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-300 hover:text-white transition-colors shrink-0"
-              title="Abrir Gestão da Igreja"
+              type="button"
+              onClick={toggleTheme}
+              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-colors shrink-0 flex items-center gap-1.5 text-xs font-bold"
+              title={isDarkMode ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'}
             >
-              <span>Gestão</span>
+              {isDarkMode ? <Sun size={16} className="text-amber-400" /> : <Moon size={16} className="text-slate-700" />}
+              <span className="hidden sm:inline">{isDarkMode ? 'Claro' : 'Escuro'}</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/financeiro')}
+              className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-300 hover:text-white transition-colors shrink-0"
+              title="Voltar ao Financeiro & Tesouraria"
+            >
+              <span>Tesouraria</span>
             </button>
           </div>
         </div>

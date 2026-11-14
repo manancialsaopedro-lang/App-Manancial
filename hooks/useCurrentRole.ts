@@ -4,12 +4,15 @@ import { Person, UserRole } from '../types';
 
 export interface CurrentRoleInfo {
   activeRole: UserRole;
+  roleLabel: string;
+  defaultRoute: string;
   isDevMode: boolean;
   isOverridden: boolean;
   simulatedPerson: Person | null;
   canAccessOrg: boolean;
   canAccessGincana: boolean;
   canAccessPastoral: boolean;
+  canAccessLouvor: boolean;
   canAccessMember: boolean;
 }
 
@@ -23,6 +26,7 @@ export const useCurrentRole = (): CurrentRoleInfo => {
     // Normalization for legacy roles
     if (user?.role === 'admin') return 'pastoral';
     if (user?.role === 'editor') return 'organizacao';
+    if (user?.role === 'viewer') return 'membro';
     return (user?.role as UserRole) || 'pastoral';
   }, [isDevMode, devRole, user?.role]);
 
@@ -36,45 +40,61 @@ export const useCurrentRole = (): CurrentRoleInfo => {
     return assignedPerson || people[0] || null;
   }, [simulatedPersonId, people]);
 
-  const permissions = useMemo(() => {
+  const roleConfig = useMemo(() => {
     switch (activeRole) {
       case 'pastoral':
       case 'admin':
         return {
+          roleLabel: 'Pastor / Admin',
+          defaultRoute: '/igreja',
           canAccessOrg: true,
           canAccessGincana: true,
           canAccessPastoral: true,
+          canAccessLouvor: true,
           canAccessMember: true,
         };
       case 'organizacao':
       case 'editor':
         return {
+          roleLabel: 'Tesouraria & Cantina',
+          defaultRoute: '/financeiro',
           canAccessOrg: true,
           canAccessGincana: false,
           canAccessPastoral: false,
+          canAccessLouvor: false,
           canAccessMember: true,
         };
       case 'gincana':
-        return {
-          canAccessOrg: false,
-          canAccessGincana: true,
-          canAccessPastoral: false,
-          canAccessMember: true,
-        };
       case 'lider_equipe':
         return {
+          roleLabel: 'Coordenação Gincana',
+          defaultRoute: '/acampamento',
           canAccessOrg: false,
           canAccessGincana: true,
           canAccessPastoral: false,
+          canAccessLouvor: false,
+          canAccessMember: true,
+        };
+      case 'louvor':
+        return {
+          roleLabel: 'Líder de Louvor',
+          defaultRoute: '/app/dashboard',
+          canAccessOrg: false,
+          canAccessGincana: false,
+          canAccessPastoral: false,
+          canAccessLouvor: true,
           canAccessMember: true,
         };
       case 'membro':
       case 'viewer':
       default:
         return {
+          roleLabel: 'Membro da Igreja',
+          defaultRoute: '/igreja/membro',
           canAccessOrg: false,
           canAccessGincana: false,
           canAccessPastoral: false,
+          canAccessLouvor: false,
           canAccessMember: true,
         };
     }
@@ -85,6 +105,6 @@ export const useCurrentRole = (): CurrentRoleInfo => {
     isDevMode,
     isOverridden: isDevMode && !!devRole,
     simulatedPerson,
-    ...permissions,
+    ...roleConfig,
   };
 };

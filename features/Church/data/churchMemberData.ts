@@ -1,3 +1,5 @@
+import { WEEKDAY_LABELS, WeeklyService } from './churchWeeklyServices';
+
 export interface WorshipItem {
   day: string;
   time: string;
@@ -79,19 +81,16 @@ export const INSTAGRAM_URL = 'https://www.instagram.com/manancialsaopedro/';
 export const CHURCH_PIX_KEY = '34.868.191/0001-20';
 export const CHURCH_PIX_NAME = 'Comunidade Evangélica Manancial São Pedro';
 
-export const DEFAULT_SCHEDULES: WorshipItem[] = [
-  { day: 'Domingo', time: '09:30', title: 'Culto da Família & Santa Ceia', tag: 'Manhã de Ensino' },
-  { day: 'Domingo', time: '18:00', title: 'Culto de Celebração & Louvor', tag: 'Culto Principal' },
-  {
-    day: 'Terça-feira',
-    time: '19:30',
-    title: 'Curso de Teologia — Pr. Adenilson Freitas',
-    tag: 'Formação Teológica',
-    highlight: true,
-  },
-  { day: 'Quarta-feira', time: '19:30', title: 'Culto da Palavra & Oração', tag: 'Meio de Semana' },
-  { day: 'Sábado', time: '19:00', title: 'Culto de Jovens & Comunhão', tag: 'Juventude' },
-];
+export const toWorshipItems = (services: WeeklyService[]): WorshipItem[] =>
+  services.map((service) => ({
+    day: WEEKDAY_LABELS[service.dayOfWeek] ?? 'Dia a definir',
+    time: service.time,
+    title: service.isTeaching && !/teologia/i.test(service.title)
+      ? `${service.title} — Curso de Teologia`
+      : service.title,
+    tag: service.tag,
+    highlight: service.isTeaching,
+  }));
 
 export const BAPTISM_INSTRUCTIONS_STEPS: BaptismInstructionStep[] = [
   {
@@ -191,9 +190,9 @@ export const CHURCH_NEWS_FEED: ChurchNewsItem[] = [
     id: 'news-teologia',
     tag: 'Ensino & Palavra',
     title: 'Curso de Teologia às Terças-feiras com Pr. Adenilson Freitas',
-    dateLabel: 'Toda Terça-feira às 19:30',
+    dateLabel: 'Toda Terça-feira às 08:00 • Culto de Ensino',
     summary:
-      'As aulas de Teologia Bíblica e Sistemática acontecem presencialmente toda terça-feira sob ministração do Pr. Adenilson Freitas. Garanta sua vaga!',
+      'As aulas de Teologia Bíblica e Sistemática acontecem presencialmente no Culto de Ensino, toda terça-feira às 08:00, sob ministração do Pr. Adenilson Freitas. Garanta sua vaga!',
     actionLabel: 'Acessar Curso de Teologia',
     actionType: 'teologia',
     highlightColor: 'border-amber-300 bg-amber-50/70 text-amber-950',
@@ -339,7 +338,7 @@ export const AVAILABLE_CHURCH_COURSES: MemberCourseItem[] = [
     id: 'curso-teologia',
     title: 'Curso de Teologia',
     teacher: 'Pr. Adenilson Freitas',
-    scheduleLabel: 'Terças-feiras às 19:30 • Presencial',
+    scheduleLabel: 'Terças-feiras às 08:00 • Culto de Ensino • Presencial',
     totalLessons: 12,
     description:
       'Formação teológica completa abordando Bibliologia, Teologia Sistemática, História da Igreja, Hermenêutica e Vida Ministerial sob condução do Pr. Adenilson Freitas.',
@@ -421,44 +420,6 @@ export function saveStoredPastoralRequests(list: ChurchRequestItem[]): void {
   } catch (e) {
     console.warn('Erro ao salvar solicitações pastorais:', e);
   }
-}
-
-export function getChurchSchedules(): WorshipItem[] {
-  try {
-    const saved = localStorage.getItem('manancial_dev_church_info');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed.schedules && parsed.schedules.length > 0) {
-        const mapped: WorshipItem[] = parsed.schedules.map((s: any, idx: number) => ({
-          day: s.dayOfWeek,
-          time: s.time,
-          title: (s.description || 'Culto da Igreja').replace(/& Células|\/ Encontro de Células/gi, ''),
-          tag: idx === 0 ? 'Reunião da Família' : 'Culto Presencial',
-          highlight:
-            (s.description || '').toLowerCase().includes('teologia') ||
-            (s.description || '').toLowerCase().includes('adenilson'),
-        }));
-        const hasTheology = mapped.some(
-          (m) =>
-            m.title.toLowerCase().includes('teologia') ||
-            m.title.toLowerCase().includes('adenilson')
-        );
-        if (!hasTheology) {
-          mapped.splice(2, 0, {
-            day: 'Terça-feira',
-            time: '19:30',
-            title: 'Curso de Teologia — Pr. Adenilson Freitas',
-            tag: 'Formação Teológica',
-            highlight: true,
-          });
-        }
-        return mapped;
-      }
-    }
-  } catch (e) {
-    // ignore
-  }
-  return DEFAULT_SCHEDULES;
 }
 
 export function getConfirmedEventIds(): string[] {

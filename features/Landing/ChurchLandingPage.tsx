@@ -1,781 +1,956 @@
-import React, { useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'motion/react';
 import {
-  Church,
+  ArrowRight,
+  CheckCircle2,
+  CloudOff,
+  Menu,
+  Moon,
+  RefreshCw,
+  Search,
+  Sparkles,
+  Sun,
+  Tent,
+  Users,
+  Wifi,
+  X,
+  MapPin,
   Calendar,
   Clock,
-  MapPin,
-  Heart,
-  Tent,
-  Sparkles,
-  ArrowRight,
   Send,
-  CheckCircle2,
-  Phone,
-  Shield,
-  Users,
-  Compass,
-  Flame,
-  ChevronRight,
-  ExternalLink,
-  ZoomIn,
-  X,
-  Copy,
-  Check,
-  CreditCard,
-  QrCode,
-  MessageCircle,
-  Share2,
-  BookOpen
+  Church,
+  ShieldCheck,
 } from 'lucide-react';
-import { CAMP_2027_CONFIG } from '../../constants';
+import { useAppStore } from '../../store';
+import { ManancialWaterCanvas } from '../../components/splash/ManancialWaterCanvas';
+import { ManancialEmblem } from '../../components/splash/ManancialLogo';
 
-interface WorshipSchedule {
-  dayOfWeek: string;
-  time: string;
-  description: string;
+type UserContextRole = 'igreja' | 'acampamento';
+
+interface GincanaTeam {
+  id: string;
+  name: string;
+  colorHex: string;
+  points: number;
+  membersCount: number;
 }
+
+const INITIAL_TEAMS: GincanaTeam[] = [
+  { id: 't-juda', name: 'Tribo de Judá', colorHex: '#38BDF8', points: 1420, membersCount: 38 },
+  { id: 't-levi', name: 'Tribo de Levi', colorHex: '#2DD4BF', points: 1390, membersCount: 36 },
+  { id: 't-benjamim', name: 'Tribo de Benjamim', colorHex: '#F59E0B', points: 1280, membersCount: 35 },
+  { id: 't-efraim', name: 'Tribo de Efraim', colorHex: '#EC4899', points: 1210, membersCount: 34 },
+];
+
+interface LedgerRow {
+  id: string;
+  date: string;
+  description: string;
+  category: string;
+  amount: string;
+  status: 'Conciliado' | 'Pendente';
+}
+
+const LEDGER_ROWS: LedgerRow[] = [
+  {
+    id: 'L-104',
+    date: '12/11/2026',
+    description: 'Inscrições Acampamento Manancial 2027 — 1º Lote',
+    category: 'Acampamento',
+    amount: 'R$ 8.450,00',
+    status: 'Conciliado',
+  },
+  {
+    id: 'L-105',
+    date: '11/11/2026',
+    description: 'Ofertas & Dízimos Culto de Domingo',
+    category: 'Eclesiástico',
+    amount: 'R$ 4.280,00',
+    status: 'Conciliado',
+  },
+  {
+    id: 'L-106',
+    date: '10/11/2026',
+    description: 'Locação Sítio das Águas (Retiro)',
+    category: 'Estrutura',
+    amount: '- R$ 3.800,00',
+    status: 'Conciliado',
+  },
+  {
+    id: 'L-107',
+    date: '09/11/2026',
+    description: 'Material & Troféus da Gincana 25:14',
+    category: 'Gincana',
+    amount: '- R$ 690,00',
+    status: 'Pendente',
+  },
+];
+
+const CHURCH_IMAGE = '/assets/images/manancial_church_community_1794615448217.jpg';
+const CAMP_IMAGE = '/assets/images/manancial_camp_gathering_1794615447967.jpg';
 
 export const ChurchLandingPage: React.FC = () => {
   const navigate = useNavigate();
+  const { isDarkMode, toggleTheme } = useAppStore();
 
-  // Load schedules from church config or use defaults
-  const schedules: WorshipSchedule[] = (() => {
-    try {
-      const saved = localStorage.getItem('manancial_dev_church_info');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.schedules && parsed.schedules.length > 0) {
-          return parsed.schedules;
-        }
-      }
-    } catch (e) {
-      // fallback
+  const [activeContext, setActiveContext] = useState<UserContextRole>('igreja');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [teams, setTeams] = useState<GincanaTeam[]>(INITIAL_TEAMS);
+  const [isOffline, setIsOffline] = useState(false);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const [churchImgError, setChurchImgError] = useState(false);
+  const [campImgError, setCampImgError] = useState(false);
+
+  // Form de contato / novo visitante
+  const [leadName, setLeadName] = useState('');
+  const [leadPhone, setLeadPhone] = useState('');
+  const [leadEmail, setLeadEmail] = useState('');
+  const [leadContext, setLeadContext] = useState<UserContextRole>('igreja');
+  const [leadSubmitted, setLeadSubmitted] = useState(false);
+
+  const heroTiltRef = useRef<HTMLDivElement | null>(null);
+  const heroSheenRef = useRef<HTMLDivElement | null>(null);
+
+  const handleHeroTilt = (rx: number, ry: number, normX: number, normY: number) => {
+    if (heroTiltRef.current) {
+      const tx = (ry * 10).toFixed(2);
+      const ty = (-rx * 8).toFixed(2);
+      heroTiltRef.current.style.transform = `perspective(950px) translate3d(${tx}px, ${ty}px, 0) rotateX(${(rx * 9).toFixed(2)}deg) rotateY(${(ry * 9).toFixed(2)}deg)`;
     }
-    return [
-      { dayOfWeek: 'Domingo', time: '09:30', description: 'Culto da Família & Ceia' },
-      { dayOfWeek: 'Domingo', time: '18:00', description: 'Culto de Celebração & Jovens' },
-      { dayOfWeek: 'Quarta-feira', time: '19:30', description: 'Culto da Palavra & Oração' },
-      { dayOfWeek: 'Sábado', time: '19:00', description: 'Rede de Jovens & Células' },
-    ];
-  })();
-
-  // Prayer Request Form State
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [subject, setSubject] = useState('');
-  const [isSent, setIsSent] = useState(false);
-
-  // Camp Poster & Share State
-  const [isPosterModalOpen, setIsPosterModalOpen] = useState(false);
-  const [copiedPix, setCopiedPix] = useState(false);
-
-  const handleCopyPix = () => {
-    navigator.clipboard.writeText(CAMP_2027_CONFIG.pixKey);
-    setCopiedPix(true);
-    setTimeout(() => setCopiedPix(false), 3000);
-  };
-
-  const handleShareCamp = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: CAMP_2027_CONFIG.title,
-        text: `Acampamento Manancial 2027 em São Pedro - SP (05 a 09 de Fevereiro). "O segredo do Senhor é para aqueles que o temem..." (Salmos 25:14). Participe conosco!`,
-        url: window.location.href,
-      }).catch(() => {});
-    } else {
-      handleCopyPix();
+    if (heroSheenRef.current) {
+      const px = Math.round(normX * 100);
+      const py = Math.round(normY * 100);
+      heroSheenRef.current.style.background = `radial-gradient(circle at ${px}% ${py}%, rgba(165, 243, 252, 0.32), transparent 58%)`;
     }
   };
 
-  const openGoogleMaps = () => {
-    window.open('https://www.google.com/maps/search/?api=1&query=Sao+Pedro+SP', '_blank');
-  };
-
-  const openWhatsAppCamp = () => {
-    const text = encodeURIComponent(
-      `Olá! Gostaria de mais informações e garantir minha vaga no Acampamento Manancial 2027 em São Pedro - SP!`
+  const filteredLedger = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return LEDGER_ROWS;
+    return LEDGER_ROWS.filter(
+      (row) =>
+        row.description.toLowerCase().includes(q) ||
+        row.category.toLowerCase().includes(q) ||
+        row.status.toLowerCase().includes(q),
     );
-    window.open(`https://wa.me/5511976543210?text=${text}`, '_blank');
-  };
+  }, [searchQuery]);
 
-  const scrollToSection = (id: string) => {
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const handleAwardPoints = (teamId: string, delta: number) => {
+    setTeams((prev) =>
+      prev.map((t) => (t.id === teamId ? { ...t, points: Math.max(0, t.points + delta) } : t)),
+    );
+    if (isOffline) {
+      setPendingSyncCount((c) => c + 1);
     }
   };
 
-  const handlePrayerSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !subject.trim()) return;
+  const handleToggleOffline = () => {
+    if (isOffline) {
+      setIsOffline(false);
+      setPendingSyncCount(0);
+    } else {
+      setIsOffline(true);
+    }
+  };
 
-    setIsSent(true);
-    setTimeout(() => {
-      setName('');
-      setPhone('');
-      setSubject('');
-      setIsSent(false);
-    }, 4500);
+  const handleLeadSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!leadName.trim() || !leadPhone.trim()) return;
+    setLeadSubmitted(true);
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafb] text-slate-800 font-sans selection:bg-cyan-500 selection:text-white">
-      {/* 1. TOP NAVIGATION BAR */}
-      <header className="sticky top-0 z-50 bg-[#082f38]/95 backdrop-blur-md text-white border-b border-cyan-900/50 px-4 lg:px-8 py-3.5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          {/* Brand Logo */}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-400 to-teal-200 flex items-center justify-center text-cyan-950 font-black shadow-lg shadow-cyan-950/40">
-              <span className="text-xl">M</span>
+    <div
+      data-testid="landing-page"
+      className={`min-h-[100dvh] transition-colors duration-700 ${
+        isDarkMode ? 'bg-[#070B0E] text-[#F1F6F8]' : 'bg-[#EFF8FC] text-[#082F38]'
+      }`}
+    >
+      {/* Top Bar Minimalista */}
+      <header
+        className={`sticky top-0 z-40 border-b backdrop-blur-xl transition-colors duration-300 ${
+          isDarkMode
+            ? 'border-white/10 bg-[#070B0E]/85 text-white'
+            : 'border-[#082F38]/10 bg-white/85 text-[#082F38] shadow-2xs'
+        }`}
+      >
+        <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between gap-6 px-5 sm:px-8">
+          {/* Logo e Nome */}
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="flex items-center gap-2.5 text-left font-display font-bold tracking-tight text-lg"
+          >
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#082F38] to-[#06B6D4] p-0.5 shadow-sm flex items-center justify-center">
+              <span className="text-white text-sm font-black">M</span>
             </div>
-            <div>
-              <h1 className="font-black text-sm tracking-tight text-white flex items-center gap-1.5 leading-none">
-                Igreja <span className="text-cyan-300 font-bold">Manancial</span>
-              </h1>
-              <p className="text-[10px] text-cyan-200/60 font-semibold uppercase tracking-wider mt-0.5">
-                Uma Família para Pertencer
-              </p>
-            </div>
-          </div>
+            <span>Manancial</span>
+          </button>
 
-          {/* Center Navigation Links (Desktop) */}
-          <nav className="hidden md:flex items-center gap-6 text-xs font-bold uppercase tracking-wider text-cyan-100/80">
-            <button
-              type="button"
-              onClick={() => scrollToSection('cultos')}
-              className="hover:text-cyan-300 transition-colors"
-            >
-              Cultos
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollToSection('retiro')}
-              className="hover:text-amber-200 transition-colors text-amber-300 font-black flex items-center gap-1.5"
-            >
-              <Tent size={14} className="text-amber-400" />
-              <span>Acampamento 2027</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollToSection('oracao')}
-              className="hover:text-cyan-300 transition-colors"
-            >
-              Oração
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollToSection('sobre')}
-              className="hover:text-cyan-300 transition-colors"
-            >
-              Sobre Nós
-            </button>
+          {/* Links de navegação */}
+          <nav
+            aria-label="Navegação principal"
+            className={`hidden md:flex items-center gap-7 text-xs font-semibold uppercase tracking-wider ${
+              isDarkMode ? 'text-[#A6C2CC]' : 'text-[#3B5B66]'
+            }`}
+          >
+            <a href="#contextos" className="hover:text-cyan-400 transition-colors">
+              Contextos
+            </a>
+            <a href="#cultos" className="hover:text-cyan-400 transition-colors">
+              Cultos &amp; Igreja
+            </a>
+            <a href="#acampamento" className="hover:text-cyan-400 transition-colors">
+              Acampamento 2027
+            </a>
+            <a href="#recursos" className="hover:text-cyan-400 transition-colors">
+              Tecnologia
+            </a>
+            <a href="#contato" className="hover:text-cyan-400 transition-colors">
+              Contato
+            </a>
           </nav>
 
-          {/* Right Action: Área de Gestão */}
-          <div className="flex items-center gap-3">
+          {/* Ações primárias */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            {/* Toggle Tema */}
             <button
               type="button"
-              onClick={() => navigate('/')}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-cyan-950 text-xs font-black uppercase tracking-wider shadow-md shadow-cyan-500/20 transition-all active:scale-95"
+              onClick={toggleTheme}
+              className={`p-2 rounded-xl border transition-all active:scale-95 ${
+                isDarkMode
+                  ? 'border-white/10 bg-white/5 text-amber-300 hover:bg-white/10'
+                  : 'border-[#082F38]/12 bg-white/80 text-[#082F38] hover:bg-white shadow-2xs'
+              }`}
+              title={isDarkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
             >
-              <span>Painel de Gestão</span>
-              <ArrowRight size={14} />
+              {isDarkMode ? <Sun size={15} /> : <Moon size={15} />}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate('/login')}
+              className={`min-h-[38px] cursor-pointer whitespace-nowrap rounded-xl px-4 py-2 text-xs font-bold transition-all active:scale-95 shadow-md ${
+                isDarkMode
+                  ? 'bg-[#32B7D9] text-[#051217] hover:bg-[#4FD1E8] shadow-cyan-500/20'
+                  : 'bg-[#0891B2] text-white hover:bg-[#0E7490] shadow-cyan-900/15'
+              }`}
+            >
+              Acessar Conta
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((prev) => !prev)}
+              aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
+              className={`flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border md:hidden ${
+                isDarkMode ? 'border-white/15 text-white' : 'border-[#082F38]/15 text-[#082F38]'
+              }`}
+            >
+              {mobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Navigation Pills (Navegação rápida sem recarregar a rota) */}
-        <div className="flex md:hidden items-center gap-2 overflow-x-auto pt-2.5 pb-1 border-t border-cyan-900/40 text-[11px] font-bold text-cyan-100/90 no-scrollbar">
-          <button
-            type="button"
-            onClick={() => scrollToSection('retiro')}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/25 text-amber-300 border border-amber-500/40 font-black shrink-0 active:scale-95 transition-all"
+        {/* Menu Mobile */}
+        {mobileMenuOpen && (
+          <nav
+            aria-label="Menu móvel"
+            className={`border-t px-6 py-4 md:hidden flex flex-col gap-3 text-sm font-semibold ${
+              isDarkMode ? 'border-white/10 bg-[#080E12] text-slate-200' : 'border-slate-200 bg-white text-slate-800'
+            }`}
           >
-            <Tent size={12} className="text-amber-400" />
-            <span>Acampamento 2027</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollToSection('cultos')}
-            className="px-3 py-1.5 rounded-lg bg-cyan-900/40 hover:bg-cyan-900/70 shrink-0 active:scale-95 transition-all"
-          >
-            Cultos
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollToSection('oracao')}
-            className="px-3 py-1.5 rounded-lg bg-cyan-900/40 hover:bg-cyan-900/70 shrink-0 active:scale-95 transition-all"
-          >
-            Oração
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollToSection('sobre')}
-            className="px-3 py-1.5 rounded-lg bg-cyan-900/40 hover:bg-cyan-900/70 shrink-0 active:scale-95 transition-all"
-          >
-            Sobre
-          </button>
-        </div>
+            <a href="#contextos" onClick={() => setMobileMenuOpen(false)}>
+              Contextos do App
+            </a>
+            <a href="#cultos" onClick={() => setMobileMenuOpen(false)}>
+              Cultos &amp; Endereço
+            </a>
+            <a href="#acampamento" onClick={() => setMobileMenuOpen(false)}>
+              Acampamento 2027
+            </a>
+            <a href="#recursos" onClick={() => setMobileMenuOpen(false)}>
+              Recursos de Gestão
+            </a>
+            <a href="#contato" onClick={() => setMobileMenuOpen(false)}>
+              Fale Conosco / Visitante
+            </a>
+            <div className="pt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  navigate('/visitante');
+                }}
+                className="flex-1 py-2 rounded-xl text-xs font-bold border border-cyan-500/30 text-cyan-500 text-center"
+              >
+                Sou Visitante
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  navigate('/login');
+                }}
+                className="flex-1 py-2 rounded-xl text-xs font-bold bg-[#32B7D9] text-[#051217] text-center"
+              >
+                Entrar
+              </button>
+            </div>
+          </nav>
+        )}
       </header>
 
-      {/* 2. HERO SECTION COM IDENTIDADE VISUAL BASILÉIA/DEEP TEAL */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#06242c] via-[#082f38] to-[#0a4552] text-white py-20 lg:py-28 px-4">
-        {/* Glow & Atmospheric Blobs */}
-        <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-cyan-500/10 blur-[130px] pointer-events-none" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-teal-400/10 blur-[130px] pointer-events-none" />
+      {/* Hero Section com Águas Fluidas e Emblema 3D */}
+      <section id="topo" className="relative overflow-hidden border-b border-white/10">
+        <ManancialWaterCanvas
+          intensity="hero"
+          isDarkMode={isDarkMode}
+          onTiltChange={handleHeroTilt}
+        />
 
-        <div className="max-w-5xl mx-auto text-center relative z-10 space-y-6">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-400/10 border border-cyan-400/30 text-cyan-300 font-bold text-xs uppercase tracking-widest shadow-inner animate-in fade-in">
-            <Sparkles size={14} />
-            <span>Bem-vindo à Comunidade Manancial</span>
-          </div>
-
-          <h2 className="text-4xl sm:text-6xl font-black tracking-tight leading-tight">
-            Águas Vivas para a sua <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-teal-200 to-cyan-400">
-              Vida e Família
-            </span>
-          </h2>
-
-          <p className="text-base sm:text-lg text-cyan-100/90 max-w-2xl mx-auto leading-relaxed font-light">
-            "O segredo do Senhor é para os que o temem; e ele lhes fará saber a sua aliança."
-            <strong className="block text-xs font-black uppercase tracking-widest text-cyan-300 mt-2">
-              Salmos 25:14
-            </strong>
-          </p>
-
-          <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3.5">
-            <button
-              type="button"
-              onClick={() => scrollToSection('retiro')}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-stone-950 text-xs font-black uppercase tracking-wider shadow-xl shadow-amber-950/40 transition-all active:scale-95"
-            >
-              <Tent size={16} />
-              <span>Acampamento 2027</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => scrollToSection('cultos')}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-cyan-950 text-xs font-black uppercase tracking-wider shadow-xl shadow-cyan-950/40 transition-all active:scale-95"
-            >
-              <Calendar size={16} />
-              <span>Conhecer Nossos Cultos</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => scrollToSection('oracao')}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[#0a3f4a] hover:bg-[#0c4e5c] text-cyan-200 text-xs font-black uppercase tracking-wider border border-cyan-700/50 transition-all active:scale-95"
-            >
-              <Heart size={16} className="text-rose-400" />
-              <span>Enviar Pedido de Oração</span>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. SEÇÃO CULTOS DA SEMANA (SINCRONIZADOS EM TEMPO REAL) */}
-      <section id="cultos" className="py-16 px-4 max-w-6xl mx-auto">
-        <div className="text-center space-y-2 mb-10">
-          <span className="text-[11px] font-black uppercase tracking-widest text-cyan-800 bg-cyan-100 px-3 py-1 rounded-full">
-            Agenda Semanal
-          </span>
-          <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            Dias e Horários de Celebração
-          </h3>
-          <p className="text-xs sm:text-sm text-slate-500 max-w-xl mx-auto">
-            Portas abertas para você e sua família viverem momentos de fé, louvor e comunhão.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {schedules.map((item, idx) => (
-            <div
-              key={idx}
-              className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-cyan-500/40 transition-all flex flex-col justify-between"
-            >
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-700 bg-cyan-50 px-2.5 py-1 rounded-md">
-                  {item.dayOfWeek}
-                </span>
-                <h4 className="text-base font-black text-slate-800 mt-3 mb-1">
-                  {item.description || 'Culto de Celebração'}
-                </h4>
+        <div className="relative z-10 mx-auto max-w-[1200px] px-6 py-16 sm:py-24 lg:py-28">
+          <div className="grid grid-cols-1 items-stretch gap-12 lg:grid-cols-12 lg:gap-10">
+            {/* Texto Hero */}
+            <div className="flex flex-col justify-center lg:col-span-7">
+              <div className="inline-flex items-center gap-2 mb-4 text-xs font-bold tracking-wider uppercase text-cyan-400">
+                <Sparkles size={14} />
+                <span>Igreja Evangélica • Ministério de São Pedro</span>
               </div>
 
-              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                <span className="flex items-center gap-1.5 font-bold text-cyan-900">
-                  <Clock size={14} className="text-cyan-600" />
-                  {item.time}
-                </span>
-                <span className="text-[10px] font-semibold text-slate-400">Presencial</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+              <h1 className="font-display text-[clamp(2.25rem,4vw,3.75rem)] font-bold leading-[1.08] tracking-tight [text-wrap:balance]">
+                Gestão fluida da secretaria ao acampamento.
+              </h1>
 
-      {/* 4. DESTAQUE ESPECIAL: ACAMPAMENTO MANANCIAL 2027 (INFORMAÇÕES COMPLETAS & CARTAZ) */}
-      <section id="retiro" className="py-16 sm:py-20 px-4 bg-gradient-to-br from-[#120e09] via-[#211609] to-[#0d181e] text-white relative overflow-hidden border-y border-amber-900/40">
-        {/* Glow atmosférico de fundo */}
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-0 left-10 w-96 h-96 bg-orange-600/10 rounded-full blur-[130px] pointer-events-none" />
-
-        <div className="max-w-6xl mx-auto relative z-10 space-y-12">
-          {/* Header da Seção */}
-          <div className="text-center max-w-3xl mx-auto space-y-3.5">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-bold text-xs uppercase tracking-widest shadow-inner">
-              <Tent size={14} className="text-amber-400" />
-              <span>Temporada Oficial 2027 • Inscrições Abertas</span>
-            </div>
-
-            <div className="pt-1">
-              <span className="text-xs uppercase font-extrabold tracking-widest text-amber-400/90 block mb-1">
-                Salmos 25:14
-              </span>
-              <p className="text-base sm:text-xl italic font-serif text-amber-100/90 max-w-2xl mx-auto leading-relaxed">
-                "O segredo do Senhor é para aqueles que o temem, e ele lhes mostrará a sua aliança."
+              <p
+                className={`mt-5 max-w-[58ch] text-base leading-relaxed sm:text-[17px] ${
+                  isDarkMode ? 'text-[#B8CED6]' : 'text-[#3B5B66]'
+                }`}
+              >
+                O Manancial reúne controle de membros, presença por WhatsApp e relatórios no
+                escritório, com operação offline, tesouraria, cantina e placar ao vivo da gincana no
+                acampamento.
               </p>
+
+              <div className="mt-8 flex flex-wrap items-center gap-3.5 sm:gap-4">
+                <button
+                  type="button"
+                  onClick={() => navigate('/login')}
+                  className={`inline-flex min-h-[46px] items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold shadow-lg transition-all active:scale-95 ${
+                    isDarkMode
+                      ? 'bg-[#32B7D9] text-[#051217] hover:bg-[#4FD1E8] shadow-cyan-500/30'
+                      : 'bg-[#0891B2] text-white hover:bg-[#0E7490] shadow-cyan-900/20'
+                  }`}
+                >
+                  <span>Entrar no Sistema</span>
+                  <ArrowRight size={16} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/')}
+                  className={`inline-flex min-h-[46px] cursor-pointer items-center gap-2 rounded-xl border px-5 py-3 text-sm font-semibold backdrop-blur-md transition-all active:scale-95 ${
+                    isDarkMode
+                      ? 'border-white/15 bg-white/[0.04] text-[#E4F0F4] hover:bg-white/[0.09]'
+                      : 'border-[#082F38]/15 bg-white/80 text-[#082F38] hover:bg-white shadow-2xs'
+                  }`}
+                >
+                  <span>Rever Abertura Fluida</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/visitante')}
+                  className="inline-flex min-h-[46px] cursor-pointer items-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-cyan-500 hover:text-cyan-400 transition-colors"
+                >
+                  <span>Recepção de Visitantes →</span>
+                </button>
+              </div>
+
+              <div className="mt-10 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-400">
+                <span>Cultos em São Pedro - SP</span>
+                <span aria-hidden="true">·</span>
+                <span>Acampamento 25:14</span>
+                <span aria-hidden="true">·</span>
+                <span>Modo Claro &amp; Escuro</span>
+              </div>
             </div>
 
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white leading-tight">
-              Acampamento <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-orange-300 to-amber-200">Manancial 2027</span>
-            </h2>
+            {/* Showcase Emblema 3D */}
+            <div className="flex items-center justify-center lg:col-span-5">
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                className={`flex w-full flex-col items-center justify-between rounded-3xl border p-8 text-center backdrop-blur-xl ${
+                  isDarkMode
+                    ? 'border-white/12 bg-[#0A1116]/80'
+                    : 'border-white bg-white/85 shadow-xl'
+                }`}
+              >
+                <div className="mb-6">
+                  <ManancialEmblem
+                    size="lg"
+                    tiltRef={heroTiltRef}
+                    sheenRef={heroSheenRef}
+                    isDarkMode={isDarkMode}
+                    layoutId="hero-static-emblem"
+                  />
+                </div>
 
-            <p className="text-sm sm:text-base text-amber-100/80 font-medium">
-              Venha viver dias de graça, paz e renovação! <span className="text-amber-300 font-bold">Deus te espera!</span>
+                <div
+                  className={`w-full space-y-4 border-t pt-6 text-left text-xs ${
+                    isDarkMode ? 'border-white/10' : 'border-slate-200'
+                  }`}
+                >
+                  <div className="flex items-baseline justify-between gap-4">
+                    <span className="text-slate-400">Modo Igreja</span>
+                    <span className="font-mono font-bold text-cyan-400">Membros • Presença • Louvor</span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-4">
+                    <span className="text-slate-400">Modo Retiro</span>
+                    <span className="font-mono font-bold text-emerald-400">Gincana • Caixa • Offline</span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-4">
+                    <span className="text-slate-400">Interatividade</span>
+                    <span className="text-slate-300">Movimente o cursor sobre o topo</span>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Seção 2: Contextos Reais (Igreja vs Acampamento) */}
+      <section id="contextos" className="mx-auto max-w-[1200px] px-6 py-20 sm:py-24">
+        <div className="flex flex-col justify-between gap-6 border-b border-white/10 pb-8 md:flex-row md:items-end">
+          <div className="max-w-2xl">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-cyan-400">
+              Experiência adaptada ao contexto
+            </p>
+            <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl [text-wrap:balance]">
+              Um sistema, duas cadências de uso.
+            </h2>
+            <p
+              className={`mt-3 text-[15px] leading-relaxed ${
+                isDarkMode ? 'text-[#9BB4BD]' : 'text-[#4A6B76]'
+              }`}
+            >
+              Alterne abaixo para testar a tabela financeira da secretaria da igreja ou o controle de
+              gincana com sincronização offline do acampamento.
             </p>
           </div>
 
-          {/* Grid Principal: Foto Oficial + Painel de Informações */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
-            {/* Coluna Esquerda: Cartaz Oficial do Acampamento (5 colunas no desktop) */}
-            <div className="lg:col-span-5 flex flex-col items-center">
-              <div className="relative group w-full max-w-md mx-auto rounded-3xl overflow-hidden border-2 border-amber-500/40 shadow-2xl shadow-amber-950/70 bg-black/40">
-                {/* Imagem do Cartaz */}
-                <img
-                  src="/acampamento-2027.jpg"
-                  alt="Cartaz Oficial Acampamento Manancial 2027"
-                  className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-[1.02] cursor-pointer"
-                  onClick={() => setIsPosterModalOpen(true)}
-                  loading="lazy"
-                />
+          {/* Seletor de Contextos */}
+          <div
+            role="tablist"
+            aria-label="Alternar contexto de demonstração"
+            className={`inline-flex shrink-0 items-center gap-1 rounded-2xl border p-1 ${
+              isDarkMode ? 'border-white/12 bg-[#0C141A]' : 'border-slate-200 bg-white shadow-xs'
+            }`}
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeContext === 'igreja'}
+              onClick={() => setActiveContext('igreja')}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${
+                activeContext === 'igreja'
+                  ? 'bg-cyan-500 text-slate-950 shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Church size={15} />
+              <span>Igreja Local</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeContext === 'acampamento'}
+              onClick={() => setActiveContext('acampamento')}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${
+                activeContext === 'acampamento'
+                  ? 'bg-cyan-500 text-slate-950 shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Tent size={15} />
+              <span>Acampamento &amp; Gincana</span>
+            </button>
+          </div>
+        </div>
 
-                {/* Selo Flutuante de Cartaz Oficial */}
-                <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/70 backdrop-blur-md border border-amber-400/30 text-[10px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5 shadow-lg">
-                  <Sparkles size={11} className="text-amber-400" />
-                  <span>Cartaz Oficial 2027</span>
-                </div>
-
-                {/* Botão Hover Overlay para Ampliar */}
-                <button
-                  type="button"
-                  onClick={() => setIsPosterModalOpen(true)}
-                  className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 text-white font-bold text-xs uppercase tracking-wider backdrop-blur-[2px]"
+        {/* Conteúdo Dinâmico por Contexto */}
+        <div className="mt-10">
+          {activeContext === 'igreja' ? (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              <div className="lg:col-span-5 space-y-4">
+                <span className="text-xs font-bold uppercase tracking-wider text-cyan-400">
+                  Secretaria &amp; Membresia
+                </span>
+                <h3 className="text-2xl sm:text-3xl font-bold tracking-tight">
+                  Comunhão conectada culto a culto.
+                </h3>
+                <p
+                  className={`text-sm leading-relaxed ${
+                    isDarkMode ? 'text-slate-300' : 'text-slate-600'
+                  }`}
                 >
-                  <div className="w-12 h-12 rounded-full bg-amber-500 text-stone-950 flex items-center justify-center shadow-xl transform transition-transform group-hover:scale-110">
-                    <ZoomIn size={22} />
-                  </div>
-                  <span>Clique para ver cartaz completo</span>
-                </button>
-              </div>
+                  Acompanhe entradas, relatórios de cultos e parabenize aniversariantes em 1 clique
+                  pelo WhatsApp oficial.
+                </p>
 
-              {/* Botões rápidos abaixo da foto */}
-              <div className="flex items-center justify-center gap-3 w-full max-w-md mt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsPosterModalOpen(true)}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-xs font-bold transition-all active:scale-95"
-                >
-                  <ZoomIn size={14} />
-                  <span>Ampliar Foto</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleShareCamp}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold transition-all active:scale-95"
-                >
-                  <Share2 size={14} />
-                  <span>Compartilhar</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Coluna Direita: Detalhes, Pilares & Investimento (7 colunas no desktop) */}
-            <div className="lg:col-span-7 space-y-6">
-              {/* Badges de Data e Localização */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                {/* Data */}
-                <div className="p-4 rounded-2xl bg-white/5 border border-amber-500/20 backdrop-blur-sm flex items-start gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-400 flex items-center justify-center text-amber-950 shrink-0 shadow-md">
-                    <Calendar size={18} />
-                  </div>
-                  <div>
-                    <span className="text-[10px] uppercase font-black text-amber-400 tracking-wider">
-                      Quando Acontece
-                    </span>
-                    <h4 className="text-sm sm:text-base font-black text-white mt-0.5">
-                      05 a 09 de Fevereiro de 2027
-                    </h4>
-                    <p className="text-[11px] text-amber-200/70 mt-0.5">
-                      5 dias inesquecíveis (Feriado de Carnaval)
-                    </p>
+                <div className="pt-2">
+                  <div className="relative">
+                    <Search
+                      size={14}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Filtrar lançamentos da secretaria..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className={`w-full pl-9 pr-3 py-2 rounded-xl text-xs border focus:outline-none focus:border-cyan-400 ${
+                        isDarkMode
+                          ? 'bg-white/5 border-white/10 text-white'
+                          : 'bg-white border-slate-200 text-slate-900 shadow-2xs'
+                      }`}
+                    />
                   </div>
                 </div>
 
-                {/* Localização */}
-                <div className="p-4 rounded-2xl bg-white/5 border border-amber-500/20 backdrop-blur-sm flex items-start justify-between gap-3.5">
-                  <div className="flex items-start gap-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-500 to-rose-400 flex items-center justify-center text-orange-950 shrink-0 shadow-md">
-                      <MapPin size={18} />
-                    </div>
-                    <div>
-                      <span className="text-[10px] uppercase font-black text-orange-400 tracking-wider">
-                        Local do Retiro
-                      </span>
-                      <h4 className="text-sm sm:text-base font-black text-white mt-0.5">
-                        São Pedro - SP
-                      </h4>
-                      <p className="text-[11px] text-orange-200/70 mt-0.5">
-                        Estrutura completa na natureza
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={openGoogleMaps}
-                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-orange-200 transition-all text-xs shrink-0 self-center"
-                    title="Ver mapa no Google"
-                  >
-                    <ExternalLink size={14} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Os 4 Pilares da Experiência (Plaquinhas de Madeira do Cartaz) */}
-              <div className="p-5 rounded-3xl bg-amber-950/30 border border-amber-500/25 backdrop-blur-sm space-y-3.5">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
-                    <Sparkles size={14} className="text-amber-400" />
-                    <span>Pilares do Acampamento</span>
-                  </h4>
-                  <span className="text-[10px] font-bold text-amber-400/80 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
-                    Propósito Espiritual
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div className="p-3 rounded-xl bg-black/30 border border-amber-500/20 flex items-center gap-3">
-                    <span className="text-xl">❤️</span>
-                    <div>
-                      <h5 className="text-xs font-black text-white">Intimidade com o Senhor</h5>
-                      <p className="text-[10px] text-amber-100/70">Oração no secreto e busca genuína</p>
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-black/30 border border-amber-500/20 flex items-center gap-3">
-                    <span className="text-xl">🎵</span>
-                    <div>
-                      <h5 className="text-xs font-black text-white">Louvor e Adoração</h5>
-                      <p className="text-[10px] text-amber-100/70">Celebrações e adoração profética</p>
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-black/30 border border-amber-500/20 flex items-center gap-3">
-                    <span className="text-xl">🙏</span>
-                    <div>
-                      <h5 className="text-xs font-black text-white">Oração e Fraternidade</h5>
-                      <p className="text-[10px] text-amber-100/70">Comunhão, união e cuidado mútuo</p>
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-black/30 border border-amber-500/20 flex items-center gap-3">
-                    <span className="text-xl">✝️</span>
-                    <div>
-                      <h5 className="text-xs font-black text-white">Encontro com Deus</h5>
-                      <p className="text-[10px] text-amber-100/70">Divisor de águas para sua história</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bloco de Investimento e Condições de Pagamento */}
-              <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-amber-900/40 via-amber-950/60 to-black/60 border-2 border-amber-500/40 shadow-xl space-y-4">
-                <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">⚜️</span>
-                    <h4 className="text-sm font-black uppercase tracking-widest text-amber-300">
-                      Investimento Oficial
-                    </h4>
-                  </div>
-                  <span className="text-[11px] font-bold text-amber-200/80">
-                    Tudo Incluso (Hospedagem + Alimentação + Programação)
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Opção PIX */}
-                  <div className="p-4 rounded-2xl bg-black/40 border border-emerald-500/30 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[11px] font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1">
-                          <QrCode size={13} /> Chave PIX
-                        </span>
-                        <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-md border border-emerald-500/30">
-                          À Vista
-                        </span>
-                      </div>
-                      <div className="text-2xl font-black text-white tracking-tight">
-                        R$ 582<span className="text-sm font-normal text-slate-300">,00</span>
-                      </div>
-                      <p className="text-[11px] text-emerald-200/80 font-mono mt-1 break-all">
-                        {CAMP_2027_CONFIG.pixKey}
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleCopyPix}
-                      className={`mt-3.5 inline-flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 ${
-                        copiedPix
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
+                <div className="space-y-2 pt-1 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
+                  {filteredLedger.map((row) => (
+                    <div
+                      key={row.id}
+                      className={`p-3 rounded-xl border flex items-center justify-between text-xs ${
+                        isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-2xs'
                       }`}
                     >
-                      {copiedPix ? (
-                        <>
-                          <Check size={14} />
-                          <span>Chave PIX Copiada!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={14} />
-                          <span>Copiar Chave PIX</span>
-                        </>
-                      )}
+                      <div>
+                        <div className="font-bold">{row.description}</div>
+                        <div className="text-[10px] text-slate-400">
+                          {row.date} • {row.category}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-mono font-bold text-cyan-400">{row.amount}</div>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">
+                          {row.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="lg:col-span-7">
+                <div
+                  className={`rounded-3xl border overflow-hidden shadow-2xl relative ${
+                    isDarkMode ? 'border-white/10 bg-[#0C151B]' : 'border-slate-200 bg-white'
+                  }`}
+                >
+                  {!churchImgError ? (
+                    <img
+                      src={CHURCH_IMAGE}
+                      alt="Comunidade Igreja Manancial"
+                      onError={() => setChurchImgError(true)}
+                      className="w-full h-80 sm:h-96 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-80 flex items-center justify-center bg-cyan-950/30 text-cyan-400">
+                      <Church size={60} />
+                    </div>
+                  )}
+                  <div className="p-5 flex items-center justify-between border-t border-white/10">
+                    <div>
+                      <div className="font-bold text-sm">Comunidade e Ministério</div>
+                      <div className="text-xs text-slate-400">São Pedro - SP</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/login')}
+                      className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs"
+                    >
+                      Acessar Gestão
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              <div className="lg:col-span-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+                    Gincana 25:14 • Placar ao Vivo
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleToggleOffline}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
+                      isOffline
+                        ? 'bg-amber-500/20 border-amber-400/40 text-amber-300'
+                        : 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300'
+                    }`}
+                  >
+                    {isOffline ? <CloudOff size={11} /> : <Wifi size={11} />}
+                    <span>{isOffline ? `Modo Campo (${pendingSyncCount} pendentes)` : 'Online'}</span>
+                  </button>
+                </div>
 
-                  {/* Opção Cartão Parcelado */}
-                  <div className="p-4 rounded-2xl bg-black/40 border border-amber-500/30 flex flex-col justify-between">
+                <h3 className="text-2xl sm:text-3xl font-bold tracking-tight">
+                  Pontuação instantânea para jurados e tribos.
+                </h3>
+                <p
+                  className={`text-sm leading-relaxed ${
+                    isDarkMode ? 'text-slate-300' : 'text-slate-600'
+                  }`}
+                >
+                  Coordene provas e atribua pontos com facilidade em celulares com sincronização
+                  automática assim que a conexão retornar.
+                </p>
+
+                <div className="space-y-2 pt-2">
+                  {teams.map((team) => (
+                    <div
+                      key={team.id}
+                      className={`p-3 rounded-2xl border flex items-center justify-between gap-3 ${
+                        isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-2xs'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className="w-3.5 h-3.5 rounded-full shrink-0"
+                          style={{ backgroundColor: team.colorHex }}
+                        />
+                        <div className="truncate">
+                          <div className="font-bold text-xs truncate">{team.name}</div>
+                          <div className="text-[10px] text-slate-400">
+                            {team.membersCount} participantes
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="font-mono font-bold text-sm text-cyan-400">
+                          {team.points} pts
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleAwardPoints(team.id, 50)}
+                            className="px-2 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-bold text-[11px]"
+                          >
+                            +50
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAwardPoints(team.id, 100)}
+                            className="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-[11px]"
+                          >
+                            +100
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="lg:col-span-7">
+                <div
+                  className={`rounded-3xl border overflow-hidden shadow-2xl relative ${
+                    isDarkMode ? 'border-white/10 bg-[#0C151B]' : 'border-slate-200 bg-white'
+                  }`}
+                >
+                  {!campImgError ? (
+                    <img
+                      src={CAMP_IMAGE}
+                      alt="Gincana Acampamento Manancial"
+                      onError={() => setCampImgError(true)}
+                      className="w-full h-80 sm:h-96 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-80 flex items-center justify-center bg-amber-950/30 text-amber-400">
+                      <Tent size={60} />
+                    </div>
+                  )}
+                  <div className="p-5 flex items-center justify-between border-t border-white/10">
                     <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1">
-                          <CreditCard size={13} /> Cartão de Débito ou Crédito
-                        </span>
-                        <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-md border border-amber-500/30">
-                          Sem Juros
-                        </span>
-                      </div>
-                      <div className="text-2xl font-black text-white tracking-tight">
-                        <span className="text-sm font-bold text-amber-400 uppercase mr-1">Em até</span>
-                        06x <span className="text-base font-normal text-slate-300">de</span> R$ 97<span className="text-sm font-normal text-slate-300">,00</span>
-                      </div>
-                      <p className="text-[11px] text-amber-200/70 mt-1">
-                        Facilidade para toda a família poder participar junta.
-                      </p>
+                      <div className="font-bold text-sm">Gincana das Tribos</div>
+                      <div className="text-xs text-slate-400">Salmos 25:14 • Acampamento Manancial</div>
                     </div>
-
-                    <div className="mt-3.5 flex items-center justify-center py-2 px-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-[11px] font-bold">
-                      💳 Aceitamos as principais bandeiras
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/acampamento/informacoes')}
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs"
+                    >
+                      Ver Detalhes do Retiro
+                    </button>
                   </div>
                 </div>
-
-                {/* Slogan do Rodapé */}
-                <div className="text-center pt-2 text-xs font-black uppercase tracking-widest text-amber-300/90 flex items-center justify-center gap-2">
-                  <span>✨</span>
-                  <span>Dias inesquecíveis na presença de Deus!</span>
-                  <span>✨</span>
-                </div>
-              </div>
-
-              {/* Botões de Ação Principais */}
-              <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={openWhatsAppCamp}
-                  className="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-xs font-black uppercase tracking-wider shadow-xl shadow-emerald-950/40 transition-all active:scale-95"
-                >
-                  <MessageCircle size={16} />
-                  <span>Garantir Vaga no WhatsApp</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => navigate('/acampamento/informacoes')}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-white hover:bg-amber-50 text-stone-900 text-xs font-black uppercase tracking-wider shadow-lg transition-all active:scale-95"
-                >
-                  <BookOpen size={15} />
-                  <span>Guia & Bagagem</span>
-                  <ArrowRight size={14} />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => navigate('/gincana/placar')}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-orange-900/50 hover:bg-orange-900/80 text-orange-200 text-xs font-black uppercase tracking-wider border border-orange-500/30 transition-all active:scale-95"
-                >
-                  <Flame size={15} className="text-amber-400" />
-                  <span>Placar Gincana</span>
-                </button>
               </div>
             </div>
-          </div>
+          )}
         </div>
-
-        {/* MODAL / LIGHTBOX PARA VISUALIZAR O CARTAZ OFICIAL EM TELA CHEIA */}
-        {isPosterModalOpen && (
-          <div
-            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in"
-            onClick={() => setIsPosterModalOpen(false)}
-          >
-            <div
-              className="relative max-w-2xl w-full bg-stone-950 border border-amber-500/40 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header do Modal */}
-              <div className="flex items-center justify-between p-4 border-b border-stone-800 bg-stone-900/80">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
-                  <span className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">
-                    Cartaz Oficial • Acampamento Manancial 2027
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setIsPosterModalOpen(false)}
-                  className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all"
-                  title="Fechar"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              {/* Imagem do Cartaz em Alta Resolução */}
-              <div className="p-3 sm:p-4 overflow-y-auto flex items-center justify-center bg-black/60">
-                <img
-                  src="/acampamento-2027.jpg"
-                  alt="Cartaz Oficial Acampamento Manancial 2027"
-                  className="w-auto max-h-[70vh] rounded-2xl shadow-2xl object-contain border border-amber-500/20"
-                />
-              </div>
-
-              {/* Rodapé do Modal */}
-              <div className="p-3.5 border-t border-stone-800 bg-stone-900/80 flex flex-wrap items-center justify-between gap-3 text-xs">
-                <span className="text-amber-200/80 text-[11px] font-medium">
-                  De 05 a 09 de Fevereiro de 2027 • São Pedro - SP
-                </span>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleShareCamp}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold transition-all text-xs border border-amber-500/30"
-                  >
-                    <Share2 size={13} />
-                    <span>Compartilhar</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsPosterModalOpen(false)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold transition-all text-xs"
-                  >
-                    <span>Fechar</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </section>
 
-      {/* 5. FORMULÁRIO DE PEDIDO DE ORAÇÃO & CUIDADO PASTORAL */}
-      <section id="oracao" className="py-16 px-4 max-w-4xl mx-auto">
-        <div className="bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-slate-200/80">
-          <div className="text-center space-y-2 mb-8">
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 mx-auto flex items-center justify-center">
-              <Heart size={24} />
-            </div>
-            <h3 className="text-2xl font-black text-slate-800 tracking-tight">
-              Podemos orar por você?
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
-              Nossa equipe pastoral intercede diariamente pelas famílias. Compartilhe seu pedido com total sigilo.
+      {/* Seção 3: Cultos & Informações da Igreja Local (São Pedro/SP) */}
+      <section
+        id="cultos"
+        className={`border-y py-20 sm:py-24 ${
+          isDarkMode ? 'border-white/10 bg-white/[0.02]' : 'border-slate-200 bg-white/60'
+        }`}
+      >
+        <div className="mx-auto max-w-[1200px] px-6">
+          <div className="text-center max-w-2xl mx-auto mb-14">
+            <span className="text-xs font-bold uppercase tracking-wider text-cyan-400">
+              Nossa Casa
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mt-1">
+              Cultos e Programação Semanal
+            </h2>
+            <p className="text-sm text-slate-400 mt-2">
+              Venha estar conosco! Nossa igreja fica localizada no centro de São Pedro - SP.
             </p>
           </div>
 
-          {isSent ? (
-            <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-2xl text-center space-y-2 animate-in fade-in">
-              <CheckCircle2 size={32} className="mx-auto text-emerald-600" />
-              <h4 className="text-sm font-black text-emerald-900">
-                Seu pedido foi registrado com sucesso!
-              </h4>
-              <p className="text-xs text-emerald-700">
-                Os pastores já foram notificados e estarão orando por você. Deus abençoe sua vida!
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div
+              className={`p-6 rounded-3xl border flex flex-col justify-between ${
+                isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm'
+              }`}
+            >
+              <div>
+                <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-cyan-400/30 text-cyan-400 flex items-center justify-center mb-4">
+                  <Calendar size={22} />
+                </div>
+                <h3 className="text-lg font-bold">Culto de Domingo (Manhã)</h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Escola Bíblica Dominical e Comunhão Ministerial
+                </p>
+                <div className="mt-4 flex items-center gap-2 text-sm font-mono font-bold text-cyan-400">
+                  <Clock size={16} /> 10:00h
+                </div>
+              </div>
+              <div className="mt-6 pt-4 border-t border-white/10 text-xs text-slate-400">
+                Templo Principal • Aberto a todos
+              </div>
+            </div>
+
+            <div
+              className={`p-6 rounded-3xl border flex flex-col justify-between relative overflow-hidden ${
+                isDarkMode ? 'bg-white/5 border-cyan-500/40 ring-1 ring-cyan-500/30' : 'bg-white border-cyan-300 ring-2 ring-cyan-200 shadow-md'
+              }`}
+            >
+              <div>
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-teal-400 text-slate-950 flex items-center justify-center mb-4 shadow-md">
+                  <Church size={22} />
+                </div>
+                <h3 className="text-lg font-bold">Culto de Celebração (Noite)</h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Louvor congregacional, adoração e ministração da Palavra
+                </p>
+                <div className="mt-4 flex items-center gap-2 text-sm font-mono font-bold text-cyan-400">
+                  <Clock size={16} /> 19:00h
+                </div>
+              </div>
+              <div className="mt-6 pt-4 border-t border-white/10 text-xs text-slate-400">
+                Com transmissão ao vivo &amp; Espaço Kids
+              </div>
+            </div>
+
+            <div
+              className={`p-6 rounded-3xl border flex flex-col justify-between ${
+                isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm'
+              }`}
+            >
+              <div>
+                <div className="w-12 h-12 rounded-2xl bg-teal-500/15 border border-teal-400/30 text-teal-400 flex items-center justify-center mb-4">
+                  <Clock size={22} />
+                </div>
+                <h3 className="text-lg font-bold">Quinta-feira da Vitória</h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Culto de Oração, clamor pelas famílias e ensino bíblico
+                </p>
+                <div className="mt-4 flex items-center gap-2 text-sm font-mono font-bold text-teal-400">
+                  <Clock size={16} /> 19:30h
+                </div>
+              </div>
+              <div className="mt-6 pt-4 border-t border-white/10 text-xs text-slate-400">
+                Momento de intercessão e busca
+              </div>
+            </div>
+          </div>
+
+          {/* Endereço & Card de Localização */}
+          <div
+            className={`mt-10 p-6 rounded-3xl border flex flex-col sm:flex-row items-center justify-between gap-6 ${
+              isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm'
+            }`}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+                <MapPin size={24} />
+              </div>
+              <div>
+                <div className="font-bold text-base">Endereço da Igreja</div>
+                <div className="text-xs text-slate-400 mt-0.5">
+                  Av. Ângelo Nogueira, 45 • Centro • São Pedro - SP
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => navigate('/visitante')}
+                className="flex-1 sm:flex-none px-5 py-3 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-transform active:scale-95 shadow-md"
+              >
+                Cadastrar como Visitante
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Seção 4: Acampamento Manancial 2027 em Destaque */}
+      <section id="acampamento" className="mx-auto max-w-[1200px] px-6 py-20 sm:py-24">
+        <div
+          className={`p-8 sm:p-12 rounded-[2.5rem] border relative overflow-hidden shadow-2xl ${
+            isDarkMode
+              ? 'border-amber-500/30 bg-gradient-to-br from-[#121c2c] via-[#0f1726] to-[#0a101b]'
+              : 'border-amber-300 bg-gradient-to-br from-amber-50 via-white to-orange-50/50'
+          }`}
+        >
+          <div className="relative z-10 max-w-2xl">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/30 mb-4">
+              <Tent size={14} /> Grande Evento 2027
+            </span>
+
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+              Acampamento Manancial 2027
+            </h2>
+            <p className="mt-2 text-sm italic text-amber-200/90 font-serif">
+              "O segredo do Senhor é para os que o temem; e ele lhes fará saber a sua aliança." (Salmos 25:14)
+            </p>
+
+            <p
+              className={`mt-4 text-sm leading-relaxed ${
+                isDarkMode ? 'text-slate-300' : 'text-slate-700'
+              }`}
+            >
+              De <strong>05 a 09 de Fevereiro de 2027</strong> em São Pedro - SP. 5 dias de ministração,
+              adoração, gincana das tribos, comunhão e experiências marcantes.
+            </p>
+
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <button
+                type="button"
+                onClick={() => navigate('/acampamento/informacoes')}
+                className="px-6 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm shadow-lg shadow-amber-500/25 transition-transform active:scale-95"
+              >
+                Informações Oficiais do Retiro
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/login')}
+                className={`px-6 py-3.5 rounded-2xl border text-xs sm:text-sm font-bold transition-transform active:scale-95 ${
+                  isDarkMode
+                    ? 'border-white/15 bg-white/5 text-white hover:bg-white/10'
+                    : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-50'
+                }`}
+              >
+                Acessar Portal do Acampante
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Seção 5: Formulário de Contato / Inscrição de Interesse */}
+      <section
+        id="contato"
+        className={`border-t py-20 ${
+          isDarkMode ? 'border-white/10 bg-[#06090e]' : 'border-slate-200 bg-white'
+        }`}
+      >
+        <div className="mx-auto max-w-[800px] px-6 text-center">
+          <span className="text-xs font-bold uppercase tracking-wider text-cyan-400">
+            Fale Conosco
+          </span>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mt-1">
+            Deseja saber mais sobre o Manancial?
+          </h2>
+          <p className="text-sm text-slate-400 mt-2 max-w-md mx-auto">
+            Preencha seus dados para receber novidades da igreja, oração ou informações sobre os retiros.
+          </p>
+
+          {leadSubmitted ? (
+            <div className="mt-8 p-6 rounded-2xl bg-emerald-500/15 border border-emerald-400/30 text-emerald-200 text-sm">
+              <CheckCircle2 size={32} className="mx-auto mb-2 text-emerald-400" />
+              <div className="font-bold">Mensagem enviada com sucesso!</div>
+              <p className="text-xs text-slate-300 mt-1">
+                Nossa equipe pastoral entrará em contato em breve.
               </p>
             </div>
           ) : (
-            <form onSubmit={handlePrayerSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Seu Nome *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Como podemos te chamar?"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-xs focus:border-cyan-600 focus:ring-1 focus:ring-cyan-500 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    WhatsApp (Opcional)
-                  </label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="(11) 90000-0000"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-xs focus:border-cyan-600 focus:ring-1 focus:ring-cyan-500 outline-none"
-                  />
-                </div>
-              </div>
-
+            <form onSubmit={handleLeadSubmit} className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Qual é o seu motivo de oração? *
-                </label>
-                <textarea
-                  rows={3}
+                <label className="block text-xs font-bold mb-1 text-slate-400">Nome Completo</label>
+                <input
+                  type="text"
                   required
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  placeholder="Saúde, família, vida profissional, gratidão ou direção de Deus..."
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-xs focus:border-cyan-600 focus:ring-1 focus:ring-cyan-500 outline-none resize-none"
+                  placeholder="Seu nome"
+                  value={leadName}
+                  onChange={(e) => setLeadName(e.target.value)}
+                  className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:border-cyan-400 ${
+                    isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                  }`}
                 />
               </div>
 
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-[11px] text-slate-400 font-medium">
-                  🔒 Sigilo e discrição garantidos
-                </span>
+              <div>
+                <label className="block text-xs font-bold mb-1 text-slate-400">WhatsApp com DDD</label>
+                <input
+                  type="tel"
+                  required
+                  placeholder="(19) 99999-9999"
+                  value={leadPhone}
+                  onChange={(e) => setLeadPhone(e.target.value)}
+                  className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:border-cyan-400 ${
+                    isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                  }`}
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold mb-1 text-slate-400">Interesse Principal</label>
+                <select
+                  value={leadContext}
+                  onChange={(e) => setLeadContext(e.target.value as UserContextRole)}
+                  className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:border-cyan-400 ${
+                    isDarkMode ? 'bg-[#0b121e] border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                  }`}
+                >
+                  <option value="igreja">Visitar a Igreja / Pedido de Oração</option>
+                  <option value="acampamento">Participar do Acampamento Manancial 2027</option>
+                </select>
+              </div>
+
+              <div className="sm:col-span-2 pt-2">
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-[#082f38] hover:bg-[#0a434d] text-cyan-200 text-xs font-black uppercase tracking-wider shadow-md active:scale-95 transition-all"
+                  className="w-full py-3.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm shadow-md transition-all active:scale-95"
                 >
-                  <Send size={13} />
-                  <span>Enviar Pedido</span>
+                  Enviar Mensagem
                 </button>
               </div>
             </form>
@@ -783,23 +958,28 @@ export const ChurchLandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* 6. FOOTER INSTITUCIONAL */}
-      <footer id="sobre" className="bg-[#051c22] text-slate-400 py-10 px-4 border-t border-cyan-950">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
-          <div className="space-y-1">
-            <h5 className="text-sm font-black text-white">Comunidade Evangélica Manancial</h5>
-            <p className="text-xs text-slate-400">
-              Uma família para pertencer, um manancial para saciar a sede da alma.
-            </p>
+      {/* Footer Minimalista */}
+      <footer
+        className={`border-t py-8 text-center text-xs ${
+          isDarkMode ? 'border-white/10 text-slate-500' : 'border-slate-200 text-slate-400 bg-slate-50'
+        }`}
+      >
+        <div className="max-w-[1200px] mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2 font-bold text-slate-300">
+            <span>Igreja Evangélica Manancial © 2026</span>
+            <span>•</span>
+            <span className="text-cyan-400">São Pedro - SP</span>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => navigate('/')}
-              className="px-4 py-2 rounded-lg bg-cyan-900/50 hover:bg-cyan-900/80 text-cyan-300 text-xs font-bold transition-all border border-cyan-800/40"
-            >
-              Acesso Administrativo
+          <div className="flex items-center gap-4 text-slate-400">
+            <button type="button" onClick={() => navigate('/login')} className="hover:text-white">
+              Login
+            </button>
+            <button type="button" onClick={() => navigate('/visitante')} className="hover:text-white">
+              Visitantes
+            </button>
+            <button type="button" onClick={() => navigate('/')} className="hover:text-white">
+              Pré-Page Abertura
             </button>
           </div>
         </div>

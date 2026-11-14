@@ -302,58 +302,68 @@ export default function Dashboard({ setActiveTab, songs, team, events, rehearsal
 
   // Define the Mini-Directory Quick Access items
   const quickAccess = [
-    { id: 'repertoire', label: 'Repertório', desc: 'Gerenciar louvores', icon: Music, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
-    { id: 'team', label: 'Equipe', desc: 'Membros e perfis', icon: Users, color: 'text-cyan-600', bg: 'bg-cyan-50', border: 'border-cyan-200' },
-    { id: 'schedule', label: 'Agenda', desc: 'Cultos e ensaios', icon: CalendarIcon, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
-    { id: 'avaliacoes', label: 'Avaliações', desc: 'Resultados da equipe', icon: Star, color: 'text-pink-600', bg: 'bg-pink-50', border: 'border-pink-200' },
-    { id: 'study', label: 'Estudo', desc: 'Meu aprendizado', icon: BookOpen, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
-    { id: 'suggestions', label: 'Sugestões', desc: 'Ideias de louvores', icon: Lightbulb, color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200' },
-    { id: 'insights', label: 'Estatísticas', desc: 'Dados e métricas', icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
+    { id: 'repertoire', label: 'Repertório', desc: 'Gerenciar louvores', icon: Music, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200/80', hoverBorder: 'hover:border-blue-400' },
+    { id: 'team', label: 'Equipe', desc: 'Membros e perfis', icon: Users, color: 'text-cyan-600', bg: 'bg-cyan-50', border: 'border-cyan-200/80', hoverBorder: 'hover:border-cyan-400' },
+    { id: 'schedule', label: 'Agenda', desc: 'Cultos e ensaios', icon: CalendarIcon, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200/80', hoverBorder: 'hover:border-emerald-400' },
+    { id: 'avaliacoes', label: 'Avaliações', desc: 'Resultados da equipe', icon: Star, color: 'text-pink-600', bg: 'bg-pink-50', border: 'border-pink-200/80', hoverBorder: 'hover:border-pink-400' },
+    { id: 'study', label: 'Estudo', desc: 'Meu aprendizado', icon: BookOpen, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200/80', hoverBorder: 'hover:border-amber-400' },
+    { id: 'suggestions', label: 'Sugestões', desc: 'Ideias de louvores', icon: Lightbulb, color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200/80', hoverBorder: 'hover:border-yellow-400' },
+    { id: 'insights', label: 'Estatísticas', desc: 'Dados e métricas', icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200/80', hoverBorder: 'hover:border-purple-400' },
   ];
 
+  const getServiceProximityLabel = (dateStr: string, timeStr: string) => {
+    const target = new Date(`${dateStr}T${timeStr || '19:30'}`);
+    const diffDays = Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 0) return 'Hoje';
+    if (diffDays === 1) return 'Amanhã';
+    return `Em ${diffDays} dias`;
+  };
+
   return (
-    <div className="space-y-10 pb-20">
+    <div className="space-y-8 pb-20">
       {/* Header Section */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="flex items-center gap-5"
-        >
-          {userProfile?.avatar_url && (
-            <img 
-              src={userProfile.avatar_url} 
-              alt="Profile" 
-              className="w-16 h-16 rounded-2xl object-cover border-4 border-white shadow-lg shrink-0"
-            />
-          )}
-          <div>
-            <h2 className="text-4xl md:text-5xl font-headline font-extrabold text-[#00153d] tracking-tight mb-1">
-              Olá, {userProfile?.name?.split(' ')[0] || 'Ministério'}!
-            </h2>
-            <p className="text-slate-500 font-medium text-lg">Seja bem-vindo(a) ao seu painel.</p>
-          </div>
-        </motion.div>
+      <header className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
+        <div className="flex items-center justify-between gap-4">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="flex items-center gap-4 min-w-0"
+          >
+            {userProfile?.avatar_url && (
+              <img 
+                src={userProfile.avatar_url} 
+                alt="Profile" 
+                className="w-13 h-13 sm:w-15 sm:h-15 rounded-2xl object-cover border-2 border-white shadow-md shrink-0"
+              />
+            )}
+            <div className="min-w-0">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-headline font-extrabold text-[#00153d] tracking-tight truncate">
+                Olá, {userProfile?.name?.split(' ')[0] || 'Ministério'}!
+              </h2>
+              <p className="text-slate-500 font-medium text-sm sm:text-base mt-0.5">Seja bem-vindo(a) ao seu painel.</p>
+            </div>
+          </motion.div>
+        </div>
         
-        <div className="flex items-center gap-4 w-full md:w-auto">
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
           {isLeadership(userProfile) && (
             <button 
               onClick={() => setIsRehearsalWizardOpen(true)}
-              className="flex-1 md:flex-none flex items-center justify-center gap-3 px-6 py-4 bg-emerald-600 text-white rounded-2xl text-sm font-black uppercase tracking-widest shadow-xl shadow-emerald-900/20 hover:bg-emerald-700 transition-all active:scale-95 group"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2.5 px-5 py-3.5 bg-emerald-600 text-white rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest shadow-lg shadow-emerald-900/15 hover:bg-emerald-700 transition-all active:scale-95 group"
             >
-              <Zap size={20} className="group-hover:animate-pulse" />
-              <span className="hidden sm:inline">Finalizar Ensaio</span>
-              <span className="sm:hidden">Ensaio</span>
+              <Zap size={18} className="group-hover:animate-pulse shrink-0" />
+              <span>Finalizar Ensaio</span>
             </button>
           )}
-          <div className="relative z-50" ref={notificationsRef}>
+          <div className="relative z-50 shrink-0" ref={notificationsRef}>
             <button 
               onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-              className="p-4 glass rounded-2xl text-slate-500 hover:text-blue-600 transition-all hover:scale-105 active:scale-95 border border-white/50 relative shadow-sm"
+              className="p-3.5 glass rounded-2xl text-slate-600 hover:text-blue-600 transition-all hover:scale-105 active:scale-95 border border-white/70 relative shadow-sm"
+              aria-label="Notificações"
             >
-              <Bell size={24} />
-              {activeNotifications.length > 0 && <span className="absolute top-3 right-3 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></span>}
+              <Bell size={22} />
+              {activeNotifications.length > 0 && <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>}
             </button>
             
             <AnimatePresence>
@@ -363,11 +373,11 @@ export default function Dashboard({ setActiveTab, songs, team, events, rehearsal
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute right-0 mt-4 w-80 sm:w-96 bg-white/95 backdrop-blur-2xl border border-white/60 shadow-2xl rounded-[2rem] overflow-hidden"
+                  className="fixed inset-x-4 top-20 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-3 sm:w-96 bg-white/95 backdrop-blur-2xl border border-slate-200/80 shadow-2xl rounded-[1.75rem] overflow-hidden z-[70]"
                 >
-                  <div className="p-6 border-b border-slate-100/50 bg-slate-50/50">
+                  <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/70">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-headline font-extrabold text-lg text-[#00153d]">Notificações</h3>
+                      <h3 className="font-headline font-extrabold text-base text-[#00153d]">Notificações</h3>
                       {activeNotifications.length > 0 && (
                         <div className="flex items-center gap-3">
                           <button 
@@ -376,7 +386,7 @@ export default function Dashboard({ setActiveTab, songs, team, events, rehearsal
                           >
                             Limpar
                           </button>
-                          <span className="px-3 py-1 bg-blue-100 text-blue-700 text-[10px] font-black rounded-full uppercase tracking-wider">
+                          <span className="px-2.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black rounded-full uppercase tracking-wider">
                             {activeNotifications.length} Novas
                           </span>
                         </div>
@@ -384,7 +394,7 @@ export default function Dashboard({ setActiveTab, songs, team, events, rehearsal
                     </div>
                   </div>
                   
-                  <div className="max-h-[400px] overflow-y-auto p-4 space-y-3" style={{ scrollbarWidth: 'none' }}>
+                  <div className="max-h-[65dvh] sm:max-h-[380px] overflow-y-auto p-3 space-y-2 no-scrollbar">
                     {activeNotifications.length > 0 ? (
                       activeNotifications.map(notif => (
                         <div 
@@ -393,14 +403,14 @@ export default function Dashboard({ setActiveTab, songs, team, events, rehearsal
                             notif.action();
                             setIsNotificationsOpen(false);
                           }}
-                          className="p-4 rounded-2xl hover:bg-slate-50 transition-colors cursor-pointer flex gap-4 group"
+                          className="p-3.5 rounded-2xl hover:bg-slate-50 transition-colors cursor-pointer flex gap-3.5 group"
                         >
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${notif.bg}`}>
+                          <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${notif.bg}`}>
                             {notif.icon}
                           </div>
-                          <div>
-                            <p className="font-bold text-[#00153d] text-sm group-hover:text-blue-600 transition-colors">{notif.title}</p>
-                            <p className="text-xs text-slate-500 mt-1 leading-relaxed">{notif.description}</p>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-[#00153d] text-sm group-hover:text-blue-600 transition-colors truncate">{notif.title}</p>
+                            <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{notif.description}</p>
                           </div>
                         </div>
                       ))
@@ -419,30 +429,30 @@ export default function Dashboard({ setActiveTab, songs, team, events, rehearsal
       </header>
 
       {/* Control Bar: Filters & Layout Toggle */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-4 z-40 bg-slate-50/80 backdrop-blur-md p-2 -mx-2 rounded-2xl border border-white/50 shadow-sm">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 flex-1" style={{ scrollbarWidth: 'none' }}>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sticky top-3 z-40 bg-white/85 backdrop-blur-xl p-2 rounded-2xl border border-slate-200/70 shadow-sm">
+        <div className="flex items-center gap-2 overflow-x-auto pb-0.5 md:pb-0 flex-1 no-scrollbar">
           <button 
             onClick={() => setActiveFilter('all')} 
-            className={`px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeFilter === 'all' ? 'bg-[#00153d] text-white shadow-lg shadow-blue-900/20' : 'bg-white text-slate-500 hover:bg-slate-100 hover:text-[#00153d] border border-slate-200'}`}
+            className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeFilter === 'all' ? 'bg-[#00153d] text-white shadow-md shadow-blue-900/15' : 'bg-transparent text-slate-500 hover:bg-slate-100 hover:text-[#00153d]'}`}
           >
             Visão Geral
           </button>
           <button 
             onClick={() => setActiveFilter('events')} 
-            className={`px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeFilter === 'events' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-white text-slate-500 hover:bg-blue-50 hover:text-blue-600 border border-slate-200'}`}
+            className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeFilter === 'events' ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'bg-transparent text-slate-500 hover:bg-blue-50 hover:text-blue-600'}`}
           >
             Agenda & Eventos
           </button>
           <button 
             onClick={() => setActiveFilter('study')} 
-            className={`px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeFilter === 'study' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-white text-slate-500 hover:bg-amber-50 hover:text-amber-600 border border-slate-200'}`}
+            className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeFilter === 'study' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20' : 'bg-transparent text-slate-500 hover:bg-amber-50 hover:text-amber-600'}`}
           >
             Meu Estudo
           </button>
           {isLeadership(userProfile) && (
             <button 
               onClick={() => setActiveFilter('admin')} 
-              className={`px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeFilter === 'admin' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20' : 'bg-white text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 border border-slate-200'}`}
+              className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeFilter === 'admin' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20' : 'bg-transparent text-slate-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
             >
               Liderança
             </button>
@@ -451,40 +461,43 @@ export default function Dashboard({ setActiveTab, songs, team, events, rehearsal
         
         <button 
           onClick={() => setIsCompactMode(!isCompactMode)} 
-          className="hidden md:flex shrink-0 items-center justify-center p-3 bg-white rounded-full text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 shadow-sm transition-all"
+          className="hidden md:flex shrink-0 items-center justify-center p-2.5 bg-slate-50 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-200/80 transition-all"
           title={isCompactMode ? "Ver modo expandido" : "Ver modo compacto"}
         >
           {isCompactMode ? <LayoutList size={18} /> : <LayoutGrid size={18} />}
         </button>
       </div>
 
-      <div className="space-y-12">
+      <div className="space-y-9">
         {/* Quick Access (Mini-Directory) */}
         {(activeFilter === 'all') && (
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-4"
+            className="space-y-3"
           >
-            <h3 className="text-lg font-headline font-extrabold text-[#00153d] px-2 flex items-center gap-2">
-              <Star size={18} className="text-blue-500" /> Acesso Rápido
+            <h3 className="text-base font-headline font-extrabold text-[#00153d] px-1 flex items-center gap-2">
+              <Star size={17} className="text-blue-500" /> Acesso Rápido
             </h3>
-            <div className="flex gap-4 overflow-x-auto pb-4 px-2" style={{ scrollbarWidth: 'none' }}>
+            <div className="flex gap-3.5 overflow-x-auto pb-2 px-1 no-scrollbar">
               {quickAccess.map((item, idx) => (
                 <motion.button 
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: idx * 0.05 }}
+                  transition={{ delay: idx * 0.04 }}
                   key={item.id} 
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex flex-col items-start gap-4 glass p-5 rounded-[2rem] border ${item.border} hover:border-${item.color.split('-')[1]}-400 shadow-sm hover:shadow-lg transition-all min-w-[160px] shrink-0 group`}
+                  className={`flex flex-col items-start justify-between gap-3.5 glass p-4 sm:p-5 rounded-3xl border ${item.border} ${item.hoverBorder} shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all min-w-[152px] sm:min-w-[164px] shrink-0 group`}
                 >
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${item.bg} ${item.color} group-hover:scale-110 transition-transform shadow-sm`}>
-                    <item.icon size={22} />
+                  <div className="flex items-center justify-between w-full">
+                    <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${item.bg} ${item.color} group-hover:scale-110 transition-transform shadow-xs`}>
+                      <item.icon size={20} />
+                    </div>
+                    <ChevronRight size={15} className="text-slate-300 group-hover:text-slate-600 group-hover:translate-x-0.5 transition-all" />
                   </div>
                   <div className="text-left">
-                    <span className="block font-headline font-bold text-[#00153d] text-base group-hover:text-blue-600 transition-colors">{item.label}</span>
-                    <span className="block text-xs font-medium text-slate-500 mt-0.5">{item.desc}</span>
+                    <span className="block font-headline font-bold text-[#00153d] text-sm sm:text-base group-hover:text-blue-600 transition-colors">{item.label}</span>
+                    <span className="block text-[11px] font-medium text-slate-500 mt-0.5">{item.desc}</span>
                   </div>
                 </motion.button>
               ))}
@@ -494,22 +507,25 @@ export default function Dashboard({ setActiveTab, songs, team, events, rehearsal
 
         {/* Stats Grid (Admin or All) */}
         {(activeFilter === 'all' || activeFilter === 'admin') && (
-          <section className={`grid gap-4 sm:gap-6 ${isCompactMode ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'}`}>
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
             {stats.map((stat, index) => (
               <motion.button 
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1, duration: 0.5 }}
+                transition={{ delay: index * 0.08, duration: 0.4 }}
                 key={stat.label} 
                 onClick={() => setActiveTab(stat.tab)}
-                className={`relative overflow-hidden glass rounded-[2rem] group text-left w-full transition-all duration-300 transform hover:-translate-y-1 active:scale-[0.98] border border-white/60 shadow-md hover:shadow-xl ${isCompactMode ? 'p-5' : 'p-8'}`}
+                className={`relative overflow-hidden glass rounded-3xl group text-left w-full transition-all duration-300 transform hover:-translate-y-1 active:scale-[0.98] border border-white/80 hover:border-blue-200 shadow-sm hover:shadow-lg ${isCompactMode ? 'p-4' : 'p-4 sm:p-6'}`}
               >
-                <div className={`relative z-10 bg-gradient-to-br ${stat.color} rounded-[1.2rem] flex items-center justify-center text-white shadow-lg ${stat.shadow} group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 ${isCompactMode ? 'w-10 h-10 mb-4' : 'w-14 h-14 mb-6'}`}>
-                  <stat.icon size={isCompactMode ? 20 : 26} strokeWidth={2.5} />
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <div className={`relative z-10 bg-gradient-to-br ${stat.color} rounded-2xl flex items-center justify-center text-white shadow-md ${stat.shadow} group-hover:scale-105 transition-transform duration-300 w-10 h-10 sm:w-12 sm:h-12`}>
+                    <stat.icon size={20} strokeWidth={2.4} />
+                  </div>
+                  <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
                 </div>
                 <div className="relative z-10">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 group-hover:text-blue-600 transition-colors">{stat.label}</p>
-                  <p className={`${isCompactMode ? 'text-2xl' : 'text-3xl md:text-4xl'} font-headline font-extrabold text-[#00153d]`}>{stat.value}</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.16em] mb-0.5 group-hover:text-blue-600 transition-colors truncate">{stat.label}</p>
+                  <p className={`${isCompactMode ? 'text-2xl' : 'text-2xl sm:text-3xl'} font-headline font-extrabold text-[#00153d] leading-tight`}>{stat.value}</p>
                 </div>
               </motion.button>
             ))}
@@ -520,9 +536,9 @@ export default function Dashboard({ setActiveTab, songs, team, events, rehearsal
         {nextService && (activeFilter === 'all' || activeFilter === 'events') && (
           <motion.div 
             layout
-            className={`relative overflow-hidden glass rounded-[2.5rem] md:rounded-[3.5rem] border border-white/60 shadow-xl hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-500 group ${isCompactMode ? 'p-6 sm:p-8' : 'p-8 sm:p-12'}`}
+            className={`relative overflow-hidden glass rounded-[2rem] md:rounded-[2.75rem] border border-blue-100/90 shadow-lg hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-500 group ${isCompactMode ? 'p-5 sm:p-7' : 'p-6 sm:p-9'}`}
           >
-            <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-bl from-blue-500/10 to-transparent rounded-bl-[100px] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
+            <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-bl from-blue-500/10 to-transparent rounded-bl-[100px] opacity-60 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
             
             {isCompactMode ? (
               // COMPACT MODE
@@ -538,7 +554,7 @@ export default function Dashboard({ setActiveTab, songs, team, events, rehearsal
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
                       </span>
-                      Próximo Culto
+                      Próximo Culto • {getServiceProximityLabel(nextService.date, nextService.time)}
                     </p>
                     <h4 className="font-headline font-extrabold text-xl sm:text-2xl text-[#00153d] truncate group-hover:text-blue-700 transition-colors">{nextService.title}</h4>
                     <p className="text-slate-500 font-medium text-xs sm:text-sm flex flex-wrap items-center gap-x-2 mt-1">
@@ -567,37 +583,42 @@ export default function Dashboard({ setActiveTab, songs, team, events, rehearsal
             ) : (
               // EXPANDED MODE
               <>
-                <div className="flex items-center justify-between mb-10 relative z-10">
-                  <h3 className="text-2xl font-headline font-extrabold text-[#00153d] flex items-center gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-7 relative z-10">
+                  <h3 className="text-xl sm:text-2xl font-headline font-extrabold text-[#00153d] flex items-center gap-3">
                     Próximo Culto
-                    <span className="flex h-3 w-3 relative">
+                    <span className="flex h-2.5 w-2.5 relative">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span>
                     </span>
                   </h3>
-                  <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm group-hover:bg-[#00153d] group-hover:text-white transition-colors">
-                    Destaque
+                  <div className="flex items-center gap-2">
+                    <span className="px-3.5 py-1.5 bg-blue-600/10 text-blue-700 border border-blue-200/70 rounded-full text-[10px] font-black uppercase tracking-widest">
+                      {getServiceProximityLabel(nextService.date, nextService.time)}
+                    </span>
+                    <div className="px-3.5 py-1.5 bg-[#00153d] text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-xs">
+                      Destaque
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col lg:flex-row gap-12 relative z-10">
-                  <div className="flex-1 space-y-8">
-                    <div className="flex items-center gap-6">
-                      <div className="w-20 h-20 bg-gradient-to-br from-[#00153d] to-blue-900 rounded-[2rem] flex flex-col items-center justify-center text-white shadow-xl shadow-blue-900/20 group-hover:-translate-y-1 transition-transform p-2">
-                        <span className="text-xs font-black uppercase tracking-tighter opacity-70">{formatDate(nextService.date).weekday}</span>
-                        <span className="text-3xl font-headline font-extrabold leading-none mt-1">{formatDate(nextService.date).day}</span>
+                <div className="flex flex-col lg:flex-row gap-8 lg:gap-10 relative z-10">
+                  <div className="flex-1 space-y-6 min-w-0">
+                    <div className="flex items-center gap-4 sm:gap-5">
+                      <div className="w-16 h-16 sm:w-18 sm:h-18 bg-gradient-to-br from-[#00153d] to-blue-900 rounded-2xl flex flex-col items-center justify-center text-white shadow-lg shadow-blue-900/20 shrink-0 p-2">
+                        <span className="text-[10px] font-black uppercase tracking-tighter opacity-75">{formatDate(nextService.date).weekday}</span>
+                        <span className="text-2xl sm:text-3xl font-headline font-extrabold leading-none mt-0.5">{formatDate(nextService.date).day}</span>
                       </div>
-                      <div>
-                        <h4 className="font-headline font-extrabold text-2xl text-[#00153d] group-hover:text-blue-700 transition-colors tracking-tight">{nextService.title}</h4>
-                        <p className="text-slate-500 font-medium flex items-center gap-2 mt-2">
-                          <Clock size={16} className="text-blue-500" /> {nextService.time} 
+                      <div className="min-w-0">
+                        <h4 className="font-headline font-extrabold text-xl sm:text-2xl text-[#00153d] group-hover:text-blue-700 transition-colors tracking-tight truncate">{nextService.title}</h4>
+                        <p className="text-slate-500 text-xs sm:text-sm font-medium flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
+                          <span className="inline-flex items-center gap-1.5"><Clock size={15} className="text-blue-500" /> {nextService.time}</span>
                           <span className="text-slate-300">•</span>
-                          <MapPin size={16} className="text-blue-500" /> {nextService.location || 'Igreja Manancial'}
+                          <span className="inline-flex items-center gap-1.5"><MapPin size={15} className="text-blue-500" /> {nextService.location || 'Igreja Manancial'}</span>
                         </p>
                       </div>
                     </div>
                     
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
                         <Music size={12} /> Repertório Planejado
                       </p>
@@ -607,27 +628,30 @@ export default function Dashboard({ setActiveTab, songs, team, events, rehearsal
                           return (
                             <div
                               key={`${songId}-${idx}`}
-                              className="flex items-center justify-between p-4 bg-white/60 hover:bg-white border border-white/80 hover:border-blue-200 rounded-2xl transition-all shadow-sm hover:shadow-md cursor-pointer"
+                              className="flex items-center justify-between gap-3 p-3.5 bg-white/80 hover:bg-white border border-slate-200/70 hover:border-blue-300 rounded-2xl transition-all shadow-xs hover:shadow-md cursor-pointer"
                               onClick={() => onSelectSong(songId)}
                             >
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
                                 <button 
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     onToggleStudySong(songId);
                                   }}
-                                  className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+                                  className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all ${
                                     isStudying(songId) 
                                       ? 'bg-amber-100 text-amber-600 shadow-inner' 
-                                      : 'bg-slate-50 text-slate-400 hover:text-amber-500 hover:bg-amber-50'
+                                      : 'bg-slate-100/80 text-slate-400 hover:text-amber-500 hover:bg-amber-50'
                                   }`}
                                   title={isStudying(songId) ? "Remover do estudo" : "Marcar para estudar"}
                                 >
                                   {isStudying(songId) ? <CheckCircle2 size={16} /> : <BookOpen size={16} />}
                                 </button>
-                                <span className="text-sm font-bold text-slate-700 truncate max-w-[140px] group-hover:text-blue-700 transition-colors">{song?.title || 'Louvor Selecionado'}</span>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-bold text-[#00153d] truncate">{song?.title || 'Louvor Selecionado'}</p>
+                                  {song?.artist && <p className="text-[11px] text-slate-400 font-medium truncate">{song.artist}</p>}
+                                </div>
                               </div>
-                              <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">{song?.key || '--'}</span>
+                              <span className="text-[11px] font-black text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200/60 shrink-0">{song?.key || '--'}</span>
                             </div>
                           );
                         })}
@@ -641,20 +665,27 @@ export default function Dashboard({ setActiveTab, songs, team, events, rehearsal
                     </div>
                   </div>
                   
-                  <div className="w-full lg:w-72 space-y-6 flex flex-col justify-between">
+                  <div className="w-full lg:w-72 space-y-5 flex flex-col justify-between">
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1 mb-3 flex items-center gap-2">
                         <Users size={12} /> Time Escalado
                       </p>
-                      <div className="bg-white/60 border border-white/80 rounded-[2rem] p-6 shadow-sm">
+                      <div className="bg-white/80 border border-slate-200/70 rounded-3xl p-4 sm:p-5 shadow-xs">
                         <div className="flex flex-wrap gap-2">
                           {[...nextService.team.vocal, ...Object.values(nextService.team.instruments)].slice(0, 8).map((name, i) => (
-                            <div key={i} title={name} className="w-10 h-10 rounded-[10px] bg-[#00153d] text-white flex items-center justify-center text-xs font-black uppercase shadow-sm border-2 border-white hover:scale-110 transition-transform cursor-help">
-                              {name.charAt(0)}
+                            <div
+                              key={i}
+                              title={name}
+                              className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-bold text-[#00153d] shadow-2xs"
+                            >
+                              <span className="w-6 h-6 rounded-lg bg-[#00153d] text-white flex items-center justify-center text-[10px] font-black uppercase shrink-0">
+                                {name.charAt(0)}
+                              </span>
+                              <span className="truncate max-w-[90px]">{name.split(' ')[0]}</span>
                             </div>
                           ))}
                           {(nextService.team.vocal.length + Object.keys(nextService.team.instruments).length) > 8 && (
-                              <div className="w-10 h-10 rounded-[10px] bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-black border-2 border-white">
+                              <div className="px-2.5 py-1 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center text-xs font-black border border-blue-200/60">
                                   +{(nextService.team.vocal.length + Object.keys(nextService.team.instruments).length) - 8}
                               </div>
                           )}
@@ -666,9 +697,10 @@ export default function Dashboard({ setActiveTab, songs, team, events, rehearsal
                     </div>
                     <button 
                       onClick={() => onSelectEvent(nextService.id)}
-                      className="w-full py-4 bg-[#00153d] text-white rounded-2xl text-sm font-black uppercase tracking-widest shadow-xl hover:bg-blue-900 hover:shadow-blue-900/30 transition-all active:scale-95 group/btn"
+                      className="w-full py-3.5 bg-[#00153d] text-white rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest shadow-lg hover:bg-blue-900 hover:shadow-blue-900/25 transition-all active:scale-95 flex items-center justify-center gap-2"
                     >
                       <span>Visualizar Evento Completo</span>
+                      <ChevronRight size={16} />
                     </button>
                   </div>
                 </div>

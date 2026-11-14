@@ -246,26 +246,37 @@ export default function App() {
 
   // Atualiza dinamicamente título, manifest e ícone de atalho para "Louvor App"
   useEffect(() => {
+    const setAttr = (id: string, attr: string, value: string) => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute(attr, value);
+    };
+
+    const previousTitle = document.title;
     document.title = 'Louvor App';
     localStorage.setItem('manancial_app_context', 'louvor');
-    const appName = document.getElementById('app-name-meta');
-    if (appName) appName.setAttribute('content', 'Louvor App');
-    const appleTitle = document.getElementById('apple-title-meta');
-    if (appleTitle) appleTitle.setAttribute('content', 'Louvor App');
-    const themeMeta = document.getElementById('theme-color-meta');
-    if (themeMeta) themeMeta.setAttribute('content', '#00153d');
-    const manifest = document.getElementById('app-manifest');
-    if (manifest) manifest.setAttribute('href', '/manifest-louvor.webmanifest');
-    const fav192 = document.getElementById('favicon-192');
-    if (fav192) fav192.setAttribute('href', '/icons/louvor-icon-192.png');
-    const fav512 = document.getElementById('favicon-512');
-    if (fav512) fav512.setAttribute('href', '/icons/louvor-icon-512.png');
-    const ap1 = document.getElementById('apple-icon-1');
-    if (ap1) ap1.setAttribute('href', '/icons/louvor-icon-180.png');
-    const ap2 = document.getElementById('apple-icon-2');
-    if (ap2) ap2.setAttribute('href', '/icons/louvor-icon-180.png');
-    const ap3 = document.getElementById('apple-icon-3');
-    if (ap3) ap3.setAttribute('href', '/icons/louvor-icon-192.png');
+    setAttr('app-name-meta', 'content', 'Louvor App');
+    setAttr('apple-title-meta', 'content', 'Louvor App');
+    setAttr('theme-color-meta', 'content', '#00153d');
+    setAttr('app-manifest', 'href', '/manifest-louvor.webmanifest');
+    setAttr('favicon-192', 'href', '/icons/louvor-icon-192.png');
+    setAttr('favicon-512', 'href', '/icons/louvor-icon-512.png');
+    setAttr('apple-icon-1', 'href', '/icons/louvor-icon-180.png');
+    setAttr('apple-icon-2', 'href', '/icons/louvor-icon-180.png');
+    setAttr('apple-icon-3', 'href', '/icons/louvor-icon-192.png');
+
+    return () => {
+      document.title = previousTitle || 'Operação 25:14 — Gestão Manancial Camp';
+      localStorage.setItem('manancial_app_context', 'manancial');
+      setAttr('app-name-meta', 'content', 'App Manancial');
+      setAttr('apple-title-meta', 'content', 'App Manancial');
+      setAttr('theme-color-meta', 'content', '#ffffff');
+      setAttr('app-manifest', 'href', '/manifest.webmanifest');
+      setAttr('favicon-192', 'href', '/icons/icon-192.png');
+      setAttr('favicon-512', 'href', '/icons/icon-512.png');
+      setAttr('apple-icon-1', 'href', '/icons/icon-180.png');
+      setAttr('apple-icon-2', 'href', '/icons/icon-180.png');
+      setAttr('apple-icon-3', 'href', '/icons/icon-192.png');
+    };
   }, []);
 
   const seededRef = useRef(false);
@@ -287,7 +298,10 @@ export default function App() {
       };
     }
 
-    const isLeadership = ecosystemRole === 'pastoral' || ecosystemRole === 'organizacao';
+    const isLeadership =
+      ecosystemRole === 'pastoral' ||
+      ecosystemRole === 'admin' ||
+      ecosystemRole === 'louvor';
     const resolvedName = simulatedMember?.name || 'Caio Augusto';
     const resolvedId = simulatedMember?.id || 'caio-admin';
     return {

@@ -14,13 +14,14 @@ import {
   Bell
 } from 'lucide-react';
 import { DevTabs, TabItem } from '../components/DevTabs';
-
-interface WorshipSchedule {
-  id: string;
-  dayOfWeek: string;
-  time: string;
-  description: string;
-}
+import {
+  DEFAULT_WEEKLY_SERVICES,
+  TEACHING_SERVICE_NOTE,
+  WEEKDAY_LABELS,
+  WeeklyService,
+  fetchWeeklyServices,
+  saveWeeklyServices,
+} from '../../Church/data/churchWeeklyServices';
 
 interface ChurchData {
   name: string;
@@ -29,7 +30,6 @@ interface ChurchData {
   legalName: string;
   notes: string;
   logoUrl: string;
-  schedules: WorshipSchedule[];
 }
 
 const STORAGE_KEY = 'manancial_dev_church_info';
@@ -41,49 +41,7 @@ const DEFAULT_CHURCH_DATA: ChurchData = {
   legalName: 'Comunidade Evangélica Manancial',
   notes: 'Sede administrativa e centro de retiros e convenções Manancial.',
   logoUrl: '/logo-manancial.png',
-  schedules: [
-    {
-      id: '1',
-      dayOfWeek: 'Domingo',
-      time: '09:30',
-      description: 'Culto da Família & Ceia',
-    },
-    {
-      id: '2',
-      dayOfWeek: 'Domingo',
-      time: '18:00',
-      description: 'Culto de Celebração & Jovens',
-    },
-    {
-      id: '2b',
-      dayOfWeek: 'Terça-feira',
-      time: '19:30',
-      description: 'Curso de Teologia — Pr. Adenilson Freitas',
-    },
-    {
-      id: '3',
-      dayOfWeek: 'Quarta-feira',
-      time: '19:30',
-      description: 'Culto da Palavra & Oração',
-    },
-    {
-      id: '4',
-      dayOfWeek: 'Sábado',
-      time: '19:00',
-      description: 'Rede de Jovens / Encontro de Células',
-    },
-  ],
 };
-
-const DAYS_OF_WEEK = [
-  'Domingo',
-  'Segunda-feira',
-  'Terça-feira',
-  'Quarta-feira',
-  'Quinta-feira',
-  'Sexta-feira',
-  'Sábado',
-];
 
 export const DevChurchInfoPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('info');
@@ -100,6 +58,25 @@ export const DevChurchInfoPage: React.FC = () => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [services, setServices] = useState<WeeklyService[]>(DEFAULT_WEEKLY_SERVICES);
+  const [servicesLoading, setServicesLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    fetchWeeklyServices()
+      .then((items) => {
+        if (active) setServices(items);
+      })
+      .catch(() => {
+        if (active) showError('Não foi possível carregar os dias de culto salvos. Exibindo o padrão.');
+      })
+      .finally(() => {
+        if (active) setServicesLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -139,47 +116,55 @@ export const DevChurchInfoPage: React.FC = () => {
   };
 
   const handleAddSchedule = () => {
-    const newSchedule: WorshipSchedule = {
-      id: Date.now().toString(),
-      dayOfWeek: 'Domingo',
+    const newService: WeeklyService = {
+      id: `new-${Date.now()}`,
+      dayOfWeek: 0,
       time: '19:00',
-      description: '',
+      title: '',
+      isTeaching: false,
     };
-    setChurch((prev) => ({
-      ...prev,
-      schedules: [...prev.schedules, newSchedule],
-    }));
-    showToast('Novo horário de culto adicionado.');
+    setServices((prev) => [...prev, newService]);
+    showToast('Novo horário de culto adicionado. Salve para publicar.');
   };
 
   const handleRemoveSchedule = (id: string) => {
-    setChurch((prev) => ({
-      ...prev,
-      schedules: prev.schedules.filter((s) => s.id !== id),
-    }));
-    showToast('Horário de culto removido.');
+    setServices((prev) => prev.filter((s) => s.id !== id));
+    showToast('Horário removido. Salve para publicar.');
   };
 
-  const handleUpdateSchedule = (
+  const handleUpdateSchedule = <K extends keyof WeeklyService>(
     id: string,
-    field: keyof WorshipSchedule,
-    value: string
+    field: K,
+    value: WeeklyService[K]
   ) => {
-    setChurch((prev) => ({
-      ...prev,
-      schedules: prev.schedules.map((s) =>
-        s.id === id ? { ...s, [field]: value } : s
-      ),
-    }));
+    setServices((prev) =>
+      prev.map((s) => {
+        if (s.id !== id) return s;
+        const next = { ...s, [field]: value };
+        if (field === 'isTeaching') {
+          next.tag = value ? TEACHING_SERVICE_NOTE : s.tag === TEACHING_SERVICE_NOTE ? undefined : s.tag;
+        }
+        return next;
+      })
+    );
   };
 
-  const handleSaveForm = (e: React.FormEvent) => {
+  const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (services.some((s) => !s.title.trim() || !s.time)) {
+      showError('Preencha o horário e o nome de todos os cultos antes de salvar.');
+      return;
+    }
     setIsSaving(true);
-    setTimeout(() => {
+    try {
+      const saved = await saveWeeklyServices(services);
+      setServices(saved);
+      showToast('Informações e dias de culto salvos com sucesso!');
+    } catch (err: any) {
+      showError(err?.message || 'Não foi possível salvar os dias de culto. Verifique sua permissão.');
+    } finally {
       setIsSaving(false);
-      showToast('Todas as informações foram salvas com sucesso!');
-    }, 400);
+    }
   };
 
   const tabs: TabItem[] = [
@@ -393,7 +378,9 @@ export const DevChurchInfoPage: React.FC = () => {
             </div>
 
             {/* Lista de Cultos */}
-            {church.schedules.length === 0 ? (
+            {servicesLoading ? (
+              <div className="py-8 text-center text-xs font-bold text-slate-500">Carregando dias de culto...</div>
+            ) : services.length === 0 ? (
               <div className="py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300">
                 <Clock size={28} className="mx-auto text-slate-400 mb-2" />
                 <p className="text-sm font-bold text-slate-700">
@@ -412,7 +399,7 @@ export const DevChurchInfoPage: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {church.schedules.map((schedule, index) => (
+                {services.map((schedule) => (
                   <div
                     key={schedule.id}
                     className="p-3.5 bg-slate-50/70 hover:bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col md:flex-row items-stretch md:items-center gap-3 transition-colors"
@@ -428,14 +415,14 @@ export const DevChurchInfoPage: React.FC = () => {
                           handleUpdateSchedule(
                             schedule.id,
                             'dayOfWeek',
-                            e.target.value
+                            Number(e.target.value)
                           )
                         }
                         className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-medium focus:border-cyan-600 focus:ring-1 focus:ring-cyan-500 outline-none"
                       >
-                        {DAYS_OF_WEEK.map((d) => (
-                          <option key={d} value={d}>
-                            {d}
+                        {WEEKDAY_LABELS.map((label, dayIndex) => (
+                          <option key={label} value={dayIndex}>
+                            {label}
                           </option>
                         ))}
                       </select>
@@ -465,21 +452,33 @@ export const DevChurchInfoPage: React.FC = () => {
                     {/* Descrição */}
                     <div className="flex-1">
                       <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
-                        Descrição (opcional)
+                        Nome do culto *
                       </label>
                       <input
                         type="text"
-                        value={schedule.description}
+                        required
+                        value={schedule.title}
                         onChange={(e) =>
                           handleUpdateSchedule(
                             schedule.id,
-                            'description',
+                            'title',
                             e.target.value
                           )
                         }
-                        placeholder="Ex: Culto da Família, Escola Bíblica, Oração..."
+                        placeholder="Ex: Culto da Família, Culto de Ensino..."
                         className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-medium focus:border-cyan-600 focus:ring-1 focus:ring-cyan-500 outline-none"
                       />
+                      <label className="mt-1.5 inline-flex items-center gap-2 text-[11px] font-bold text-slate-600 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={schedule.isTeaching}
+                          onChange={(e) =>
+                            handleUpdateSchedule(schedule.id, 'isTeaching', e.target.checked)
+                          }
+                          className="accent-cyan-800"
+                        />
+                        Culto de ensino (Curso de Teologia)
+                      </label>
                     </div>
 
                     {/* Botão de Excluir */}
@@ -503,7 +502,7 @@ export const DevChurchInfoPage: React.FC = () => {
           <div className="flex items-center justify-end gap-3 pt-2">
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || servicesLoading}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#082f38] hover:bg-[#0a434d] text-cyan-200 text-xs font-black uppercase tracking-wider shadow-lg shadow-cyan-950/20 active:scale-95 transition-all disabled:opacity-50"
             >
               <Save size={16} />

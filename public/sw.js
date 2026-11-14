@@ -1,5 +1,5 @@
-const SHELL_CACHE = 'manancial-shell-v3';
-const RUNTIME_CACHE = 'manancial-runtime-v3';
+const SHELL_CACHE = 'manancial-shell-v4';
+const RUNTIME_CACHE = 'manancial-runtime-v4';
 
 const APP_SHELL = [
   '/',

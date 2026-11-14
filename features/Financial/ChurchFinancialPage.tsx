@@ -32,7 +32,10 @@ import {
   ShieldCheck,
   Check,
   Download,
-  HeartHandshake
+  HeartHandshake,
+  Sun,
+  Moon,
+  ShoppingBag
 } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { Transaction, TransactionCategory, TransactionType, PaymentMethod, Person } from '../../types';
@@ -60,7 +63,7 @@ const DEFAULT_FIXED_BILLS: BillScheduleItem[] = [
 
 export const ChurchFinancialPage: React.FC = () => {
   const navigate = useNavigate();
-  const { transactions, setTransactions, people, setPeople } = useAppStore();
+  const { transactions, setTransactions, people, setPeople, isDarkMode, toggleTheme } = useAppStore();
 
   // Abas do Financeiro: 'fluxo' | 'entradas' | 'saidas' | 'contas' | 'balancete'
   const [activeTab, setActiveTab] = useState<'fluxo' | 'entradas' | 'saidas' | 'contas' | 'balancete'>('fluxo');
@@ -316,7 +319,7 @@ export const ChurchFinancialPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#070c14] text-slate-100 flex flex-col selection:bg-purple-500 selection:text-white">
+    <div className={`min-h-screen bg-[#070c14] text-slate-100 flex flex-col selection:bg-purple-500 selection:text-white transition-colors duration-300 ${!isDarkMode ? 'theme-light-adapt' : ''}`}>
       {/* Toast Feedback */}
       {toastMessage && (
         <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[100] px-4 py-2.5 rounded-2xl bg-slate-900/95 border border-purple-400/40 text-white text-xs sm:text-sm font-bold shadow-2xl backdrop-blur-xl flex items-center gap-2 animate-in fade-in slide-in-from-top-3">
@@ -331,9 +334,9 @@ export const ChurchFinancialPage: React.FC = () => {
           {/* Logo & Título */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/igreja')}
               className="p-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
-              title="Voltar ao Hub"
+              title="Voltar para Gestão Pastores"
             >
               <ArrowLeft size={18} />
             </button>
@@ -352,13 +355,22 @@ export const ChurchFinancialPage: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Gestão contábil, dízimos, ofertas, despesas fixas e balancetes
+                Gestão contábil, dízimos, ofertas, cantina e balancetes
               </p>
             </div>
           </div>
 
-          {/* Ações Rápidas de Lançamento */}
-          <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+          {/* Ações Rápidas de Lançamento + Atalho Direto para Cantina PDV */}
+          <div className="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
+            <button
+              onClick={() => navigate('/cantina')}
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 border border-orange-400/40 text-orange-300 text-xs font-black transition-all active:scale-95 shadow-md"
+              title="Abrir Frente de Caixa e PDV da Cantina"
+            >
+              <ShoppingBag size={15} />
+              <span>Cantina & PDV</span>
+            </button>
+
             <button
               onClick={() => {
                 setModalType('ENTRADA');
@@ -398,11 +410,13 @@ export const ChurchFinancialPage: React.FC = () => {
             </button>
 
             <button
-              onClick={() => navigate('/igreja')}
-              className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-300 hover:text-white transition-colors shrink-0"
-              title="Abrir Painel de Gestão"
+              type="button"
+              onClick={toggleTheme}
+              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-colors shrink-0 flex items-center gap-1.5 text-xs font-bold"
+              title={isDarkMode ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'}
             >
-              <span>Gestão</span>
+              {isDarkMode ? <Sun size={16} className="text-amber-400" /> : <Moon size={16} className="text-slate-700" />}
+              <span className="hidden sm:inline">{isDarkMode ? 'Claro' : 'Escuro'}</span>
             </button>
           </div>
         </div>

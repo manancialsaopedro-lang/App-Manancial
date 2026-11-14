@@ -19,6 +19,7 @@ import {
   EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { CursorTouch } from '../../components/ui/CursorTouch';
 
 interface OnboardingWizardProps {
   profile: Profile;
@@ -129,11 +130,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ profile, onC
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-manancial-dark/10 backdrop-blur-md">
-      <div className="glass w-full max-w-xl rounded-3xl overflow-hidden animate-in fade-in zoom-in duration-500">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-manancial-dark/20 backdrop-blur-md overflow-y-auto">
+      <div className="glass w-full max-w-xl rounded-3xl overflow-hidden shadow-2xl max-h-[92dvh] flex flex-col my-auto border border-white/20 animate-in fade-in zoom-in duration-500">
         
         {/* Progress Bar */}
-        <div className="h-1.5 w-full bg-white/20">
+        <div className="h-1.5 w-full bg-white/20 shrink-0">
           <div 
             className="h-full bg-gradient-to-r from-manancial-blue to-manancial-teal transition-all duration-500 ease-out"
             style={{ 
@@ -146,26 +147,33 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ profile, onC
           />
         </div>
 
-        <div className="p-8 md:p-12">
+        <div className="p-6 sm:p-8 md:p-12 overflow-y-auto custom-scrollbar flex-1">
           
           {step === 'welcome' && (
             <div className="text-center animate-in slide-in-from-bottom-4 duration-500">
               <div className="w-20 h-20 bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6 text-manancial-blue">
                 <Sparkles className="w-10 h-10 animate-float" />
               </div>
-              <h1 className="text-3xl font-headline font-extrabold text-slate-800 mb-4">
+              <h1 className="text-2xl sm:text-3xl font-headline font-extrabold text-slate-800 mb-3">
                 Seja bem-vindo ao Ministério!
               </h1>
-              <p className="text-slate-600 text-lg mb-8">
+              <p className="text-slate-600 text-sm sm:text-base mb-8 max-w-md mx-auto">
                 Estamos felizes em ter você conosco. Vamos configurar seu perfil rapidinho para você começar a usar o Manancial.
               </p>
-              <button
-                onClick={() => setStep('role')}
-                className="w-full py-4 bg-manancial-dark text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors shadow-lg shadow-blue-900/20 group"
-              >
-                Começar agora
-                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </button>
+              
+              {/* Botão com Cursor Touch */}
+              <div className="relative w-full max-w-md mx-auto pt-2 pb-3">
+                <button
+                  onClick={() => setStep('role')}
+                  className="w-full py-4 bg-manancial-dark text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 active:scale-[0.99] transition-all shadow-lg shadow-blue-900/20 group relative overflow-hidden"
+                >
+                  <span>Começar agora</span>
+                  <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </button>
+                <div className="absolute right-2 -bottom-2 sm:right-4 sm:-bottom-1 pointer-events-none">
+                  <CursorTouch label="Toque para começar" color="blue" />
+                </div>
+              </div>
             </div>
           )}
 
@@ -178,20 +186,25 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ profile, onC
                 <ArrowLeft className="w-4 h-4" />
                 Voltar
               </button>
-              <h2 className="text-2xl font-headline font-bold text-slate-800 mb-2">
-                Qual sua função?
-              </h2>
-              <p className="text-slate-500 mb-8">Escolha como você servirá no ministério de louvor.</p>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-2xl font-headline font-bold text-slate-800">
+                  Qual sua função?
+                </h2>
+                <div className="hidden sm:block">
+                  <CursorTouch label="Toque para escolher" color="teal" />
+                </div>
+              </div>
+              <p className="text-slate-500 mb-8 text-sm">Escolha como você servirá no ministério de louvor.</p>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {roles.map((role) => (
                   <button
                     key={role.id}
                     onClick={() => handleRoleSelect(role.id)}
-                    className="p-5 rounded-2xl border-2 border-transparent bg-white/50 hover:bg-white hover:border-manancial-blue/30 text-left transition-all group relative overflow-hidden"
+                    className="p-5 rounded-2xl border-2 border-transparent bg-white/60 hover:bg-white hover:border-manancial-blue/40 text-left transition-all active:scale-[0.98] group relative overflow-hidden shadow-sm"
                   >
                     <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 group-hover:text-manancial-blue group-hover:bg-blue-50 transition-colors">
+                      <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 group-hover:text-manancial-blue group-hover:bg-blue-50 transition-colors shrink-0">
                         <role.icon className="w-6 h-6" />
                       </div>
                       <div>
@@ -214,10 +227,15 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ profile, onC
                 <ArrowLeft className="w-4 h-4" />
                 Voltar
               </button>
-              <h2 className="text-2xl font-headline font-bold text-slate-800 mb-2">
-                Qual instrumento?
-              </h2>
-              <p className="text-slate-500 mb-8">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-2xl font-headline font-bold text-slate-800">
+                  Qual instrumento?
+                </h2>
+                <div className="hidden sm:block">
+                  <CursorTouch label="Seu instrumento" color="blue" />
+                </div>
+              </div>
+              <p className="text-slate-500 mb-8 text-sm">
                 {formData.functional_role === 'minister' 
                   ? 'Você também toca algum instrumento ao ministrar?' 
                   : 'Qual o seu instrumento principal?'}
@@ -228,7 +246,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ profile, onC
                   <button
                     key={inst.id}
                     onClick={() => handleInstrumentSelect(inst.id)}
-                    className="p-4 rounded-2xl bg-white/50 hover:bg-white border-2 border-transparent hover:border-manancial-teal/30 transition-all text-center group"
+                    className="p-4 rounded-2xl bg-white/60 hover:bg-white border-2 border-transparent hover:border-manancial-teal/30 active:scale-[0.98] transition-all text-center group shadow-sm"
                   >
                     <inst.icon className="w-8 h-8 mx-auto mb-2 text-slate-400 group-hover:text-manancial-teal transition-colors" />
                     <span className="text-sm font-bold text-slate-700">{inst.name}</span>

@@ -12,8 +12,11 @@ import {
   ArrowUpRight,
   ExternalLink,
   CheckCircle2,
-  Plus
+  Plus,
+  Sun,
+  Moon
 } from 'lucide-react';
+import { useAppStore } from '../../../store';
 import { useCurrentRole } from '../../../hooks/useCurrentRole';
 import {
   INSTAGRAM_URL,
@@ -24,7 +27,8 @@ import { PastoralRequestModal } from '../components/PastoralRequestModal';
 export const ChurchMemberLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { simulatedPerson } = useCurrentRole();
+  const { simulatedPerson, canAccessPastoral } = useCurrentRole();
+  const { isDarkMode, toggleTheme } = useAppStore();
 
   const [pendingCount, setPendingCount] = useState(0);
   const [globalPastoralModalOpen, setGlobalPastoralModalOpen] = useState(false);
@@ -92,7 +96,7 @@ export const ChurchMemberLayout: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-[100dvh] bg-[#f4f7f9] text-slate-900 flex flex-col lg:flex-row">
+    <div className={`min-h-[100dvh] bg-[#f4f7f9] text-slate-900 flex flex-col lg:flex-row transition-colors duration-300 ${isDarkMode ? 'theme-dark-adapt' : ''}`}>
       {/* Toast Global do Layout */}
       {toastMessage && (
         <div className="fixed top-4 right-4 z-[120] bg-[#082f38] text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 border border-cyan-400/40 animate-in fade-in max-w-sm">
@@ -203,7 +207,7 @@ export const ChurchMemberLayout: React.FC = () => {
             <ExternalLink size={13} className="shrink-0 opacity-80" />
           </a>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className={canAccessPastoral ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-1 gap-2'}>
             <button
               type="button"
               onClick={() => navigate('/membro/home')}
@@ -212,14 +216,16 @@ export const ChurchMemberLayout: React.FC = () => {
               <Tent size={13} />
               <span>Retiro 25:14</span>
             </button>
-            <button
-              type="button"
-              onClick={() => navigate('/dev/solicitacoes')}
-              className="flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-cyan-200 text-[11px] font-extrabold transition-colors cursor-pointer"
-            >
-              <span>Painel Pastor</span>
-              <ArrowUpRight size={13} />
-            </button>
+            {canAccessPastoral && (
+              <button
+                type="button"
+                onClick={() => navigate('/igreja')}
+                className="flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-cyan-200 text-[11px] font-extrabold transition-colors cursor-pointer"
+              >
+                <span>Painel Pastor</span>
+                <ArrowUpRight size={13} />
+              </button>
+            )}
           </div>
         </div>
       </aside>
@@ -253,6 +259,15 @@ export const ChurchMemberLayout: React.FC = () => {
 
             {/* Ações Rápidas no Topo */}
             <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="p-2 rounded-xl text-slate-600 hover:bg-slate-100 border border-slate-200 transition-all active:scale-95 cursor-pointer"
+                title={isDarkMode ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'}
+              >
+                {isDarkMode ? <Sun size={16} className="text-amber-400" /> : <Moon size={16} />}
+              </button>
+
               <a
                 href={INSTAGRAM_URL}
                 target="_blank"
@@ -273,15 +288,17 @@ export const ChurchMemberLayout: React.FC = () => {
                 <span>Atendimento Pastoral</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => navigate('/dev/solicitacoes')}
-                className="lg:hidden inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-[11px] font-extrabold text-[#082f38] bg-slate-100 hover:bg-cyan-50 border border-slate-200 transition-all cursor-pointer"
-                title="Abrir Painel Pastoral"
-              >
-                <span>Pastor</span>
-                <ArrowUpRight size={13} />
-              </button>
+              {canAccessPastoral && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/igreja')}
+                  className="lg:hidden inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-[11px] font-extrabold text-[#082f38] bg-slate-100 hover:bg-cyan-50 border border-slate-200 transition-all cursor-pointer"
+                  title="Abrir Painel Pastoral"
+                >
+                  <span>Pastor</span>
+                  <ArrowUpRight size={13} />
+                </button>
+              )}
             </div>
           </div>
         </header>

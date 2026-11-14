@@ -30,8 +30,14 @@ import {
   Clock,
   CheckSquare,
   Music,
-  Search
+  Search,
+  Sun,
+  Moon,
+  Waves,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
+import { signOut as supabaseSignOut } from '../../../lib/supabase';
 import { useAppStore } from '../../../store';
 import { CommandPalette } from '../../../components/ui/CommandPalette';
 import { TooltipProvider } from '../../../components/ui/Tooltip';
@@ -70,7 +76,7 @@ export const DevLayout: React.FC = () => {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAppStore();
+  const { user, isDarkMode, toggleTheme, signOut: storeSignOut } = useAppStore();
 
   const triggerCustomToast = (msg: string) => {
     setCustomToastMessage(msg);
@@ -191,6 +197,19 @@ export const DevLayout: React.FC = () => {
     {
       title: 'Páginas Públicas',
       items: [
+        {
+          id: 'splash-prepage',
+          label: 'Pré-Page Fluida',
+          icon: Waves,
+          path: '/',
+          badge: 'Abertura',
+        },
+        {
+          id: 'auth-login',
+          label: 'Login & Acesso',
+          icon: LogIn,
+          path: '/login',
+        },
         {
           id: 'landing',
           label: 'Nova Landing Page',
@@ -349,22 +368,14 @@ export const DevLayout: React.FC = () => {
         ))}
       </div>
 
-      {/* Footer / Quick Link to Landing Page & Ecosystem Hub */}
+      {/* Footer / Quick Link to Landing Page */}
       <div className="p-3 border-t border-cyan-900/40 bg-cyan-950/40 space-y-2">
         <button
           type="button"
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/landing')}
           className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-200 text-xs font-bold transition-all border border-cyan-500/30"
         >
-          <Home size={14} />
-          <span>Hub do Ecossistema</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate('/landing')}
-          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-cyan-300 text-[11px] font-semibold transition-all border border-white/5"
-        >
-          <Globe size={13} />
+          <Globe size={14} />
           <span>Ver Landing Page</span>
         </button>
       </div>
@@ -373,7 +384,7 @@ export const DevLayout: React.FC = () => {
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="min-h-screen bg-[#f4f8f9] flex flex-col lg:flex-row text-slate-800">
+      <div className={`min-h-screen bg-[#f4f8f9] flex flex-col lg:flex-row text-slate-800 transition-colors duration-300 ${isDarkMode ? 'theme-dark-adapt' : ''}`}>
         {/* Global Spotlight Command Palette (Ctrl+K / Cmd+K) */}
         <CommandPalette
           open={spotlightOpen}
@@ -456,21 +467,20 @@ export const DevLayout: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => navigate('/')}
-              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all"
-              title="Voltar ao Hub do Ecossistema"
+              onClick={() => navigate('/landing')}
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-cyan-900 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 transition-all"
             >
-              <Home size={14} className="text-cyan-700" />
-              <span className="hidden sm:inline">Hub Inicial</span>
+              <Globe size={14} />
+              <span>Landing Page</span>
             </button>
 
             <button
               type="button"
-              onClick={() => navigate('/landing')}
-              className="hidden xl:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-cyan-900 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 transition-all"
+              onClick={toggleTheme}
+              className="p-2 rounded-full text-slate-600 hover:text-cyan-900 hover:bg-slate-100 transition-all active:scale-90"
+              title={isDarkMode ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'}
             >
-              <Globe size={14} />
-              <span>Landing Page</span>
+              {isDarkMode ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} />}
             </button>
 
             <button
@@ -497,6 +507,18 @@ export const DevLayout: React.FC = () => {
                 </p>
                 <span className="text-[10px] text-slate-500 font-medium">Gestor</span>
               </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  await supabaseSignOut().catch(() => {});
+                  storeSignOut();
+                  navigate('/');
+                }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer active:scale-95"
+                title="Sair da Conta (Logout)"
+              >
+                <LogOut size={16} />
+              </button>
             </div>
           </div>
         </header>

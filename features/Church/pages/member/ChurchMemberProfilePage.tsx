@@ -14,8 +14,11 @@ import {
   Sparkles,
   Droplets,
   GraduationCap,
-  HeartHandshake
+  HeartHandshake,
+  LogOut
 } from 'lucide-react';
+import { signOut as supabaseSignOut } from '../../../../lib/supabase';
+import { useAppStore } from '../../../../store';
 import {
   CHURCH_PIX_KEY,
   CHURCH_PIX_NAME,
@@ -33,6 +36,7 @@ interface MemberLayoutContext {
 
 export const ChurchMemberProfilePage: React.FC = () => {
   const navigate = useNavigate();
+  const { signOut } = useAppStore();
   const { memberFullName, openPastoralModal, showToast } =
     useOutletContext<MemberLayoutContext>();
 
@@ -327,6 +331,31 @@ export const ChurchMemberProfilePage: React.FC = () => {
               </div>
               <ExternalLink size={16} className="text-pink-700 shrink-0" />
             </a>
+
+            <button
+              type="button"
+              onClick={async () => {
+                await supabaseSignOut().catch(() => {});
+                signOut();
+                navigate('/');
+              }}
+              className="w-full p-4 rounded-2xl bg-rose-50/70 hover:bg-rose-100/70 border border-rose-200 flex items-center justify-between gap-3 transition-colors cursor-pointer text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0">
+                  <LogOut size={19} />
+                </div>
+                <div>
+                  <span className="text-xs sm:text-sm font-black text-rose-950 block">
+                    Sair da Conta (Logout)
+                  </span>
+                  <span className="text-[11px] text-rose-700/80 font-medium">
+                    Desconectar desta sessão e voltar para abertura
+                  </span>
+                </div>
+              </div>
+              <ArrowRight size={16} className="text-rose-600 shrink-0" />
+            </button>
           </div>
         </div>
       </div>

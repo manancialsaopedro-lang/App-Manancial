@@ -4,25 +4,51 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   
-  <link rel="manifest" href="/manifest.webmanifest">
-  <meta name="application-name" content="App Manancial">
-  <meta name="apple-mobile-web-app-title" content="App Manancial">
-  <meta name="theme-color" content="#ffffff">
+  <link id="app-manifest" rel="manifest" href="/manifest.webmanifest">
+  <meta id="app-name-meta" name="application-name" content="App Manancial">
+  <meta id="apple-title-meta" name="apple-mobile-web-app-title" content="App Manancial">
+  <meta id="theme-color-meta" name="theme-color" content="#ffffff">
   <meta name="format-detection" content="telephone=no">
   <meta name="color-scheme" content="light">
-  <link rel="icon" href="/icons/icon-192.png">
-  <link rel="icon" sizes="512x512" href="/icons/icon-512.png">
-  <link rel="apple-touch-icon" href="/icons/icon-180.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
-  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link id="favicon-192" rel="icon" href="/icons/icon-192.png">
+  <link id="favicon-512" rel="icon" sizes="512x512" href="/icons/icon-512.png">
+  <link id="apple-icon-1" rel="apple-touch-icon" href="/icons/icon-180.png">
+  <link id="apple-icon-2" rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
+  <link id="apple-icon-3" rel="apple-touch-icon" href="/icons/icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
   <title>Operação 25:14 — Gestão Manancial Camp</title>
+  <script>
+    (function () {
+      var hash = window.location.hash || '';
+      var path = window.location.pathname || '';
+      var isLouvor =
+        hash.indexOf('#/louvor') === 0 ||
+        hash.indexOf('#/app') === 0 ||
+        path.indexOf('/louvor') === 0 ||
+        path.indexOf('/app') === 0;
+      if (!isLouvor) return;
+      document.title = 'Louvor App';
+      var setAttr = function (id, attr, val) {
+        var el = document.getElementById(id);
+        if (el) el.setAttribute(attr, val);
+      };
+      setAttr('app-manifest', 'href', '/manifest-louvor.webmanifest');
+      setAttr('app-name-meta', 'content', 'Louvor App');
+      setAttr('apple-title-meta', 'content', 'Louvor App');
+      setAttr('theme-color-meta', 'content', '#00153d');
+      setAttr('favicon-192', 'href', '/icons/louvor-icon-192.png');
+      setAttr('favicon-512', 'href', '/icons/louvor-icon-512.png');
+      setAttr('apple-icon-1', 'href', '/icons/louvor-icon-180.png');
+      setAttr('apple-icon-2', 'href', '/icons/louvor-icon-180.png');
+      setAttr('apple-icon-3', 'href', '/icons/louvor-icon-192.png');
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/index.css">
 </head>
 <body>

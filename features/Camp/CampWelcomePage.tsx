@@ -51,6 +51,9 @@ export const CampWelcomePage: React.FC = () => {
   const getCardsForRole = () => {
     switch (activeRole) {
       case 'membro':
+      case 'louvor':
+      case 'viewer':
+      default:
         return [
           {
             id: 'info',
@@ -166,7 +169,7 @@ export const CampWelcomePage: React.FC = () => {
         ];
 
       case 'pastoral':
-      default:
+      case 'admin':
         return [
           { 
             id: 'info', 

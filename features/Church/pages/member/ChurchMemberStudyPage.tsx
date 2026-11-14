@@ -196,7 +196,7 @@ export const ChurchMemberStudyPage: React.FC = () => {
                 Formação Teológica Oficial
               </span>
               <span className="text-xs font-extrabold text-cyan-200 bg-white/10 px-3 py-1 rounded-full">
-                Toda Terça-feira • 19:30h
+                Toda Terça-feira • 08:00h • Culto de Ensino
               </span>
             </div>
 

@@ -31,14 +31,15 @@ export type CampRole =
 
 // Papel Unificado para compatibilidade com o sistema
 export type UserRole =
-  | 'pastoral'      // Pastor / Liderança ministerial
-  | 'membro'        // Membro da congregação
-  | 'organizacao'   // Sub-app Acampamento: Staff / Caixa
-  | 'gincana'       // Sub-app Acampamento: Coordenação
+  | 'pastoral'      // Pastor / Liderança ministerial (acesso total)
+  | 'membro'        // Membro da congregação (Espaço Membro & Acampante)
+  | 'organizacao'   // Tesouraria / Staff / Caixa / Cantina
+  | 'gincana'       // Sub-app Acampamento: Coordenação da Gincana
+  | 'louvor'        // Ministério de Louvor: Líder / Ministro
   | 'lider_equipe'  // Sub-app Acampamento: Líder de Tribo
-  | 'admin'         // Compatibilidade legada (mapeado para pastor)
-  | 'editor'        // Compatibilidade legada
-  | 'viewer';       // Compatibilidade legada
+  | 'admin'         // Compatibilidade legada (mapeado para pastoral)
+  | 'editor'        // Compatibilidade legada (mapeado para organizacao)
+  | 'viewer';       // Compatibilidade legada (mapeado para membro)
 
 // --- AUTH TYPES ---
 export interface User {

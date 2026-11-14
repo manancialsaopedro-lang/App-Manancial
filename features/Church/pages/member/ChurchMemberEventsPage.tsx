@@ -19,10 +19,11 @@ import {
   CHURCH_NEWS_FEED,
   INSTAGRAM_URL,
   MemberEventItem,
-  getChurchSchedules,
+  toWorshipItems,
   getConfirmedEventIds,
   saveConfirmedEventIds
 } from '../../data/churchMemberData';
+import { useWeeklyServices } from '../../data/churchWeeklyServices';
 
 interface MemberLayoutContext {
   memberFullName: string;
@@ -39,7 +40,8 @@ export const ChurchMemberEventsPage: React.FC = () => {
   const [confirmedEvents, setConfirmedEvents] = useState<string[]>([]);
   const [selectedEventDetail, setSelectedEventDetail] = useState<MemberEventItem | null>(null);
 
-  const schedules = getChurchSchedules();
+  const { services, loading: schedulesLoading, error: schedulesError } = useWeeklyServices();
+  const schedules = toWorshipItems(services);
 
   useEffect(() => {
     setConfirmedEvents(getConfirmedEventIds());
@@ -234,6 +236,16 @@ export const ChurchMemberEventsPage: React.FC = () => {
           </div>
 
           <div className="space-y-2.5">
+            {schedulesError && (
+              <p className="text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                Não foi possível atualizar agora. Exibindo a programação salva no app.
+              </p>
+            )}
+            {!schedulesLoading && schedules.length === 0 && (
+              <p className="text-xs font-semibold text-slate-500 text-center py-4">
+                Nenhum culto cadastrado no momento.
+              </p>
+            )}
             {schedules.map((item, idx) => {
               const isTheology =
                 item.highlight ||

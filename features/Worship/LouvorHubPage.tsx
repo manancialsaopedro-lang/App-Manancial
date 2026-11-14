@@ -12,14 +12,18 @@ import {
   ChevronRight,
   Clock,
   Radio,
-  BookOpen
+  BookOpen,
+  Sun,
+  Moon
 } from 'lucide-react';
+import { useAppStore } from '../../store';
 
 export const LouvorHubPage: React.FC = () => {
   const navigate = useNavigate();
+  const { isDarkMode, toggleTheme } = useAppStore();
 
   return (
-    <div className="min-h-screen bg-[#070a13] text-slate-100 flex flex-col">
+    <div className={`min-h-screen bg-[#070a13] text-slate-100 flex flex-col transition-colors duration-300 ${!isDarkMode ? 'theme-light-adapt' : ''}`}>
       {/* Top Header */}
       <header className="border-b border-white/10 bg-[#070a13]/80 backdrop-blur-xl sticky top-0 z-20 px-4 sm:px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">

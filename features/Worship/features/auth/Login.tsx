@@ -1,9 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
 import { signInWithGoogle } from '../../../../lib/supabase';
 import { TeamMember } from '../../types';
 import { INITIAL_TEAM } from '../../lib/seedData';
+import { GlassFold } from '../../../../components/ui/glass-fold';
+import { ManancialWaterCanvas } from '../../../../components/splash/ManancialWaterCanvas';
+import {
+  PrepageBgMode,
+  getSavedPrepageBg,
+  setSavedPrepageBg,
+} from '../../../../components/splash/ManancialSplashScreen';
 import {
   LoaderCircle,
   Mail,
@@ -30,6 +37,8 @@ import {
   LogIn,
   Copy,
   Check,
+  Layers,
+  Waves,
 } from 'lucide-react';
 
 interface LoginProps {
@@ -74,6 +83,57 @@ export default function Login({ onLogin, team = [] }: LoginProps) {
   // Stage 1: Animated Splash / Loading Screen
   const [splashComplete, setSplashComplete] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [bgMode, setBgMode] = useState<PrepageBgMode>(() => getSavedPrepageBg());
+  const logoTiltRef = useRef<HTMLDivElement | null>(null);
+  const logoSheenRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const onBgChange = (e: Event) => {
+      const detail = (e as CustomEvent<PrepageBgMode>).detail;
+      if (detail === 'glass' || detail === 'water') setBgMode(detail);
+    };
+    window.addEventListener('manancial-bg-change', onBgChange);
+    return () => window.removeEventListener('manancial-bg-change', onBgChange);
+  }, []);
+
+  useEffect(() => {
+    let rafId = 0;
+    let targetX = 0.5;
+    let targetY = 0.5;
+    let curX = 0.5;
+    let curY = 0.5;
+
+    const onPointerMove = (e: PointerEvent) => {
+      targetX = Math.max(0, Math.min(1, e.clientX / Math.max(1, window.innerWidth)));
+      targetY = Math.max(0, Math.min(1, e.clientY / Math.max(1, window.innerHeight)));
+    };
+
+    const tick = () => {
+      curX += (targetX - curX) * 0.09;
+      curY += (targetY - curY) * 0.09;
+      const ry = (curX - 0.5) * 2;
+      const rx = (0.5 - curY) * 2;
+
+      if (logoTiltRef.current) {
+        const tx = (ry * 12).toFixed(2);
+        const ty = (-rx * 10).toFixed(2);
+        logoTiltRef.current.style.transform = `perspective(950px) translate3d(${tx}px, ${ty}px, 0) rotateX(${(rx * 11).toFixed(2)}deg) rotateY(${(ry * 11).toFixed(2)}deg)`;
+      }
+      if (logoSheenRef.current) {
+        const px = Math.round(curX * 100);
+        const py = Math.round(curY * 100);
+        logoSheenRef.current.style.background = `radial-gradient(circle at ${px}% ${py}%, rgba(165, 243, 252, 0.36), transparent 58%)`;
+      }
+      rafId = window.requestAnimationFrame(tick);
+    };
+
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    rafId = window.requestAnimationFrame(tick);
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.cancelAnimationFrame(rafId);
+    };
+  }, []);
 
   // Stage 2–4: Navigation & Flow states
   const [view, setView] = useState<ViewState>('home');
@@ -455,10 +515,59 @@ export default function Login({ onLogin, team = [] }: LoginProps) {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#060d21] text-white flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden select-none">
-      {/* Ambient Background Glows */}
-      <div className="absolute top-[-20%] left-[-10%] w-[65%] h-[65%] rounded-full bg-blue-600/25 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[65%] h-[65%] rounded-full bg-cyan-500/20 blur-[120px] pointer-events-none" />
+    <div className="min-h-[100dvh] bg-[#06081e] text-white flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden select-none">
+      {/* Dynamic Background (GlassFold or Water) */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        {bgMode === 'glass' ? (
+          <GlassFold
+            color1="#1e3cc8"
+            color2="#06081e"
+            color3="#96d7ff"
+            speed={0.5}
+            scale={1}
+            noise={0.12}
+            className="h-full w-full"
+          />
+        ) : (
+          <ManancialWaterCanvas intensity="full" isDarkMode={true} />
+        )}
+      </div>
+      {/* Subtle contrast vignette for card readability */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#06081e]/20 via-transparent to-[#06081e]/55 pointer-events-none z-0" />
+
+      {/* Minimalist Background Switcher */}
+      <div
+        role="group"
+        aria-label="Fundo da tela inicial"
+        className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 z-30 inline-flex items-center gap-0.5 rounded-full border border-white/10 bg-white/[0.04] p-0.5 backdrop-blur-md"
+      >
+        <button
+          type="button"
+          onClick={() => setSavedPrepageBg('glass')}
+          className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-all ${
+            bgMode === 'glass'
+              ? 'bg-white/15 text-white shadow-2xs'
+              : 'text-white/45 hover:text-white/80'
+          }`}
+          title="Fundo Glass Fold"
+        >
+          <Layers className="h-3 w-3" />
+          <span>Glass</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setSavedPrepageBg('water')}
+          className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-all ${
+            bgMode === 'water'
+              ? 'bg-white/15 text-white shadow-2xs'
+              : 'text-white/45 hover:text-white/80'
+          }`}
+          title="Fundo Fluido de Águas"
+        >
+          <Waves className="h-3 w-3" />
+          <span>Água</span>
+        </button>
+      </div>
 
       {!splashComplete ? (
         /* =========================================================
@@ -470,13 +579,28 @@ export default function Login({ onLogin, team = [] }: LoginProps) {
             initial={{ scale: 0.82, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="w-36 h-36 sm:w-44 sm:h-44 rounded-[2.5rem] overflow-hidden shadow-[0_0_70px_rgba(37,99,235,0.55)] border-2 border-blue-400/40 mb-7 bg-[#00153d] relative"
+            className="mb-7 relative"
           >
-            <img
-              src="/louvor-icon.png"
-              alt="Louvor App"
-              className="w-full h-full object-cover"
-            />
+            <div
+              ref={logoTiltRef}
+              style={{ transformStyle: 'preserve-3d' }}
+              className="w-36 h-36 sm:w-44 sm:h-44 rounded-[2.5rem] overflow-hidden shadow-[0_0_70px_rgba(37,99,235,0.55)] border-2 border-blue-400/40 bg-[#00153d] relative"
+            >
+              <img
+                src="/louvor-icon.png"
+                alt="Louvor App"
+                className="w-full h-full object-cover"
+              />
+              <div
+                ref={logoSheenRef}
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 opacity-50 mix-blend-screen"
+                style={{
+                  background:
+                    'radial-gradient(circle at 30% 25%, rgba(165, 243, 252, 0.3), transparent 58%)',
+                }}
+              />
+            </div>
           </motion.div>
 
           <motion.span
@@ -537,13 +661,28 @@ export default function Login({ onLogin, team = [] }: LoginProps) {
             <motion.div
               layoutId="louvor-brand-logo"
               transition={{ type: 'spring', stiffness: 180, damping: 24 }}
-              className="w-20 h-20 sm:w-24 sm:h-24 rounded-[1.75rem] overflow-hidden shadow-2xl shadow-blue-500/40 border-2 border-blue-400/35 mb-3 bg-[#00153d]"
+              className="mb-3 relative"
             >
-              <img
-                src="/louvor-icon.png"
-                alt="Louvor App"
-                className="w-full h-full object-cover"
-              />
+              <div
+                ref={logoTiltRef}
+                style={{ transformStyle: 'preserve-3d' }}
+                className="w-20 h-20 sm:w-24 sm:h-24 rounded-[1.75rem] overflow-hidden shadow-2xl shadow-blue-500/40 border-2 border-blue-400/35 bg-[#00153d] relative"
+              >
+                <img
+                  src="/louvor-icon.png"
+                  alt="Louvor App"
+                  className="w-full h-full object-cover"
+                />
+                <div
+                  ref={logoSheenRef}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 opacity-50 mix-blend-screen"
+                  style={{
+                    background:
+                      'radial-gradient(circle at 30% 25%, rgba(165, 243, 252, 0.3), transparent 58%)',
+                  }}
+                />
+              </div>
             </motion.div>
 
             <motion.h1

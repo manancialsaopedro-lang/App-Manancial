@@ -24,9 +24,10 @@ import {
   STORAGE_MEMBER_CHECKINS_KEY,
   UPCOMING_CHURCH_EVENTS,
   ChurchRequestItem,
-  getChurchSchedules,
+  toWorshipItems,
   getStoredPastoralRequests
 } from './data/churchMemberData';
+import { useWeeklyServices } from './data/churchWeeklyServices';
 
 interface MemberLayoutContext {
   memberFullName: string;
@@ -43,7 +44,8 @@ export const ChurchMemberHome: React.FC = () => {
   const [requests, setRequests] = useState<ChurchRequestItem[]>([]);
   const [checkedInToday, setCheckedInToday] = useState(false);
 
-  const schedules = getChurchSchedules();
+  const { services, loading: schedulesLoading, error: schedulesError } = useWeeklyServices();
+  const schedules = toWorshipItems(services);
   const todayKey = new Date().toISOString().split('T')[0];
 
   const loadData = () => {
@@ -129,7 +131,7 @@ export const ChurchMemberHome: React.FC = () => {
               Tudo o que você precisa para caminhar em comunhão: solicite{' '}
               <strong>Atendimento Pastoral</strong> direto ao pastor, acompanhe os{' '}
               <strong>próximos eventos</strong>, horários de culto e o{' '}
-              <strong>Curso de Teologia às terças-feiras com o Pr. Adenilson Freitas</strong>.
+              <strong>Curso de Teologia no Culto de Ensino das terças-feiras com o Pr. Adenilson Freitas</strong>.
             </p>
           </div>
 
@@ -198,7 +200,7 @@ export const ChurchMemberHome: React.FC = () => {
               <GraduationCap size={20} />
             </div>
             <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
-              Terças 19:30
+              Terças 08:00
             </span>
           </div>
           <div>
@@ -367,6 +369,16 @@ export const ChurchMemberHome: React.FC = () => {
               </button>
             </div>
 
+            {schedulesError && (
+              <p className="text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                Não foi possível atualizar agora. Exibindo a programação salva no app.
+              </p>
+            )}
+            {!schedulesLoading && schedules.length === 0 && (
+              <p className="text-xs font-semibold text-slate-500 text-center py-4">
+                Nenhum culto cadastrado no momento.
+              </p>
+            )}
             <div className="divide-y divide-slate-100">
               {schedules.map((item, idx) => {
                 const isTheology =

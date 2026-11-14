@@ -80,7 +80,19 @@ export default function Sidebar({
 }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const activeTab = location.pathname.split('/').pop() || 'dashboard';
+  const pathname = location.pathname;
+  const activeTab = (() => {
+    if (pathname.includes('/repertoire')) return 'repertoire';
+    if (pathname.includes('/events') || pathname.includes('/schedule')) return 'schedule';
+    if (pathname.includes('/study')) return 'study';
+    if (pathname.includes('/team')) return 'team';
+    if (pathname.includes('/insights')) return 'insights';
+    if (pathname.includes('/new-songs') || pathname.includes('/suggestions')) return 'new-songs';
+    if (pathname.includes('/avaliacoes') || pathname.includes('/evaluations')) return 'avaliacoes';
+    if (pathname.includes('/settings')) return 'settings';
+    if (pathname.includes('/profile')) return 'profile';
+    return pathname.split('/').pop() || 'dashboard';
+  })();
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'study', label: 'Estudo', icon: BookOpen },
@@ -96,39 +108,44 @@ export default function Sidebar({
     <>
       {/* Desktop Sidebar */}
       {!isSidebarHidden && (
-        <aside className="hidden md:flex w-72 h-[calc(100vh-2rem)] fixed left-4 top-4 glass rounded-[2.5rem] flex-col py-8 z-50 transition-all duration-500 overflow-hidden border border-white/40 shadow-2xl">
-        <div className="px-8 mb-10 transition-all duration-300">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 min-w-[48px] rounded-2xl overflow-hidden shadow-lg border border-white/40 bg-[#00153d] p-0.5 hover:scale-110 transition-transform duration-500">
-              <img 
-                src="/louvor-icon.png" 
-                alt="Louvor App"
-                className="w-full h-full object-cover rounded-xl"
-              />
-            </div>
-            <div className="transition-all duration-500 whitespace-nowrap">
-              <h1 className="font-headline font-extrabold text-[#00153d] leading-tight text-xl tracking-tight">
-                Louvor App
-              </h1>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-blue-600/60 font-black">
-                Min. de Louvor
-              </p>
-            </div>
+        <aside className="hidden md:flex w-72 h-[calc(100dvh-2rem)] fixed left-4 top-4 glass rounded-[2.5rem] flex-col py-6 z-50 transition-all duration-500 overflow-hidden border border-white/60 shadow-2xl">
+        <div className="px-7 mb-5 shrink-0 transition-all duration-300">
+          <div className="flex items-center justify-between gap-2">
+            <button
+              onClick={() => navigate('/app/dashboard')}
+              className="flex items-center gap-3.5 text-left group"
+            >
+              <div className="w-12 h-12 min-w-[48px] rounded-2xl overflow-hidden shadow-lg border border-white/40 bg-[#00153d] p-0.5 group-hover:scale-105 transition-transform duration-300">
+                <img 
+                  src="/louvor-icon.png" 
+                  alt="Louvor App"
+                  className="w-full h-full object-cover rounded-xl"
+                />
+              </div>
+              <div className="transition-all duration-500 whitespace-nowrap">
+                <h1 className="font-headline font-extrabold text-[#00153d] leading-tight text-xl tracking-tight">
+                  Louvor App
+                </h1>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-blue-600/60 font-black">
+                  Min. de Louvor
+                </p>
+              </div>
+            </button>
           </div>
         </div>
 
-        <nav className="flex-1 px-4 space-y-2 transition-all duration-300">
+        <nav className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 space-y-1.5 transition-all duration-300">
           {menuItems.map((item) => (
             <button
               key={item.id}
               onClick={() => navigate(`/app/${item.id}`)}
-              className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group/item relative overflow-hidden ${
+              className={`w-full flex items-center gap-4 px-4 py-2.5 rounded-2xl transition-all duration-300 group/item relative overflow-hidden ${
                 activeTab === item.id 
                   ? 'bg-[#00153d] text-white shadow-lg shadow-blue-900/20' 
                   : 'text-slate-500 hover:bg-blue-500/10 hover:text-blue-700'
               }`}
             >
-              <item.icon size={22} className={`min-w-[22px] transition-transform duration-300 group-hover/item:scale-110 ${activeTab === item.id ? 'text-white' : 'text-slate-400 group-hover/item:text-blue-600'}`} />
+              <item.icon size={20} className={`min-w-[20px] transition-transform duration-300 group-hover/item:scale-110 ${activeTab === item.id ? 'text-white' : 'text-slate-400 group-hover/item:text-blue-600'}`} />
               <span className="text-sm font-bold transition-opacity duration-300 whitespace-nowrap uppercase tracking-widest">{item.label}</span>
               {activeTab === item.id && (
                 <motion.div 
@@ -140,12 +157,12 @@ export default function Sidebar({
           ))}
         </nav>
 
-        <div className="px-6 mt-auto space-y-2 transition-all duration-300">
-          <div className="mb-6 p-4 rounded-2xl bg-white/40 border border-white/60 transition-all duration-500">
+        <div className="px-5 pt-4 mt-auto space-y-1.5 shrink-0 border-t border-black/5 transition-all duration-300">
+          <div className="mb-3 p-3 rounded-2xl bg-white/60 border border-white/80 transition-all duration-500">
             <div className="flex items-center gap-3">
               <img 
                 src={userProfile?.avatar_url || "/louvor-icon.png"} 
-                className="w-10 h-10 rounded-xl object-cover border-2 border-white"
+                className="w-10 h-10 rounded-xl object-cover border-2 border-white shrink-0"
                 alt="Profile"
               />
               <div className="overflow-hidden">
@@ -159,7 +176,7 @@ export default function Sidebar({
 
           <button 
             onClick={() => navigate('/app/settings')}
-            className={`w-full flex items-center gap-4 px-4 py-3 transition-all rounded-2xl group/btn ${
+            className={`w-full flex items-center gap-4 px-4 py-2.5 transition-all rounded-2xl group/btn ${
               activeTab === 'settings' ? 'bg-blue-100 text-blue-900 shadow-sm' : 'text-slate-500 hover:bg-white/60 hover:text-blue-600'
             }`}
           >
@@ -168,14 +185,14 @@ export default function Sidebar({
           </button>
           <button 
             onClick={onSignOut}
-            className="w-full flex items-center gap-4 px-4 py-3 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all rounded-2xl group/btn"
+            className="w-full flex items-center gap-4 px-4 py-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all rounded-2xl group/btn"
           >
             <LogOut size={20} className="min-w-[20px] transition-transform group-hover/btn:translate-x-1" />
             <span className="text-sm font-bold transition-opacity duration-300 whitespace-nowrap uppercase tracking-widest">Sair</span>
           </button>
           <button 
             onClick={() => setIsSidebarHidden(true)}
-            className="w-full flex items-center gap-4 px-4 py-3 mt-4 text-slate-400 hover:text-blue-600 transition-all border-t border-black/5 pt-6"
+            className="w-full flex items-center gap-4 px-4 py-2.5 mt-1 text-slate-400 hover:text-blue-600 transition-all border-t border-black/5 pt-3"
           >
             <PanelLeftClose size={20} className="min-w-[20px]" />
             <span className="text-sm font-bold transition-opacity duration-300 whitespace-nowrap uppercase tracking-widest">Recolher</span>
