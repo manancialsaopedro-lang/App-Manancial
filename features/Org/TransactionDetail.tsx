@@ -85,7 +85,7 @@ export const TransactionDetail = () => {
     if (loading) {
       return (
         <div className="max-w-2xl mx-auto space-y-8 animate-in slide-in-from-bottom-4">
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-400 font-bold hover:text-gray-900 transition-colors">
+          <button onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/org/financials'))} className="flex items-center gap-2 text-gray-400 font-bold hover:text-gray-900 transition-colors">
             <ArrowLeft size={18} /> Voltar para o Caixa
           </button>
           <Card className="p-8 text-center text-gray-400 font-bold">Carregando transacao...</Card>
@@ -95,7 +95,7 @@ export const TransactionDetail = () => {
 
     return (
       <div className="max-w-2xl mx-auto space-y-8 animate-in slide-in-from-bottom-4">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-400 font-bold hover:text-gray-900 transition-colors">
+        <button onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/org/financials'))} className="flex items-center gap-2 text-gray-400 font-bold hover:text-gray-900 transition-colors">
           <ArrowLeft size={18} /> Voltar para o Caixa
         </button>
         <Card className="p-8 text-center text-gray-400 font-bold">Transacao nao encontrada.</Card>
@@ -105,7 +105,7 @@ export const TransactionDetail = () => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-in slide-in-from-bottom-4">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-400 font-bold hover:text-gray-900 transition-colors">
+      <button onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/org/financials'))} className="flex items-center gap-2 text-gray-400 font-bold hover:text-gray-900 transition-colors">
         <ArrowLeft size={18} /> Voltar para o Caixa
       </button>
 
@@ -119,9 +119,9 @@ export const TransactionDetail = () => {
         </span>
       </div>
 
-      <Card className="p-8">
+      <Card className="p-6 sm:p-8">
         <h3 className="text-xs font-black uppercase text-gray-400 tracking-widest mb-6">Informacoes Gerais</h3>
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="flex items-center gap-3">
              <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400"><Clock size={18} /></div>
              <div>

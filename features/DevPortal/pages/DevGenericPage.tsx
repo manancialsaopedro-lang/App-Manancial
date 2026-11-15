@@ -36,11 +36,11 @@ export const DevGenericPage: React.FC<DevGenericPageProps> = ({
       <div className="flex items-center justify-center gap-3">
         <button
           type="button"
-          onClick={() => navigate('/dev/igreja')}
+          onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/igreja'))}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#082f38] hover:bg-[#0a434d] text-cyan-200 text-xs font-black uppercase tracking-wider transition-all"
         >
           <ArrowLeft size={14} />
-          <span>Voltar para Dados da Igreja</span>
+          <span>Voltar</span>
         </button>
       </div>
     </div>

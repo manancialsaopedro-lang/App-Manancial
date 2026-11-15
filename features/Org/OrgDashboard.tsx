@@ -344,7 +344,7 @@ export const OrgDashboard = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => navigate('/')} 
+            onClick={() => navigate('/org/home')} 
             className="flex items-center gap-2 p-2 pr-4 rounded-full hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-900"
           >
              <ArrowLeft size={24} />

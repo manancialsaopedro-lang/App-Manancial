@@ -40,12 +40,12 @@ export const TeamDetail = () => {
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 pb-12">
-      <button onClick={() => navigate('/gincana/dash')} className="flex items-center gap-2 text-gray-400 font-bold hover:text-gray-900 transition-colors">
+      <button onClick={() => navigate('/gincana/placar')} className="flex items-center gap-2 text-gray-400 font-bold hover:text-gray-900 transition-colors">
         <ArrowLeft size={18} /> Voltar ao Placar
       </button>
 
       {/* Header do Time */}
-      <div className={`relative p-10 rounded-[3rem] overflow-hidden text-white shadow-2xl ${team.color}`}>
+      <div className={`relative p-6 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem] overflow-hidden text-white shadow-2xl ${team.color}`}>
          <div className="absolute top-0 right-0 w-96 h-96 bg-white/20 rounded-full blur-[100px] -mr-20 -mt-20 pointer-events-none" />
          
          <div className="relative z-10 flex flex-col md:flex-row items-center md:items-end justify-between gap-8 text-center md:text-left">
@@ -54,7 +54,7 @@ export const TeamDetail = () => {
                   <Trophy size={32} />
                   <span className="font-black uppercase tracking-widest text-lg">{team.name}</span>
                </div>
-               <h1 className="text-8xl font-black tracking-tighter">{totalScore}</h1>
+               <h1 className="text-5xl sm:text-7xl md:text-8xl font-black tracking-tighter">{totalScore}</h1>
                <p className="font-bold opacity-80 mt-2">Pontos Totais Acumulados</p>
             </div>
             
@@ -70,7 +70,7 @@ export const TeamDetail = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
          {/* Histórico Recente */}
-         <div className="lg:col-span-2 space-y-6">
+         <div className="lg:col-span-2 min-w-0 space-y-6">
             <h3 className="font-black text-gray-900 text-xl flex items-center gap-2">
               <History className="text-gray-400" /> Histórico de Pontuação
             </h3>
@@ -79,7 +79,8 @@ export const TeamDetail = () => {
                {teamEvents.length === 0 ? (
                  <div className="p-10 text-center text-gray-400">Nenhum evento registrado.</div>
                ) : (
-                 <table className="w-full text-left">
+                 <div className="overflow-x-auto">
+                 <table className="w-full text-left min-w-[460px]">
                     <thead className="bg-gray-50 border-b border-gray-100">
                        <tr>
                           <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400">Motivo / Prova</th>
@@ -107,8 +108,9 @@ export const TeamDetail = () => {
                           );
                        })}
                     </tbody>
-                 </table>
-               )}
+                  </table>
+                  </div>
+                )}
             </div>
          </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ShoppingBag,
   ShoppingCart,
@@ -35,10 +35,11 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { Product, PaymentMethod, Person, Sale, SaleItem } from '../../types';
-import { listProducts, updateProduct as updateProductApi, createProduct as createProductApi } from '../../lib/api/products';
+import { listProducts, updateProduct as updateProductApi, createProduct as createProductApi, deleteProduct as deleteProductApi } from '../../lib/api/products';
 import { listPeople } from '../../lib/api/people';
-import { listSales, createSale, deleteSale } from '../../lib/api/sales';
+import { listSales, createSale, deleteSale, updateSale as updateSaleApi } from '../../lib/api/sales';
 import { createTransaction } from '../../lib/api/transactions';
+import { upsertFinancialEvent } from '../../lib/api/financialEvents';
 
 interface CanteenEvent {
   id: string;
@@ -59,21 +60,69 @@ export const ChurchCanteenPage: React.FC = () => {
   const {
     products,
     setProducts,
+    deleteProduct,
     people,
     setPeople,
     sales,
     setSales,
     settleSale,
     settleAllCustomerDebt,
+    financialEvents,
+    addFinancialEvent,
+    deleteFinancialEvent,
     isDarkMode,
     toggleTheme
   } = useAppStore();
 
-  // Abas do Módulo: 'pdv' | 'comandas' | 'estoque' | 'fechamento'
-  const [activeTab, setActiveTab] = useState<'pdv' | 'comandas' | 'estoque' | 'fechamento'>('pdv');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const resolveTabFromParam = (tabParam: string | null): 'pdv' | 'comandas' | 'estoque' | 'fechamento' => {
+    switch (tabParam?.toLowerCase()) {
+      case 'stock':
+      case 'estoque':
+        return 'estoque';
+      case 'debts':
+      case 'comandas':
+        return 'comandas';
+      case 'closing':
+      case 'fechamento':
+        return 'fechamento';
+      case 'pdv':
+      default:
+        return 'pdv';
+    }
+  };
 
-  // Evento Ativo
-  const [eventsList, setEventsList] = useState<CanteenEvent[]>(DEFAULT_EVENTS);
+  // Abas do Módulo: 'pdv' | 'comandas' | 'estoque' | 'fechamento'
+  const [activeTab, setActiveTab] = useState<'pdv' | 'comandas' | 'estoque' | 'fechamento'>(() =>
+    resolveTabFromParam(searchParams.get('tab'))
+  );
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam) {
+      setActiveTab(resolveTabFromParam(tabParam));
+    }
+  }, [searchParams]);
+
+  const handleSelectTab = (tab: 'pdv' | 'comandas' | 'estoque' | 'fechamento') => {
+    setActiveTab(tab);
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', tab);
+    setSearchParams(next, { replace: true });
+  };
+
+  // Evento Ativo (Sincronizado com Central Financeira)
+  const eventsList: CanteenEvent[] = useMemo(() => {
+    if (financialEvents && financialEvents.length > 0) {
+      return financialEvents.map((ev, idx) => ({
+        id: ev.id === 'acampamento-2027' ? 'acamp-2027' : ev.id,
+        name: ev.name,
+        category: ev.badge || 'Evento',
+        isDefault: idx === 0
+      }));
+    }
+    return DEFAULT_EVENTS;
+  }, [financialEvents]);
   const [selectedEventId, setSelectedEventId] = useState<string>('acamp-2027');
   const [isEventMenuOpen, setIsEventMenuOpen] = useState(false);
   const [newEventModal, setNewEventModal] = useState(false);
@@ -370,7 +419,34 @@ export const ChurchCanteenPage: React.FC = () => {
   const handleSettleAllDebts = async () => {
     if (!debtSettleModal.person) return;
     try {
-      settleAllCustomerDebt(debtSettleModal.person.id, debtSettleModal.method);
+      const personId = debtSettleModal.person.id;
+      const method = debtSettleModal.method;
+      const pendingSales = sales.filter(s => s.personId === personId && s.status === 'PENDING');
+      const totalAmount = pendingSales.reduce((acc, s) => acc + s.total, 0);
+
+      settleAllCustomerDebt(personId, method);
+
+      await Promise.all(
+        pendingSales.map(s => updateSaleApi(s.id, { status: 'PAID', paymentMethod: method }).catch(() => null))
+      );
+
+      if (totalAmount > 0) {
+        await createTransaction({
+          description: `Recebimento Pendência Total: ${debtSettleModal.person.name}`,
+          amount: totalAmount,
+          type: 'ENTRADA',
+          category: 'CANTINA',
+          date: new Date().toISOString(),
+          paymentMethod: method,
+          personId,
+          personName: debtSettleModal.person.name,
+          isSettled: true,
+          items: pendingSales.flatMap(s => s.items),
+          eventId: selectedEventId,
+          eventName: activeEvent?.name
+        }).catch(() => null);
+      }
+
       showToast(`✅ Comanda total de ${debtSettleModal.person.name} quitada com sucesso!`);
       setDebtSettleModal({ isOpen: false, person: null, totalDebt: 0, method: 'Pix' });
       await loadData();
@@ -382,7 +458,26 @@ export const ChurchCanteenPage: React.FC = () => {
   // Quitar venda avulsa específica
   const handleSettleSingleSale = async (saleId: string, method: PaymentMethod) => {
     try {
+      const sale = sales.find(s => s.id === saleId);
       settleSale(saleId, method);
+      await updateSaleApi(saleId, { status: 'PAID', paymentMethod: method }).catch(() => null);
+      if (sale) {
+        await createTransaction({
+          description: `Recebimento Pendência: ${sale.personName || 'Cliente'} (Venda #${sale.id.slice(-4)})`,
+          amount: sale.total,
+          type: 'ENTRADA',
+          category: 'CANTINA',
+          date: new Date().toISOString(),
+          paymentMethod: method,
+          referenceId: sale.id,
+          personId: sale.personId,
+          personName: sale.personName,
+          isSettled: true,
+          items: sale.items,
+          eventId: sale.eventId || selectedEventId,
+          eventName: sale.eventName || activeEvent?.name
+        }).catch(() => null);
+      }
       showToast('✅ Venda quitada com sucesso!');
       await loadData();
     } catch (err: any) {
@@ -611,7 +706,7 @@ export const ChurchCanteenPage: React.FC = () => {
       <div className="border-b border-white/10 bg-[#070c14]/70 backdrop-blur-md px-4 sm:px-6">
         <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto py-2.5 no-scrollbar">
           <button
-            onClick={() => setActiveTab('pdv')}
+            onClick={() => handleSelectTab('pdv')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
               activeTab === 'pdv'
                 ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 shadow-md shadow-orange-500/20'
@@ -628,7 +723,7 @@ export const ChurchCanteenPage: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setActiveTab('comandas')}
+            onClick={() => handleSelectTab('comandas')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
               activeTab === 'comandas'
                 ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 shadow-md shadow-orange-500/20'
@@ -645,7 +740,7 @@ export const ChurchCanteenPage: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setActiveTab('estoque')}
+            onClick={() => handleSelectTab('estoque')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
               activeTab === 'estoque'
                 ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 shadow-md shadow-orange-500/20'
@@ -658,7 +753,7 @@ export const ChurchCanteenPage: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setActiveTab('fechamento')}
+            onClick={() => handleSelectTab('fechamento')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
               activeTab === 'fechamento'
                 ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 shadow-md shadow-orange-500/20'
@@ -1765,18 +1860,20 @@ export const ChurchCanteenPage: React.FC = () => {
               </div>
 
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (!newEventName.trim()) return;
-                  const newEv: CanteenEvent = {
-                    id: `event-${Date.now()}`,
+                  const created = addFinancialEvent({
                     name: newEventName.trim(),
-                    category: 'Evento Especial'
-                  };
-                  setEventsList(prev => [...prev, newEv]);
-                  setSelectedEventId(newEv.id);
+                    badge: 'Evento Especial',
+                    dateLabel: new Date().toLocaleDateString('pt-BR'),
+                    color: 'from-orange-500 to-amber-600',
+                    status: 'ATIVO'
+                  });
+                  await upsertFinancialEvent(created).catch(() => null);
+                  setSelectedEventId(created.id);
                   setNewEventModal(false);
                   setNewEventName('');
-                  showToast(`Evento "${newEv.name}" criado e ativado na Cantina!`);
+                  showToast(`Evento "${created.name}" criado e integrado ao Financeiro & Cantina!`);
                 }}
                 className="w-full mt-3 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 font-black text-xs hover:brightness-110 active:scale-95 transition-all shadow-md"
               >

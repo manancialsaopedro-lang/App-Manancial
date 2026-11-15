@@ -26,6 +26,7 @@ import {
   X,
 } from 'lucide-react';
 import { useChurchStore } from '../../store/churchStore';
+import { useCurrentRole } from '../../hooks/useCurrentRole';
 
 interface CommandPaletteProps {
   open: boolean;
@@ -40,6 +41,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 }) => {
   const navigate = useNavigate();
   const { members, generateWhatsAppUrl } = useChurchStore();
+  const { canAccessOrg, canAccessGincana, canAccessLouvor } = useCurrentRole();
   const [search, setSearch] = useState('');
 
   // Global keyboard shortcut: Cmd+K or Ctrl+K
@@ -267,21 +269,22 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                 className="py-1.5 [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-black [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-widest [&_[cmdk-group-heading]]:text-cyan-800"
               >
                 {[
-                  { label: 'Dados da Igreja & Horários de Culto', path: '/igreja', icon: Church, keywords: 'configurações endereço pastor' },
-                  { label: 'Solicitações & Pedidos de Oração', path: '/solicitacoes', icon: Inbox, keywords: 'intercessão gabinete pastoral' },
-                  { label: 'Diretório Geral de Membros', path: '/membros', icon: Users, keywords: 'lista secretaria batismo' },
-                  { label: 'Visitantes & Boas-Vindas (QR Code)', path: '/visitantes', icon: Sparkles, keywords: 'acolhimento recepção novos' },
-                  { label: 'Frequência & Histórico de Cultos', path: '/presenca', icon: CheckSquare, keywords: 'chamada faltas assiduidade' },
-                  { label: 'Relatórios & Indicadores Pastorais', path: '/relatorios', icon: FileText, keywords: 'estatísticas impressão pdf' },
-                  { label: 'Células & Pequenos Grupos', path: '/celulas', icon: Layers, keywords: 'líderes anfitrião reunião' },
-                  { label: 'Cursos & Trilha de Discipulado', path: '/cursos', icon: GraduationCap, keywords: 'batismo escola bíblica' },
-                  { label: 'Agenda & Eventos da Igreja', path: '/eventos', icon: Calendar, keywords: 'conferência congresso' },
-                  { label: 'Mensagens & Templates de WhatsApp', path: '/notificacoes', icon: MessageSquare, keywords: 'disparo pastoral avisos' },
-                  { label: 'Acampamento — Pagamentos & Inscritos', path: '/acampamento/pagamentos', icon: Tent, keywords: 'inscrições parcelas retiro' },
-                  { label: 'Gincana — Dashboard & Placar', path: '/gincana/dash', icon: Trophy, keywords: 'tribos provas pontuação' },
-                  { label: 'Central do Caixa & Cantina PDV', path: '/org/cashier-hub', icon: Wallet, keywords: 'financeiro vendas estoque' },
-                  { label: 'Landing Page Pública da Igreja', path: '/landing', icon: Globe, keywords: 'site externo' },
-                ].map((nav) => {
+                  { label: 'Dados da Igreja & Horários de Culto', path: '/igreja', icon: Church, keywords: 'configurações endereço pastor', allowed: true },
+                  { label: 'Solicitações & Pedidos de Oração', path: '/solicitacoes', icon: Inbox, keywords: 'intercessão gabinete pastoral', allowed: true },
+                  { label: 'Diretório Geral de Membros', path: '/membros', icon: Users, keywords: 'lista secretaria batismo', allowed: true },
+                  { label: 'Visitantes & Boas-Vindas (QR Code)', path: '/visitantes', icon: Sparkles, keywords: 'acolhimento recepção novos', allowed: true },
+                  { label: 'Frequência & Histórico de Cultos', path: '/presenca', icon: CheckSquare, keywords: 'chamada faltas assiduidade', allowed: true },
+                  { label: 'Relatórios & Indicadores Pastorais', path: '/relatorios', icon: FileText, keywords: 'estatísticas impressão pdf', allowed: true },
+                  { label: 'Células & Pequenos Grupos', path: '/celulas', icon: Layers, keywords: 'líderes anfitrião reunião', allowed: true },
+                  { label: 'Cursos & Trilha de Discipulado', path: '/cursos', icon: GraduationCap, keywords: 'batismo escola bíblica', allowed: true },
+                  { label: 'Agenda & Eventos da Igreja', path: '/eventos', icon: Calendar, keywords: 'conferência congresso', allowed: true },
+                  { label: 'Mensagens & Templates de WhatsApp', path: '/notificacoes', icon: MessageSquare, keywords: 'disparo pastoral avisos', allowed: true },
+                  { label: 'Acampamento — Pagamentos & Inscritos', path: '/acampamento/pagamentos', icon: Tent, keywords: 'inscrições parcelas retiro', allowed: canAccessOrg },
+                  { label: 'Gincana — Dashboard & Placar', path: '/gincana/dash', icon: Trophy, keywords: 'tribos provas pontuação', allowed: canAccessGincana },
+                  { label: 'Central do Caixa & Cantina PDV', path: '/org/cashier-hub', icon: Wallet, keywords: 'financeiro vendas estoque', allowed: canAccessOrg },
+                  { label: 'Ministério de Louvor — Painel', path: '/app/dashboard', icon: Globe, keywords: 'repertório cifras escalas', allowed: canAccessLouvor },
+                  { label: 'Landing Page Pública da Igreja', path: '/landing', icon: Globe, keywords: 'site externo', allowed: true },
+                ].filter((nav) => nav.allowed).map((nav) => {
                   const Icon = nav.icon;
                   return (
                     <Command.Item

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   body {
@@ -109,28 +110,78 @@
 .theme-light-adapt [class*="bg-[#070b12]"],
 .theme-light-adapt [class*="bg-[#070a13]"],
 .theme-light-adapt [class*="bg-[#0b0f19]"],
-.theme-light-adapt [class*="bg-[#060911]"] {
-  background-color: rgba(255, 255, 255, 0.92) !important;
+.theme-light-adapt [class*="bg-[#060911]"],
+.theme-light-adapt [class*="bg-[#060a12]"],
+.theme-light-adapt [class*="bg-[#080d17]"] {
+  background-color: rgba(255, 255, 255, 0.94) !important;
 }
 
 .theme-light-adapt [class*="bg-[#0d1424]"],
 .theme-light-adapt [class*="bg-[#0e1626]"],
 .theme-light-adapt [class*="bg-[#0e172a]"],
 .theme-light-adapt [class*="bg-[#0c1424]"],
+.theme-light-adapt [class*="bg-[#0c1322]"],
 .theme-light-adapt [class*="bg-[#0b121e]"],
+.theme-light-adapt [class*="bg-[#0b1220]"],
 .theme-light-adapt [class*="bg-[#121826]"],
 .theme-light-adapt [class*="bg-[#0a101d]"],
-.theme-light-adapt [class*="bg-[#151c2c]"] {
+.theme-light-adapt [class*="bg-[#090d16]"],
+.theme-light-adapt [class*="bg-[#151c2c]"],
+.theme-light-adapt [class*="bg-[#0f172a]"] {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
   box-shadow: 0 2px 10px -2px rgba(15, 23, 42, 0.05) !important;
+}
+
+/* Adapt dark gradients in cards so light mode remains crisp and high-contrast */
+.theme-light-adapt [class*="to-[#0c1424]"],
+.theme-light-adapt [class*="to-[#0c1322]"],
+.theme-light-adapt [class*="to-[#0d1424]"],
+.theme-light-adapt [class*="to-[#070c14]"] {
+  background-image: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+.theme-light-adapt [class*="from-purple-950"] {
+  background-image: linear-gradient(135deg, #faf5ff 0%, #ffffff 100%) !important;
+  border-color: #e9d5ff !important;
+}
+
+.theme-light-adapt [class*="from-emerald-950"] {
+  background-image: linear-gradient(135deg, #ecfdf5 0%, #ffffff 100%) !important;
+  border-color: #a7f3d0 !important;
+}
+
+.theme-light-adapt [class*="from-rose-950"],
+.theme-light-adapt [class*="from-red-950"] {
+  background-image: linear-gradient(135deg, #fff1f2 0%, #ffffff 100%) !important;
+  border-color: #fecdd3 !important;
+}
+
+.theme-light-adapt [class*="from-amber-950"],
+.theme-light-adapt [class*="from-orange-950"] {
+  background-image: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%) !important;
+  border-color: #fde68a !important;
+}
+
+.theme-light-adapt [class*="from-cyan-950"],
+.theme-light-adapt [class*="from-blue-950"] {
+  background-image: linear-gradient(135deg, #ecfeff 0%, #ffffff 100%) !important;
+  border-color: #a5f3fc !important;
 }
 
 .theme-light-adapt [class*="bg-white/5"],
 .theme-light-adapt [class*="bg-white/[0.02]"],
 .theme-light-adapt [class*="bg-white/[0.03]"],
 .theme-light-adapt [class*="bg-white/[0.04]"],
-.theme-light-adapt [class*="bg-white/10"] {
+.theme-light-adapt [class*="bg-white/[0.05]"],
+.theme-light-adapt [class*="bg-white/[0.06]"],
+.theme-light-adapt [class*="bg-white/[0.08]"],
+.theme-light-adapt [class*="bg-white/10"],
+.theme-light-adapt [class*="bg-black/40"],
+.theme-light-adapt [class*="bg-black/30"],
+.theme-light-adapt [class*="bg-black/20"] {
   background-color: #f8fafc !important;
   border-color: #e2e8f0 !important;
 }
@@ -138,7 +189,8 @@
 .theme-light-adapt [class*="border-white/5"],
 .theme-light-adapt [class*="border-white/10"],
 .theme-light-adapt [class*="border-white/15"],
-.theme-light-adapt [class*="border-white/20"] {
+.theme-light-adapt [class*="border-white/20"],
+.theme-light-adapt [class*="border-white/[0.0"] {
   border-color: #e2e8f0 !important;
 }
 
@@ -157,41 +209,63 @@
 }
 
 .theme-light-adapt .text-slate-400 {
+  color: #475569 !important;
+}
+
+.theme-light-adapt .text-slate-300:hover,
+.theme-light-adapt .text-slate-400:hover {
+  color: #0f172a !important;
+}
+
+.theme-light-adapt .text-slate-500 {
   color: #64748b !important;
 }
 
 /* Preserve white text on solid accent buttons/badges, convert surface white text to dark slate */
-.theme-light-adapt .text-white:not([class*="bg-emerald-5"]):not([class*="bg-emerald-6"]):not([class*="bg-orange-5"]):not([class*="bg-orange-6"]):not([class*="bg-purple-5"]):not([class*="bg-purple-6"]):not([class*="bg-rose-5"]):not([class*="bg-rose-6"]):not([class*="bg-red-5"]):not([class*="bg-red-6"]):not([class*="bg-blue-6"]):not([class*="bg-cyan-6"]):not([class*="bg-[#082f38]"]):not([class*="from-orange-"]):not([class*="from-purple-"]):not([class*="from-emerald-"]):not([class*="from-cyan-"]) {
+.theme-light-adapt .text-white:not([class*="bg-emerald-5"]):not([class*="bg-emerald-6"]):not([class*="bg-orange-5"]):not([class*="bg-orange-6"]):not([class*="bg-purple-5"]):not([class*="bg-purple-6"]):not([class*="bg-rose-5"]):not([class*="bg-rose-6"]):not([class*="bg-red-5"]):not([class*="bg-red-6"]):not([class*="bg-blue-5"]):not([class*="bg-blue-6"]):not([class*="bg-cyan-5"]):not([class*="bg-cyan-6"]):not([class*="bg-amber-5"]):not([class*="bg-amber-6"]):not([class*="bg-indigo-5"]):not([class*="bg-indigo-6"]):not([class*="bg-slate-900"]):not([class*="bg-slate-950"]):not([class*="bg-gray-900"]):not([class*="bg-[#082f38]"]):not([class*="from-orange-5"]):not([class*="from-orange-6"]):not([class*="from-purple-5"]):not([class*="from-purple-6"]):not([class*="from-emerald-5"]):not([class*="from-emerald-6"]):not([class*="from-cyan-5"]):not([class*="from-cyan-6"]):not([class*="from-blue-5"]):not([class*="from-blue-6"]):not([class*="from-rose-5"]):not([class*="from-rose-6"]) {
   color: #0f172a !important;
 }
 
-.theme-light-adapt .text-orange-300,
-.theme-light-adapt .text-orange-200 {
+.theme-light-adapt .text-orange-400,
+.theme-light-adapt .text-orange-300:not([class*="bg-slate-950"]),
+.theme-light-adapt .text-orange-200,
+.theme-light-adapt [class*="text-orange-300/"] {
   color: #c2410c !important;
 }
 
+.theme-light-adapt .text-emerald-400:not([class*="bg-emerald-6"]),
 .theme-light-adapt .text-emerald-300,
 .theme-light-adapt .text-emerald-200 {
   color: #047857 !important;
 }
 
+.theme-light-adapt .text-purple-400,
 .theme-light-adapt .text-purple-300,
 .theme-light-adapt .text-purple-200 {
   color: #6d28d9 !important;
 }
 
+.theme-light-adapt .text-rose-400,
 .theme-light-adapt .text-rose-300,
 .theme-light-adapt .text-rose-200 {
   color: #be123c !important;
 }
 
-.theme-light-adapt .text-cyan-300:not([class*="bg-[#082f38]"]) {
+.theme-light-adapt .text-cyan-400:not([class*="bg-[#082f38]"]),
+.theme-light-adapt .text-cyan-300:not([class*="bg-[#082f38]"]),
+.theme-light-adapt [class*="text-cyan-300/"] {
   color: #0e7490 !important;
 }
 
+.theme-light-adapt .text-amber-400,
 .theme-light-adapt .text-amber-300,
 .theme-light-adapt .text-amber-200 {
   color: #b45309 !important;
+}
+
+.theme-light-adapt .text-blue-300,
+.theme-light-adapt .text-blue-200 {
+  color: #1d4ed8 !important;
 }
 
 .theme-light-adapt input,
@@ -204,7 +278,7 @@
 
 /* ============================================================================
    DARK MODE ADAPTATION SYSTEM (.theme-dark-adapt)
-   Converts light-authored screens (DevPortal, ChurchMemberLayout)
+   Converts light-authored screens (DevPortal, ChurchMemberLayout, AppLayout /org)
    into sleek Dark Mode when isDarkMode is enabled
    ============================================================================ */
 .theme-dark-adapt {
@@ -214,7 +288,8 @@
 
 .theme-dark-adapt .bg-white,
 .theme-dark-adapt [class*="bg-white/95"],
-.theme-dark-adapt [class*="bg-white/90"] {
+.theme-dark-adapt [class*="bg-white/90"],
+.theme-dark-adapt [class*="bg-white/80"] {
   background-color: #0e1625 !important;
   border-color: rgba(255, 255, 255, 0.09) !important;
 }
@@ -222,33 +297,48 @@
 .theme-dark-adapt .bg-slate-50,
 .theme-dark-adapt [class*="bg-slate-50/"],
 .theme-dark-adapt .bg-slate-100,
-.theme-dark-adapt [class*="bg-slate-100/"] {
+.theme-dark-adapt [class*="bg-slate-100/"],
+.theme-dark-adapt .bg-gray-50,
+.theme-dark-adapt [class*="bg-gray-50/"],
+.theme-dark-adapt .bg-gray-100,
+.theme-dark-adapt [class*="bg-gray-100/"] {
   background-color: #131d31 !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 .theme-dark-adapt .text-slate-900,
-.theme-dark-adapt .text-slate-800 {
+.theme-dark-adapt .text-slate-800,
+.theme-dark-adapt .text-gray-900,
+.theme-dark-adapt .text-gray-800 {
   color: #f8fafc !important;
 }
 
 .theme-dark-adapt .text-slate-700,
-.theme-dark-adapt .text-slate-600 {
+.theme-dark-adapt .text-slate-600,
+.theme-dark-adapt .text-gray-700,
+.theme-dark-adapt .text-gray-600 {
   color: #cbd5e1 !important;
 }
 
-.theme-dark-adapt .text-slate-500 {
+.theme-dark-adapt .text-slate-500,
+.theme-dark-adapt .text-gray-500,
+.theme-dark-adapt .text-gray-400 {
   color: #94a3b8 !important;
 }
 
 .theme-dark-adapt [class*="border-slate-200"],
 .theme-dark-adapt [class*="border-slate-300"],
-.theme-dark-adapt [class*="border-slate-100"] {
+.theme-dark-adapt [class*="border-slate-100"],
+.theme-dark-adapt [class*="border-gray-100"],
+.theme-dark-adapt [class*="border-gray-200"],
+.theme-dark-adapt [class*="border-gray-300"] {
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 .theme-dark-adapt [class*="divide-slate-100"] > :not([hidden]) ~ :not([hidden]),
-.theme-dark-adapt [class*="divide-slate-200"] > :not([hidden]) ~ :not([hidden]) {
+.theme-dark-adapt [class*="divide-slate-200"] > :not([hidden]) ~ :not([hidden]),
+.theme-dark-adapt [class*="divide-gray-100"] > :not([hidden]) ~ :not([hidden]),
+.theme-dark-adapt [class*="divide-gray-200"] > :not([hidden]) ~ :not([hidden]) {
   border-color: rgba(255, 255, 255, 0.07) !important;
 }
 
@@ -337,6 +427,14 @@
   left: 1rem;
   right: 1rem;
   bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.safe-pull-indicator {
+  top: max(1rem, env(safe-area-inset-top));
+}
+
+.safe-fixed-bottom {
+  padding: 0 1rem max(1rem, env(safe-area-inset-bottom)) 1rem;
 }
 
 /* ============================================================================

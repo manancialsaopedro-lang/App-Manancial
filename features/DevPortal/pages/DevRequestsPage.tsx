@@ -14,24 +14,16 @@ import {
   Share2,
   UserCheck
 } from 'lucide-react';
+import {
+  ChurchRequestRecord,
+  createChurchRequest,
+  deleteChurchRequest,
+  fetchChurchRequests,
+  updateChurchRequest
+} from '../../Church/data/churchModulesApi';
+import { getStoredPastoralRequests } from '../../Church/data/churchMemberData';
 
-export interface RequestItem {
-  id: string;
-  subject: string;
-  type: string;
-  subCategory?: string;
-  requester: string;
-  createdAt: string;
-  status: 'Atendido' | 'Em Análise' | 'Pendente';
-  details?: string;
-  phone?: string;
-  pastoralNotes?: string;
-  assignedPastor?: string;
-  routingMode?: 'Atendimento Direto' | 'Direcionado';
-  pastorNotified?: boolean;
-}
-
-const STORAGE_KEY = 'manancial_church_requests';
+export type RequestItem = ChurchRequestRecord;
 
 const PASTOR_OPTIONS = [
   'Pastor Titular (Atendimento Direto)',
@@ -87,7 +79,10 @@ const INITIAL_REQUESTS: RequestItem[] = [
 ];
 
 export const DevRequestsPage: React.FC = () => {
-  const [requests, setRequests] = useState<RequestItem[]>([]);
+  const [requests, setRequests] = useState<RequestItem[]>(() => getStoredPastoralRequests());
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [syncWarning, setSyncWarning] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('todos');
   const [modalOpen, setModalOpen] = useState(false);
@@ -103,96 +98,110 @@ export const DevRequestsPage: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [details, setDetails] = useState('');
 
-  // Load from localStorage
-  const loadRequests = () => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setRequests(JSON.parse(stored));
-      } else {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_REQUESTS));
-        setRequests(INITIAL_REQUESTS);
-      }
-    } catch (e) {
-      setRequests(INITIAL_REQUESTS);
-    }
+  const syncLocalCache = () => {
+    setRequests(getStoredPastoralRequests());
   };
 
   useEffect(() => {
-    loadRequests();
+    let active = true;
+    fetchChurchRequests(INITIAL_REQUESTS)
+      .then((res) => {
+        if (!active) return;
+        setRequests(res.data);
+        setSyncWarning(
+          !res.syncedRemote && res.error
+            ? `Exibindo dados locais (${res.error}).`
+            : null
+        );
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    window.addEventListener('manancial-requests-updated', syncLocalCache);
+    return () => {
+      active = false;
+      window.removeEventListener('manancial-requests-updated', syncLocalCache);
+    };
   }, []);
-
-  const saveRequests = (newList: RequestItem[]) => {
-    setRequests(newList);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newList));
-    } catch (e) {
-      console.warn('Erro ao salvar local:', e);
-    }
-  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3200);
   };
 
-  const handleCreateRequest = (e: React.FormEvent) => {
+  const handleCreateRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!subject.trim() || !requester.trim()) return;
+    if (!subject.trim() || !requester.trim() || isSaving) return;
 
-    const newItem: RequestItem = {
-      id: Date.now().toString(),
-      subject: subject.trim(),
-      type,
-      requester: requester.trim(),
-      phone: phone.trim() || undefined,
-      details: details.trim() || undefined,
-      createdAt: new Date().toLocaleDateString('pt-BR'),
-      status: 'Pendente',
-      assignedPastor,
-      routingMode: assignedPastor.startsWith('Direcionado')
-        ? 'Direcionado'
-        : 'Atendimento Direto',
-      pastorNotified: true,
-    };
+    setIsSaving(true);
+    try {
+      const res = await createChurchRequest({
+        source: 'DEV_PORTAL',
+        subject: subject.trim(),
+        type,
+        requester: requester.trim(),
+        phone: phone.trim() || undefined,
+        details: details.trim() || undefined,
+        status: 'Pendente',
+        assignedPastor,
+        routingMode: assignedPastor.startsWith('Direcionado')
+          ? 'Direcionado'
+          : 'Atendimento Direto',
+        pastorNotified: true,
+      });
 
-    const updated = [newItem, ...requests];
-    saveRequests(updated);
+      setRequests((prev) => [res.data, ...prev.filter((r) => r.id !== res.data.id)]);
+      if (!res.syncedRemote && res.error) {
+        setSyncWarning(`Alteração pendente de sincronização (${res.error}).`);
+      }
 
-    setSubject('');
-    setRequester('');
-    setPhone('');
-    setDetails('');
-    setModalOpen(false);
-    showToast('Solicitação de Atendimento Pastoral registrada e pastor notificado!');
+      setSubject('');
+      setRequester('');
+      setPhone('');
+      setDetails('');
+      setModalOpen(false);
+      showToast(
+        res.syncedRemote
+          ? 'Solicitação de Atendimento Pastoral registrada e pastor notificado!'
+          : 'Solicitação salva localmente (erro ao enviar ao servidor).'
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleUpdateStatus = (id: string, newStatus: 'Atendido' | 'Em Análise' | 'Pendente') => {
-    const updated = requests.map((item) =>
-      item.id === id ? { ...item, status: newStatus } : item
+  const handleUpdateStatus = async (id: string, newStatus: 'Atendido' | 'Em Análise' | 'Pendente') => {
+    setRequests((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, status: newStatus } : item))
     );
-    saveRequests(updated);
     if (selectedRequest && selectedRequest.id === id) {
       setSelectedRequest({ ...selectedRequest, status: newStatus });
+    }
+    const res = await updateChurchRequest(id, { status: newStatus });
+    if (!res.syncedRemote && res.error) {
+      setSyncWarning(`Atualização salva apenas localmente (${res.error}).`);
     }
     showToast(`Status atualizado para: ${newStatus}`);
   };
 
-  const handleUpdatePastorRouting = (id: string, newPastor: string) => {
+  const handleUpdatePastorRouting = async (id: string, newPastor: string) => {
     const routingMode: 'Atendimento Direto' | 'Direcionado' = newPastor.startsWith('Direcionado')
       ? 'Direcionado'
       : 'Atendimento Direto';
-    const updated = requests.map((item) =>
-      item.id === id
-        ? {
-            ...item,
-            assignedPastor: newPastor,
-            routingMode,
-            status: item.status === 'Pendente' ? 'Em Análise' : item.status,
-          }
-        : item
+    const currentItem = requests.find((item) => item.id === id);
+    const nextStatus = currentItem?.status === 'Pendente' ? 'Em Análise' : currentItem?.status;
+    setRequests((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              assignedPastor: newPastor,
+              routingMode,
+              status: item.status === 'Pendente' ? 'Em Análise' : item.status,
+            }
+          : item
+      )
     );
-    saveRequests(updated);
     if (selectedRequest && selectedRequest.id === id) {
       setSelectedRequest({
         ...selectedRequest,
@@ -201,15 +210,27 @@ export const DevRequestsPage: React.FC = () => {
         status: selectedRequest.status === 'Pendente' ? 'Em Análise' : selectedRequest.status,
       });
     }
+    const res = await updateChurchRequest(id, {
+      assignedPastor: newPastor,
+      routingMode,
+      ...(nextStatus ? { status: nextStatus } : {}),
+    });
+    if (!res.syncedRemote && res.error) {
+      setSyncWarning(`Direcionamento salvo apenas localmente (${res.error}).`);
+    }
     showToast(`Atendimento atualizado: ${newPastor}`);
   };
 
-  const handleDeleteRequest = (id: string) => {
+  const handleDeleteRequest = async (id: string) => {
     if (window.confirm('Deseja realmente remover esta solicitação?')) {
-      const updated = requests.filter((r) => r.id !== id);
-      saveRequests(updated);
+      const res = await deleteChurchRequest(id);
+      setRequests((prev) => prev.filter((r) => r.id !== id));
       setDetailsModalOpen(false);
-      showToast('Solicitação removida.');
+      showToast(
+        res.syncedRemote
+          ? 'Solicitação removida.'
+          : `Solicitação removida localmente (${res.error || 'offline'}).`
+      );
     }
   };
 
@@ -244,9 +265,21 @@ export const DevRequestsPage: React.FC = () => {
     <div className="space-y-6">
       {/* Toast */}
       {toastMessage && (
-        <div className="fixed top-5 right-5 z-[100] bg-[#082f38] text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-cyan-500 animate-in fade-in">
+        <div className="fixed top-20 right-4 sm:right-6 z-[90] bg-[#082f38] text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-cyan-500 animate-in fade-in">
           <CheckCircle2 size={18} className="text-cyan-400" />
           <span className="text-xs font-semibold">{toastMessage}</span>
+        </div>
+      )}
+
+      {syncWarning && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-xs font-semibold">
+          {syncWarning}
+        </div>
+      )}
+
+      {isLoading && requests.length === 0 && (
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-6 text-center text-xs font-bold text-slate-500">
+          Carregando solicitações e leads...
         </div>
       )}
 
@@ -652,9 +685,10 @@ export const DevRequestsPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-lg bg-[#082f38] hover:bg-[#0a434d] text-cyan-200 text-xs font-black uppercase tracking-wider cursor-pointer"
+                  disabled={isSaving}
+                  className="px-5 py-2 rounded-lg bg-[#082f38] hover:bg-[#0a434d] text-cyan-200 text-xs font-black uppercase tracking-wider cursor-pointer disabled:opacity-60"
                 >
-                  Registrar
+                  {isSaving ? 'Registrando...' : 'Registrar'}
                 </button>
               </div>
             </form>

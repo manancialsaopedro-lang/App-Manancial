@@ -1,12 +1,31 @@
 
 import { StateCreator } from 'zustand';
-import { AppState, Transaction, ProjectionItem, Product, Sale, PaymentMethod, Person } from '../../types';
-import { INITIAL_PROJECTIONS, INITIAL_PRODUCTS } from '../../constants';
+import {
+  AppState,
+  Transaction,
+  ProjectionItem,
+  Product,
+  Sale,
+  PaymentMethod,
+  Person,
+  FinancialEvent,
+  FixedBillItem,
+} from '../../types';
+import {
+  INITIAL_PROJECTIONS,
+  INITIAL_PRODUCTS,
+  INITIAL_FINANCIAL_EVENTS,
+  INITIAL_FIXED_BILLS,
+  INITIAL_CAMP_2026_PROJECTIONS,
+} from '../../constants';
 
 export interface FinancialSlice {
   transactions: Transaction[];
   fixedCostRent: number;
   expenseProjections: ProjectionItem[];
+  camp2026Projections: ProjectionItem[];
+  financialEvents: FinancialEvent[];
+  fixedBills: FixedBillItem[];
   products: Product[];
   sales: Sale[];
 
@@ -19,6 +38,21 @@ export interface FinancialSlice {
   addProjectionEntry: (item: Omit<ProjectionItem, 'id'>) => string;
   updateProjectionItem: (id: string, updates: Partial<ProjectionItem>) => void;
   deleteProjectionItem: (id: string) => void;
+
+  addCamp2026Projection: (item: Omit<ProjectionItem, 'id'>) => string;
+  updateCamp2026Projection: (id: string, updates: Partial<ProjectionItem>) => void;
+  deleteCamp2026Projection: (id: string) => void;
+
+  setFinancialEvents: (events: FinancialEvent[]) => void;
+  addFinancialEvent: (event: Omit<FinancialEvent, 'id'> & { id?: string }) => FinancialEvent;
+  updateFinancialEvent: (id: string, updates: Partial<FinancialEvent>) => void;
+  deleteFinancialEvent: (id: string) => void;
+
+  setFixedBills: (bills: FixedBillItem[]) => void;
+  addFixedBill: (bill: Omit<FixedBillItem, 'id'>) => FixedBillItem;
+  updateFixedBill: (id: string, updates: Partial<FixedBillItem>) => void;
+  deleteFixedBill: (id: string) => void;
+
   addProduct: (p: Omit<Product, 'id'>) => void;
   setProducts: (products: Product[]) => void;
   updateProduct: (id: string, updates: Partial<Product>) => void;
@@ -38,6 +72,9 @@ export const createFinancialSlice: StateCreator<
   transactions: [],
   fixedCostRent: 15000,
   expenseProjections: INITIAL_PROJECTIONS,
+  camp2026Projections: INITIAL_CAMP_2026_PROJECTIONS,
+  financialEvents: INITIAL_FINANCIAL_EVENTS,
+  fixedBills: INITIAL_FIXED_BILLS,
   products: INITIAL_PRODUCTS.map((p, i) => ({ ...p, id: `prod-${i}` })) as Product[],
   sales: [],
 
@@ -77,6 +114,68 @@ export const createFinancialSlice: StateCreator<
 
   deleteProjectionItem: (id) => set((state) => ({
     expenseProjections: state.expenseProjections.filter(p => p.id !== id)
+  })),
+
+  addCamp2026Projection: (item) => {
+    const id = `proj26-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+    set((state) => ({
+      camp2026Projections: [...state.camp2026Projections, { ...item, id }]
+    }));
+    return id;
+  },
+
+  updateCamp2026Projection: (id, updates) => set((state) => ({
+    camp2026Projections: state.camp2026Projections.map(p => p.id === id ? { ...p, ...updates } : p)
+  })),
+
+  deleteCamp2026Projection: (id) => set((state) => ({
+    camp2026Projections: state.camp2026Projections.filter(p => p.id !== id)
+  })),
+
+  setFinancialEvents: (financialEvents) => set(() => ({
+    financialEvents,
+  })),
+
+  addFinancialEvent: (event) => {
+    const created: FinancialEvent = {
+      ...event,
+      id: event.id || `evt-${Date.now()}`,
+    };
+    set((state) => ({
+      financialEvents: [created, ...state.financialEvents.filter((e) => e.id !== created.id)],
+    }));
+    return created;
+  },
+
+  updateFinancialEvent: (id, updates) => set((state) => ({
+    financialEvents: state.financialEvents.map((e) => (e.id === id ? { ...e, ...updates } : e)),
+  })),
+
+  deleteFinancialEvent: (id) => set((state) => ({
+    financialEvents: state.financialEvents.filter((e) => e.id !== id),
+  })),
+
+  setFixedBills: (fixedBills) => set(() => ({
+    fixedBills,
+  })),
+
+  addFixedBill: (bill) => {
+    const created: FixedBillItem = {
+      ...bill,
+      id: `bill-${Date.now()}`,
+    };
+    set((state) => ({
+      fixedBills: [...state.fixedBills, created],
+    }));
+    return created;
+  },
+
+  updateFixedBill: (id, updates) => set((state) => ({
+    fixedBills: state.fixedBills.map((b) => (b.id === id ? { ...b, ...updates } : b)),
+  })),
+
+  deleteFixedBill: (id) => set((state) => ({
+    fixedBills: state.fixedBills.filter((b) => b.id !== id),
   })),
 
   addProduct: (p) => set((state) => ({

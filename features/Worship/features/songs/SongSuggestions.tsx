@@ -186,10 +186,10 @@ export default function SongSuggestions({
       setNotifTitle('');
       setNotifMessage('');
       setNotifTarget('all');
-      alert('Notificação enviada com sucesso!');
+      toast.success('Notificação enviada com sucesso!');
     } catch (error) {
       console.error(error);
-      alert('Erro ao enviar notificação');
+      toast.error('Erro ao enviar notificação.');
     }
   };
 

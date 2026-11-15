@@ -1,15 +1,19 @@
 
 import React, { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Trophy, Star, History, Minus, Plus } from 'lucide-react';
 import { useAppStore } from '../../store';
+import { useCurrentRole } from '../../hooks/useCurrentRole';
 import { TEAM_UI } from '../../constants';
 import { TeamId } from '../../types';
 import { Card } from '../../components/Shared';
 
 export const ScorePage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { scoreEvents, updateScore } = useAppStore();
+  const { activeRole, canAccessGincana } = useCurrentRole();
+  const canManageGincana = ['admin', 'pastoral', 'primeiro_pastor', 'segundo_pastor', 'gincana'].includes(activeRole);
 
   const computedScores = useMemo(() => {
     const scores: Record<string, number> = { alianca: 0, segredo: 0, caminho: 0, org: 0, none: 0 };
@@ -23,18 +27,32 @@ export const ScorePage = () => {
 
   const sortedTeams = (['alianca', 'segredo', 'caminho'] as TeamId[]).sort((a, b) => computedScores[b] - computedScores[a]);
 
-  // Função para ajuste rápido manual
+  // Função para ajuste rápido manual (somente coordenação da gincana/liderança)
   const handleQuickAdjust = (e: React.MouseEvent, teamId: TeamId, amount: number) => {
     e.stopPropagation();
+    if (!canManageGincana) return;
     updateScore(teamId, amount, 'Ajuste Rápido (Placar)', undefined, 'MANUAL');
   };
 
   return (
-    <div className="space-y-8 animate-in slide-in-from-right-4 pb-12">
+    <div className="space-y-8 animate-in slide-in-from-right-4 pb-12 min-w-0 w-full max-w-full overflow-x-hidden">
       
       {/* HEADER */}
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate('/gincana/dash')} className="p-3 rounded-full hover:bg-gray-100 transition-colors">
+        <button
+          type="button"
+          onClick={() =>
+            navigate(
+              canAccessGincana
+                ? '/gincana/dash'
+                : location.pathname.startsWith('/membro')
+                ? '/membro/home'
+                : '/acampamento'
+            )
+          }
+          className="p-3 rounded-full hover:bg-gray-100 transition-colors"
+          aria-label="Voltar"
+        >
            <ArrowLeft size={24} className="text-gray-500" />
         </button>
         <div>
@@ -53,8 +71,8 @@ export const ScorePage = () => {
         {sortedTeams.map((tid, index) => (
           <div 
             key={tid} 
-            onClick={() => navigate(`/gincana/equipes/${tid}`)}
-            className={`cursor-pointer group relative overflow-hidden rounded-[3.5rem] p-10 flex flex-col items-center text-center shadow-lg transition-all hover:scale-[1.02] hover:shadow-2xl border-4 ${TEAM_UI[tid].border} ${TEAM_UI[tid].light}`}
+            onClick={() => canAccessGincana && navigate(`/gincana/equipes/${tid}`)}
+            className={`${canAccessGincana ? 'cursor-pointer hover:scale-[1.02] hover:shadow-2xl' : ''} group relative overflow-hidden rounded-[3.5rem] p-8 sm:p-10 flex flex-col items-center text-center shadow-lg transition-all border-4 ${TEAM_UI[tid].border} ${TEAM_UI[tid].light}`}
           >
              {/* Background Glow */}
              <div className={`absolute top-0 right-0 w-64 h-64 rounded-full opacity-20 blur-[80px] -mr-20 -mt-20 transition-transform group-hover:scale-150 ${TEAM_UI[tid].color}`} />
@@ -69,26 +87,30 @@ export const ScorePage = () => {
              </div>
              
              <span className={`text-sm font-black uppercase tracking-[0.2em] ${TEAM_UI[tid].text} mb-2 relative z-10`}>{TEAM_UI[tid].name}</span>
-             <span className="text-8xl font-black relative z-10 text-gray-900 tracking-tighter">{computedScores[tid]}</span>
+             <span className="text-6xl sm:text-8xl font-black relative z-10 text-gray-900 tracking-tighter">{computedScores[tid]}</span>
              <span className="text-gray-400 font-bold text-xs uppercase mt-2">Pontos Totais</span>
 
-             {/* Controles de Ajuste Rápido (Visíveis no Hover) */}
-             <div className="flex gap-2 mt-8 opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0 duration-300 relative z-20">
-                <button 
-                  onClick={(e) => handleQuickAdjust(e, tid, -10)}
-                  className="w-12 h-12 bg-white rounded-xl shadow-md border border-gray-100 text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors"
-                  title="-10 Pontos"
-                >
-                   <Minus size={20} />
-                </button>
-                <button 
-                  onClick={(e) => handleQuickAdjust(e, tid, 10)}
-                  className="w-12 h-12 bg-white rounded-xl shadow-md border border-gray-100 text-emerald-500 hover:bg-emerald-50 flex items-center justify-center transition-colors"
-                  title="+10 Pontos"
-                >
-                   <Plus size={20} />
-                </button>
-             </div>
+             {/* Controles de Ajuste Rápido (somente Coordenação Gincana / Pastores) */}
+             {canManageGincana && (
+               <div className="flex gap-2 mt-8 opacity-100 md:opacity-60 md:group-hover:opacity-100 transition-opacity translate-y-0 duration-300 relative z-20">
+                  <button 
+                    type="button"
+                    onClick={(e) => handleQuickAdjust(e, tid, -10)}
+                    className="w-12 h-12 bg-white rounded-xl shadow-md border border-gray-100 text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors"
+                    title="-10 Pontos"
+                  >
+                     <Minus size={20} />
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={(e) => handleQuickAdjust(e, tid, 10)}
+                    className="w-12 h-12 bg-white rounded-xl shadow-md border border-gray-100 text-emerald-500 hover:bg-emerald-50 flex items-center justify-center transition-colors"
+                    title="+10 Pontos"
+                  >
+                     <Plus size={20} />
+                  </button>
+               </div>
+             )}
           </div>
         ))}
       </div>
@@ -99,35 +121,35 @@ export const ScorePage = () => {
           <History className="text-gray-400" /> Histórico Completo de Pontos
         </h3>
         
-        <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
-           <div className="overflow-x-auto">
-             <table className="w-full text-left">
+        <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden min-w-0 w-full">
+           <div className="overflow-x-auto w-full">
+             <table className="w-full min-w-[540px] text-left">
                 <thead className="bg-gray-50 border-b border-gray-100">
                    <tr>
-                      <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400">Hora</th>
-                      <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400">Equipe</th>
-                      <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400">Motivo</th>
-                      <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400">Origem</th>
-                      <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400 text-right">Pontos</th>
+                      <th className="px-4 sm:px-8 py-4 sm:py-5 text-[10px] font-black uppercase text-gray-400">Hora</th>
+                      <th className="px-4 sm:px-8 py-4 sm:py-5 text-[10px] font-black uppercase text-gray-400">Equipe</th>
+                      <th className="px-4 sm:px-8 py-4 sm:py-5 text-[10px] font-black uppercase text-gray-400">Motivo</th>
+                      <th className="px-4 sm:px-8 py-4 sm:py-5 text-[10px] font-black uppercase text-gray-400">Origem</th>
+                      <th className="px-4 sm:px-8 py-4 sm:py-5 text-[10px] font-black uppercase text-gray-400 text-right">Pontos</th>
                    </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                    {scoreEvents.map(e => (
                       <tr key={e.id} className="hover:bg-gray-50 transition-colors">
-                         <td className="px-8 py-4 text-xs font-bold text-gray-400">
+                         <td className="px-4 sm:px-8 py-4 text-xs font-bold text-gray-400 whitespace-nowrap">
                             {new Date(e.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                          </td>
-                         <td className="px-8 py-4">
+                         <td className="px-4 sm:px-8 py-4 whitespace-nowrap">
                             <div className="flex items-center gap-2">
                                <div className={`w-2 h-2 rounded-full ${TEAM_UI[e.teamId].color}`} />
                                <span className="font-bold text-gray-700 uppercase text-xs">{TEAM_UI[e.teamId].name}</span>
                             </div>
                          </td>
-                         <td className="px-8 py-4 font-bold text-gray-900">{e.reason}</td>
-                         <td className="px-8 py-4">
+                         <td className="px-4 sm:px-8 py-4 font-bold text-gray-900">{e.reason}</td>
+                         <td className="px-4 sm:px-8 py-4 whitespace-nowrap">
                             <span className="px-2 py-1 bg-gray-100 rounded-lg text-[10px] font-black uppercase text-gray-500">{e.source}</span>
                          </td>
-                         <td className={`px-8 py-4 text-right font-black text-lg ${e.pointsDelta > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                         <td className={`px-4 sm:px-8 py-4 text-right font-black text-lg whitespace-nowrap ${e.pointsDelta > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                             {e.pointsDelta > 0 ? '+' : ''}{e.pointsDelta}
                          </td>
                       </tr>

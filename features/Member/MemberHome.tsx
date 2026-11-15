@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Shield, 
@@ -13,29 +13,77 @@ import {
   DollarSign,
   Calendar,
   Flame,
-  ChevronRight
+  ChevronRight,
+  LogIn
 } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { useCurrentRole } from '../../hooks/useCurrentRole';
 import { TEAM_UI, CAMP_TOTAL_PRICE } from '../../constants';
-import { TeamId } from '../../types';
+import { Person, TeamId } from '../../types';
+import { getSupabaseClient, isSupabaseConfigured } from '../../lib/supabase';
 
 export const MemberHome: React.FC = () => {
   const navigate = useNavigate();
-  const { isDarkMode, people, teamScores, schedule, sales } = useAppStore();
-  const { simulatedPerson, activeRole } = useCurrentRole();
+  const { user, isDarkMode, people, teamScores, schedule, sales } = useAppStore();
+  const { simulatedPerson, isOverridden } = useCurrentRole();
+  const [myPerson, setMyPerson] = useState<Person | null>(null);
+  const [loadingPerson, setLoadingPerson] = useState(false);
 
-  // If no simulated person, fallback to current user or first person
-  const member = simulatedPerson || {
+  const canShowPersonalData = Boolean(user || isOverridden);
+
+  useEffect(() => {
+    let active = true;
+    if (!user || isOverridden || simulatedPerson || !isSupabaseConfigured) {
+      setMyPerson(null);
+      return;
+    }
+    const client = getSupabaseClient();
+    if (!client) return;
+
+    const loadMyCampPerson = async () => {
+      setLoadingPerson(true);
+      try {
+        const { data, error } = await client.rpc('get_my_camp_person');
+        if (!active || error || !data) return;
+        const row = data as Record<string, any>;
+        setMyPerson({
+          id: String(row.id),
+          name: String(row.name || user.name || 'Acampante'),
+          amountPaid: Number(row.amount_paid ?? row.amountPaid ?? 0),
+          totalPrice: Number(row.total_price ?? row.totalPrice ?? CAMP_TOTAL_PRICE),
+          ageGroup: (row.age_group ?? row.ageGroup ?? 'Jovem') as Person['ageGroup'],
+          personType: (row.person_type ?? row.personType ?? 'Membro') as Person['personType'],
+          teamId: (row.team_id ?? row.teamId ?? 'none') as TeamId,
+          paymentStatus: (row.payment_status ?? row.paymentStatus ?? 'PENDENTE') as Person['paymentStatus'],
+          lastPaymentDate: row.last_payment_date ?? row.lastPaymentDate ?? undefined,
+          paymentMethod: row.payment_method ?? row.paymentMethod ?? undefined,
+        });
+      } catch (err) {
+        console.warn('Não foi possível consultar dados pessoais do acampamento:', err);
+      } finally {
+        if (active) setLoadingPerson(false);
+      }
+    };
+
+    void loadMyCampPerson();
+
+    return () => {
+      active = false;
+    };
+  }, [user, isOverridden, simulatedPerson]);
+
+  const member: Person = simulatedPerson || myPerson || {
     id: 'guest',
-    name: 'Participante',
+    name: user?.name || 'Acampante',
     amountPaid: 0,
     totalPrice: CAMP_TOTAL_PRICE,
-    ageGroup: 'Jovem' as const,
-    personType: 'Membro' as const,
-    teamId: 'none' as TeamId,
-    paymentStatus: 'PENDENTE' as const,
+    ageGroup: 'Jovem',
+    personType: 'Membro',
+    teamId: 'none',
+    paymentStatus: 'PENDENTE',
   };
+
+  const hasLinkedCampRecord = Boolean(simulatedPerson || myPerson);
 
   const isPaid = member.paymentStatus === 'PAGO' || member.amountPaid >= member.totalPrice;
   const remainingPayment = Math.max(0, member.totalPrice - member.amountPaid);
@@ -49,11 +97,11 @@ export const MemberHome: React.FC = () => {
     ? (teamScores[member.teamId] || 0) 
     : 0;
 
-  // Teammates
+  // Teammates (somente se houver sessão autenticada ou simulação ativa)
   const teammates = useMemo(() => {
-    if (!member.teamId || member.teamId === 'none') return [];
+    if (!canShowPersonalData || !member.teamId || member.teamId === 'none') return [];
     return people.filter(p => p.teamId === member.teamId && p.id !== member.id);
-  }, [people, member.teamId, member.id]);
+  }, [canShowPersonalData, people, member.teamId, member.id]);
 
   // Ranking calculation
   const rankedTeams = useMemo(() => {
@@ -66,15 +114,16 @@ export const MemberHome: React.FC = () => {
   }, [teamScores]);
 
   const memberTeamPosition = useMemo(() => {
-    if (!member.teamId || member.teamId === 'none') return null;
+    if (!canShowPersonalData || !member.teamId || member.teamId === 'none') return null;
     const index = rankedTeams.findIndex(t => t.id === member.teamId);
     return index !== -1 ? index + 1 : null;
-  }, [rankedTeams, member.teamId]);
+  }, [canShowPersonalData, rankedTeams, member.teamId]);
 
-  // Canteen purchases for this member
+  // Canteen purchases for this member (nunca vaza vendas de terceiros para visitante anônimo)
   const memberSales = useMemo(() => {
+    if (!canShowPersonalData || !hasLinkedCampRecord) return [];
     return sales.filter(s => s.personId === member.id || s.personName?.toLowerCase() === member.name?.toLowerCase());
-  }, [sales, member.id, member.name]);
+  }, [canShowPersonalData, hasLinkedCampRecord, sales, member.id, member.name]);
 
   const canteenSummary = useMemo(() => {
     const totalSpent = memberSales.reduce((acc, s) => acc + s.total, 0);
@@ -88,6 +137,84 @@ export const MemberHome: React.FC = () => {
   const upcomingSchedule = useMemo(() => {
     return schedule.slice(0, 4);
   }, [schedule]);
+
+  const surfaceMuted = isDarkMode ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200/80';
+  const textStrong = isDarkMode ? 'text-white' : 'text-slate-900';
+  const textSub = isDarkMode ? 'text-gray-400' : 'text-slate-600';
+
+  if (!canShowPersonalData) {
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto pb-24 md:pb-12 animate-in fade-in duration-300">
+        <div className={`p-6 md:p-8 rounded-[2rem] border shadow-xl relative overflow-hidden ${
+          isDarkMode
+            ? 'bg-gradient-to-br from-[#121a2c] via-[#101626] to-[#0d121f] border-white/10 text-white'
+            : 'bg-gradient-to-br from-white via-cyan-50/40 to-blue-50/50 border-gray-100 text-gray-900'
+        }`}>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-black tracking-wider uppercase bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
+                <Sparkles size={12} />
+                Portal do Acampante
+              </div>
+              <h1 className="text-2xl md:text-3xl font-black tracking-tight">
+                Acampamento Manancial 2027
+              </h1>
+              <p className={`text-xs md:text-sm font-medium max-w-xl ${textSub}`}>
+                Entre com sua conta da igreja para consultar sua inscrição, parcelas, equipe na gincana e extrato na cantina com segurança.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/login', { state: { from: { pathname: '/membro/home' } } })}
+              className="px-5 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 shrink-0 transition-transform active:scale-95"
+            >
+              <LogIn size={16} />
+              <span>Entrar na Minha Conta</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <button
+            type="button"
+            onClick={() => navigate('/acampamento/informacoes')}
+            className={`p-5 rounded-3xl border text-left transition-all hover:-translate-y-0.5 ${
+              isDarkMode ? 'bg-[#121826] border-white/10 text-white hover:border-amber-500/40' : 'bg-white border-gray-100 text-gray-900 hover:border-amber-300 shadow-sm'
+            }`}
+          >
+            <div className="text-xs font-black uppercase tracking-wider text-amber-500 mb-1">Guia Oficial</div>
+            <div className="font-black text-base">Informações do Retiro</div>
+            <p className={`text-xs mt-1 ${textSub}`}>Datas, valores, o que levar e dúvidas.</p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/gincana/placar')}
+            className={`p-5 rounded-3xl border text-left transition-all hover:-translate-y-0.5 ${
+              isDarkMode ? 'bg-[#121826] border-white/10 text-white hover:border-orange-500/40' : 'bg-white border-gray-100 text-gray-900 hover:border-orange-300 shadow-sm'
+            }`}
+          >
+            <div className="text-xs font-black uppercase tracking-wider text-orange-500 mb-1">Ao Vivo</div>
+            <div className="font-black text-base">Placar da Gincana</div>
+            <p className={`text-xs mt-1 ${textSub}`}>Acompanhe a pontuação das equipes.</p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/gincana/time')}
+            className={`p-5 rounded-3xl border text-left transition-all hover:-translate-y-0.5 ${
+              isDarkMode ? 'bg-[#121826] border-white/10 text-white hover:border-cyan-500/40' : 'bg-white border-gray-100 text-gray-900 hover:border-cyan-300 shadow-sm'
+            }`}
+          >
+            <div className="text-xs font-black uppercase tracking-wider text-cyan-500 mb-1">Agenda</div>
+            <div className="font-black text-base">Cronograma Oficial</div>
+            <p className={`text-xs mt-1 ${textSub}`}>Horários de cultos, refeições e provas.</p>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-24 md:pb-12 animate-in fade-in duration-300">
@@ -110,21 +237,23 @@ export const MemberHome: React.FC = () => {
             <h1 className="text-2xl md:text-3xl font-black tracking-tight">
               Olá, <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">{member.name}</span>!
             </h1>
-            <p className="text-xs md:text-sm text-gray-400 font-medium">
-              Bem-vindo ao seu espaço no <span className="font-bold text-gray-300">Acampamento Manancial 25:14</span>.
+            <p className={`text-xs md:text-sm font-medium ${textSub}`}>
+              Bem-vindo ao seu espaço no <span className={`font-bold ${textStrong}`}>Acampamento Manancial 25:14</span>.
             </p>
           </div>
 
           {/* Quick Member Badge */}
-          <div className="flex items-center gap-3 bg-black/20 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/10 shrink-0">
+          <div className={`flex items-center gap-3 backdrop-blur-md px-4 py-3 rounded-2xl border shrink-0 ${
+            isDarkMode ? 'bg-black/20 border-white/10' : 'bg-white/80 border-slate-200 shadow-sm'
+          }`}>
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm text-white ${
               teamConfig ? teamConfig.color : 'bg-gray-600'
             }`}>
               {teamConfig ? teamConfig.name.substring(0, 1) : '?'}
             </div>
             <div>
-              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Equipe Oficial</div>
-              <div className="text-sm font-black text-white">
+              <div className={`text-[10px] font-bold uppercase tracking-wider ${textSub}`}>Equipe Oficial</div>
+              <div className={`text-sm font-black ${textStrong}`}>
                 {teamConfig ? teamConfig.name : 'A Definir'}
               </div>
             </div>
@@ -145,35 +274,61 @@ export const MemberHome: React.FC = () => {
                 <Calendar size={14} className="text-blue-500" />
                 Minha Inscrição
               </span>
-              <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1 ${
-                isPaid 
-                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' 
-                  : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-              }`}>
-                {isPaid ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
-                {isPaid ? '100% Quitado' : 'Pagamento Pendente'}
-              </span>
+              {loadingPerson ? (
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-cyan-500/10 text-cyan-500">
+                  Carregando...
+                </span>
+              ) : hasLinkedCampRecord ? (
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1 ${
+                  isPaid 
+                    ? 'bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 border border-emerald-500/30' 
+                    : 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                }`}>
+                  {isPaid ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
+                  {isPaid ? '100% Quitado' : 'Pagamento Pendente'}
+                </span>
+              ) : (
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-500/15 text-slate-500 dark:text-slate-300 border border-slate-500/20">
+                  Vínculo Pendente
+                </span>
+              )}
             </div>
 
+            {loadingPerson ? (
+              <div className="py-6 text-center text-xs font-bold text-slate-400">Consultando sua inscrição no Acampamento...</div>
+            ) : !hasLinkedCampRecord ? (
+              <div className="space-y-3 py-2">
+                <p className={`text-xs leading-relaxed ${textSub}`}>
+                  Sua conta ainda não possui ficha vinculada na lista oficial do Acampamento 2027. Se você já se inscreveu, fale com a organização pelo WhatsApp para vincular seu nome.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate('/acampamento/informacoes')}
+                  className="text-xs font-black text-cyan-600 dark:text-cyan-400 hover:underline inline-flex items-center gap-1"
+                >
+                  Ver Guia e Contato do Retiro <ArrowRight size={13} />
+                </button>
+              </div>
+            ) : (
             <div className="space-y-3">
               <div className="flex items-baseline justify-between">
                 <div>
                   <div className="text-2xl font-black">
                     R$ {member.amountPaid.toFixed(2)}
                   </div>
-                  <div className="text-[11px] text-gray-400 font-medium">
+                  <div className={`text-[11px] font-medium ${textSub}`}>
                     de R$ {member.totalPrice.toFixed(2)} total do retiro
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs font-bold px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-gray-300">
+                  <span className={`text-xs font-bold px-2 py-1 rounded-lg border ${surfaceMuted} ${textSub}`}>
                     {member.ageGroup} • {member.personType}
                   </span>
                 </div>
               </div>
 
               {/* Progress bar */}
-              <div className="w-full bg-gray-200/20 rounded-full h-2.5 overflow-hidden">
+              <div className="w-full bg-gray-200/40 dark:bg-gray-200/20 rounded-full h-2.5 overflow-hidden">
                 <div 
                   className={`h-full rounded-full transition-all duration-700 ${
                     isPaid ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : 'bg-gradient-to-r from-amber-500 to-orange-400'
@@ -183,7 +338,7 @@ export const MemberHome: React.FC = () => {
               </div>
 
               {!isPaid && (
-                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 space-y-1">
+                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-700 dark:text-amber-300 space-y-1">
                   <div className="font-bold flex items-center gap-1.5">
                     <DollarSign size={13} />
                     Restante a acertar: R$ {remainingPayment.toFixed(2)}
@@ -194,6 +349,7 @@ export const MemberHome: React.FC = () => {
                 </div>
               )}
             </div>
+            )}
           </div>
 
           <div className="pt-4 border-t border-white/5 mt-4 flex items-center justify-between text-xs text-gray-400">
@@ -228,28 +384,30 @@ export const MemberHome: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="text-2xl font-black tracking-tight">{teamConfig.name}</h3>
-                    <p className="text-xs text-gray-400 font-medium">
-                      Pontuação atual: <span className="font-bold text-white text-sm">{teamScore} pts</span>
+                    <p className={`text-xs font-medium ${textSub}`}>
+                      Pontuação atual: <span className={`font-bold text-sm ${textStrong}`}>{teamScore} pts</span>
                     </p>
                   </div>
                 </div>
 
                 {/* Teammates Preview */}
-                <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
-                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+                <div className={`p-3 rounded-2xl border ${surfaceMuted}`}>
+                  <div className={`text-[11px] font-bold uppercase tracking-wider mb-2 flex items-center justify-between ${textSub}`}>
                     <span className="flex items-center gap-1">
                       <Users size={12} /> Colegas de Equipe
                     </span>
-                    <span className="text-cyan-400 font-black">{teammates.length + 1} integrantes</span>
+                    <span className="text-cyan-600 dark:text-cyan-400 font-black">{teammates.length + 1} integrantes</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {teammates.slice(0, 6).map((t) => (
-                      <span key={t.id} className="text-[11px] px-2.5 py-1 rounded-lg bg-black/20 text-gray-300 font-medium">
+                      <span key={t.id} className={`text-[11px] px-2.5 py-1 rounded-lg font-medium ${
+                        isDarkMode ? 'bg-black/20 text-gray-300' : 'bg-white border border-slate-200 text-slate-700'
+                      }`}>
                         {t.name.split(' ')[0]}
                       </span>
                     ))}
                     {teammates.length > 6 && (
-                      <span className="text-[11px] px-2 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 font-bold">
+                      <span className="text-[11px] px-2 py-1 rounded-lg bg-cyan-500/20 text-cyan-600 dark:text-cyan-300 font-bold">
                         +{teammates.length - 6}
                       </span>
                     )}
@@ -299,17 +457,17 @@ export const MemberHome: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
-                <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Consumido</div>
-                <div className="text-xl font-black mt-0.5 text-white">
+              <div className={`p-3 rounded-2xl border ${surfaceMuted}`}>
+                <div className={`text-[10px] font-bold uppercase tracking-wider ${textSub}`}>Total Consumido</div>
+                <div className={`text-xl font-black mt-0.5 ${textStrong}`}>
                   R$ {canteenSummary.totalSpent.toFixed(2)}
                 </div>
               </div>
 
               <div className={`p-3 rounded-2xl border ${
                 canteenSummary.pendingTab > 0 
-                  ? 'bg-purple-500/10 border-purple-500/30 text-purple-300' 
-                  : 'bg-white/5 border-white/10 text-emerald-400'
+                  ? 'bg-purple-500/10 border-purple-500/30 text-purple-600 dark:text-purple-300' 
+                  : `${surfaceMuted} text-emerald-600 dark:text-emerald-400`
               }`}>
                 <div className="text-[10px] opacity-80 font-bold uppercase tracking-wider">Fiado em Aberto</div>
                 <div className="text-xl font-black mt-0.5">
@@ -328,12 +486,14 @@ export const MemberHome: React.FC = () => {
               {memberSales.length > 0 ? (
                 <div className="space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar">
                   {memberSales.slice(0, 4).map((sale) => (
-                    <div key={sale.id} className="flex items-center justify-between p-2 rounded-xl bg-black/20 text-xs">
+                    <div key={sale.id} className={`flex items-center justify-between p-2 rounded-xl text-xs ${
+                      isDarkMode ? 'bg-black/20' : 'bg-slate-50 border border-slate-200/70'
+                    }`}>
                       <div className="space-y-0.5">
-                        <div className="font-bold text-white">
+                        <div className={`font-bold ${textStrong}`}>
                           {sale.items?.map(i => `${i.quantity}x ${i.productName}`).join(', ') || 'Produtos variados'}
                         </div>
-                        <div className="text-[10px] text-gray-400">
+                        <div className={`text-[10px] ${textSub}`}>
                           {new Date(sale.date).toLocaleDateString('pt-BR')} • {sale.paymentMethod}
                         </div>
                       </div>
@@ -344,7 +504,7 @@ export const MemberHome: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div className="p-4 rounded-xl bg-white/5 text-center text-xs text-gray-400">
+                <div className={`p-4 rounded-xl border text-center text-xs ${surfaceMuted} ${textSub}`}>
                   Nenhuma compra registrada ainda. Visite nossa cantina nos intervalos!
                 </div>
               )}
@@ -382,19 +542,19 @@ export const MemberHome: React.FC = () => {
                   className={`p-3 rounded-2xl border transition-all flex items-center justify-between ${
                     idx === 0 
                       ? 'bg-cyan-500/10 border-cyan-500/30' 
-                      : 'bg-white/5 border-white/10'
+                      : surfaceMuted
                   }`}
                 >
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-black text-cyan-400">{item.startTime}</span>
-                      <span className="text-xs font-bold text-white">{item.title}</span>
+                      <span className="text-xs font-black text-cyan-600 dark:text-cyan-400">{item.startTime}</span>
+                      <span className={`text-xs font-bold ${textStrong}`}>{item.title}</span>
                     </div>
                     {item.description && (
-                      <p className="text-[10px] text-gray-400 line-clamp-1">{item.description}</p>
+                      <p className={`text-[10px] line-clamp-1 ${textSub}`}>{item.description}</p>
                     )}
                   </div>
-                  <span className="text-[10px] uppercase font-bold text-gray-400 shrink-0 ml-2">
+                  <span className={`text-[10px] uppercase font-bold shrink-0 ml-2 ${textSub}`}>
                     {item.day.split('-')[0]}
                   </span>
                 </div>
@@ -437,7 +597,7 @@ export const MemberHome: React.FC = () => {
                 className={`p-4 rounded-2xl border transition-all ${
                   isMyTeam 
                     ? 'ring-2 ring-cyan-400 bg-cyan-500/10 border-cyan-500/30' 
-                    : 'bg-white/5 border-white/10'
+                    : surfaceMuted
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">

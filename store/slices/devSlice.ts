@@ -16,10 +16,10 @@ export const createDevSlice: StateCreator<
   [],
   DevSlice
 > = (set) => ({
-  isDevMode: true, // Habilitado para facilitar desenvolvimento
-  devRole: 'pastoral', // Inicia no modo Pastoral (visão executiva ampla)
+  isDevMode: true, // Modo Construção ativo por padrão para nunca bloquear o acesso às telas
+  devRole: 'admin', // Papel Admin ativo por padrão para acesso irrestrito a todos os módulos
   simulatedPersonId: null,
   toggleDevMode: () => set((state) => ({ isDevMode: !state.isDevMode })),
-  setDevRole: (role) => set(() => ({ devRole: role })),
+  setDevRole: (role) => set(() => ({ devRole: role, isDevMode: true })),
   setSimulatedPersonId: (personId) => set(() => ({ simulatedPersonId: personId })),
 });

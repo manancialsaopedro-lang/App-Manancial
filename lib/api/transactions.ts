@@ -28,6 +28,10 @@ type DbTransactionRow = {
   is_settled?: boolean | null;
   isSettled?: boolean | null;
   items?: Transaction["items"];
+  event_id?: string | null;
+  eventId?: string | null;
+  event_name?: string | null;
+  eventName?: string | null;
 };
 
 type SupabaseErrorShape = {
@@ -66,6 +70,8 @@ const fromDb = (row: DbTransactionRow): Transaction => ({
   personName: row.personName ?? row.person_name ?? undefined,
   isSettled: row.isSettled ?? row.is_settled ?? undefined,
   items: row.items ?? undefined,
+  eventId: row.eventId ?? row.event_id ?? undefined,
+  eventName: row.eventName ?? row.event_name ?? undefined,
 });
 
 const toDb = (payload: Partial<Omit<Transaction, "id">>) => {
@@ -80,6 +86,8 @@ const toDb = (payload: Partial<Omit<Transaction, "id">>) => {
   if (payload.personId !== undefined) row.person_id = payload.personId;
   if (payload.personName !== undefined) row.person_name = payload.personName;
   if (payload.isSettled !== undefined) row.is_settled = payload.isSettled;
+  if (payload.eventId !== undefined) row.event_id = payload.eventId;
+  if (payload.eventName !== undefined) row.event_name = payload.eventName;
   return row;
 };
 

@@ -1,16 +1,21 @@
 import React, { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Shield, PieChart, Users, ArrowLeft, Wallet, ShoppingBag, ChevronRight, X, ArrowRightLeft,
-  Trophy, Flag, Clock, CalendarCheck, Home, ScrollText, Grid, Sparkles, UserCheck
+  Trophy, Flag, Clock, CalendarCheck, Home, ScrollText, Grid, Sparkles, UserCheck, Sun, Moon
 } from 'lucide-react';
 import { Sector } from '../types';
 import { useAppStore } from '../store';
+import { useCurrentRole } from '../hooks/useCurrentRole';
 
 export const AppLayout = ({ sector }: { sector: Sector }) => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
-  const { isDarkMode } = useAppStore();
+  const location = useLocation();
+  const { user, isDarkMode, toggleTheme } = useAppStore();
+  const { canAccessOrg, canAccessGincana } = useCurrentRole();
+  const isFullBleedDarkNative =
+    location.pathname === '/org/financials' || location.pathname === '/org/canteen';
 
   const sidebarMenus = {
     org: [
@@ -21,12 +26,17 @@ export const AppLayout = ({ sector }: { sector: Sector }) => {
       { path: 'financials', icon: ArrowRightLeft, label: 'Movimentacoes' },
       { path: 'canteen', icon: ShoppingBag, label: 'Cantina' },
     ],
-    gincana: [
-      { path: 'dash', icon: Trophy, label: 'Visao Geral' },
-      { path: 'time', icon: Clock, label: 'Cronograma' },
-      { path: 'list', icon: Users, label: 'Participantes' },
-      { path: 'proofs', icon: Flag, label: 'Provas' },
-    ],
+    gincana: canAccessGincana
+      ? [
+          { path: 'dash', icon: Trophy, label: 'Visao Geral' },
+          { path: 'time', icon: Clock, label: 'Cronograma' },
+          { path: 'list', icon: Users, label: 'Participantes' },
+          { path: 'proofs', icon: Flag, label: 'Provas' },
+        ]
+      : [
+          { path: 'placar', icon: Trophy, label: 'Placar' },
+          { path: 'time', icon: Clock, label: 'Cronograma' },
+        ],
     membro: [
       { path: 'home', icon: Home, label: 'Meu Espaço' },
       { path: 'cronograma', icon: Clock, label: 'Cronograma' },
@@ -43,7 +53,19 @@ export const AppLayout = ({ sector }: { sector: Sector }) => {
   const mobileBarClass = isDarkMode ? 'bg-[#121a2a]/95 border-white/10' : 'bg-white/90 border-gray-200';
 
   const handleExit = () => {
-    navigate('/');
+    if (sector === 'org') {
+      if (location.pathname !== '/org/home' && location.pathname !== '/org') {
+        navigate('/org/home');
+        return;
+      }
+      navigate('/hub');
+      return;
+    }
+    if (sector === 'membro') {
+      navigate(user ? '/igreja/membro' : '/acampamento');
+      return;
+    }
+    navigate('/acampamento');
   };
 
   const renderBottomBar = () => {
@@ -70,7 +92,7 @@ export const AppLayout = ({ sector }: { sector: Sector }) => {
             <div className="relative -top-3">
               <NavLink
                 to="/membro/home"
-                className={({ isActive }) => `flex items-center justify-center w-14 h-14 rounded-full shadow-xl transition-transform active:scale-95 border-4 border-[#fbfbfd] ${isActive ? 'bg-emerald-600 text-white' : 'bg-gray-900 text-white'}`}
+                className={({ isActive }) => `flex items-center justify-center w-14 h-14 rounded-full shadow-xl transition-transform active:scale-95 border-4 ${isDarkMode ? 'border-[#121a2a]' : 'border-[#fbfbfd]'} ${isActive ? 'bg-emerald-600 text-white' : 'bg-gray-900 text-white'}`}
               >
                 <Sparkles size={24} strokeWidth={2.5} />
               </NavLink>
@@ -112,7 +134,7 @@ export const AppLayout = ({ sector }: { sector: Sector }) => {
             <div className="relative -top-3">
               <NavLink
                 to="/org/home"
-                className={({ isActive }) => `flex items-center justify-center w-14 h-14 rounded-full shadow-xl transition-transform active:scale-95 border-4 border-[#fbfbfd] ${isActive ? 'bg-gray-900 text-white' : 'bg-blue-600 text-white'}`}
+                className={({ isActive }) => `flex items-center justify-center w-14 h-14 rounded-full shadow-xl transition-transform active:scale-95 border-4 ${isDarkMode ? 'border-[#121a2a]' : 'border-[#fbfbfd]'} ${isActive ? 'bg-gray-900 text-white' : 'bg-blue-600 text-white'}`}
               >
                 <Home size={24} strokeWidth={2.5} />
               </NavLink>
@@ -200,7 +222,14 @@ export const AppLayout = ({ sector }: { sector: Sector }) => {
                 <span className="font-bold text-sm">{item.label}</span>
               </NavLink>
             ))}
-            <button onClick={handleExit} className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all mt-8 whitespace-nowrap ${isDarkMode ? 'text-slate-400 hover:bg-red-500/10 hover:text-red-300' : 'text-gray-400 hover:bg-red-50 hover:text-red-500'}`}>
+            <button
+              onClick={toggleTheme}
+              className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all mt-4 whitespace-nowrap ${isDarkMode ? 'text-amber-300 hover:bg-white/5' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              {isDarkMode ? <Sun size={20} className="shrink-0" /> : <Moon size={20} className="shrink-0" />}
+              <span className="font-bold text-sm">{isDarkMode ? 'Modo Claro' : 'Modo Escuro'}</span>
+            </button>
+            <button onClick={handleExit} className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all mt-2 whitespace-nowrap ${isDarkMode ? 'text-slate-400 hover:bg-red-500/10 hover:text-red-300' : 'text-gray-400 hover:bg-red-50 hover:text-red-500'}`}>
               <ArrowLeft size={20} className="shrink-0" />
               <span className="font-bold text-sm">Sair do Modulo</span>
             </button>
@@ -208,9 +237,39 @@ export const AppLayout = ({ sector }: { sector: Sector }) => {
         </div>
       </aside>
 
-      <main className={`flex-1 flex flex-col h-full overflow-hidden relative transition-all duration-500 ${isOpen ? 'xl:pl-72' : ''}`}>
-        <div className={`flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar pb-safe transition-colors ${contentClass}`}>
-          <div className="max-w-[1600px] mx-auto">
+      <main className={`flex-1 min-w-0 w-full flex flex-col h-full overflow-hidden relative transition-all duration-500 ${isOpen ? 'xl:pl-72' : ''}`}>
+        {!isFullBleedDarkNative && (
+          <div className="flex items-center justify-between px-4 md:px-8 pt-3 pb-1 shrink-0">
+            <div className="flex items-center gap-2">
+              {canAccessOrg && (
+                <button
+                  onClick={() => navigate('/financeiro')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider border transition-all ${
+                    isDarkMode
+                      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                  }`}
+                >
+                  <Wallet size={14} /> Central Financeira Unificada
+                </button>
+              )}
+            </div>
+            <button
+              onClick={toggleTheme}
+              title={isDarkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                isDarkMode
+                  ? 'bg-white/10 text-amber-300 border-white/15 hover:bg-white/15'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 shadow-sm'
+              }`}
+            >
+              {isDarkMode ? <Sun size={14} /> : <Moon size={14} />}
+              <span>{isDarkMode ? 'Claro' : 'Escuro'}</span>
+            </button>
+          </div>
+        )}
+        <div className={`flex-1 min-w-0 w-full overflow-y-auto overflow-x-hidden ${isFullBleedDarkNative ? 'p-0' : 'p-4 md:p-8'} custom-scrollbar pb-safe transition-colors ${contentClass} ${!isFullBleedDarkNative && isDarkMode ? 'theme-dark-adapt' : ''}`}>
+          <div className={isFullBleedDarkNative ? 'w-full min-w-0' : 'max-w-[1600px] w-full min-w-0 mx-auto'}>
             <Outlet />
             <div className="h-24 md:h-40 xl:hidden" />
           </div>

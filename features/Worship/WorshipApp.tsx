@@ -58,6 +58,8 @@ import { Song, TeamMember, WorshipEvent, Profile, RehearsalReport, SongSuggestio
 import { User } from '@supabase/supabase-js';
 import toast from 'react-hot-toast';
 import { useCurrentRole } from '../../hooks/useCurrentRole';
+import { useAppStore } from '../../store';
+import { ADMIN_DEFAULT_EMAIL, ADMIN_DEFAULT_PASSWORD } from '../../lib/supabase';
 
 // Polyfill for useEffectEvent (experimental in React 19)
 function useEvent<T extends (...args: any[]) => any>(fn: T): T {
@@ -158,7 +160,7 @@ function EventDetailRoute({
 }: EventDetailRouteProps) {
   const { eventId } = useParams();
   const event = useMemo(() => events.find(e => e.id === eventId) ?? null, [events, eventId]);
-  if (!event) return <Navigate to="/app/events" replace />;
+  if (!event) return <Navigate to="/app/schedule" replace />;
 
   return (
     <EventDetail
@@ -201,7 +203,7 @@ function SongDetailRoute({ songs, events, navigate, onUpdateSong, isMinister }: 
     <SongDetail
       song={song}
       events={events}
-      onBack={() => navigate(-1)}
+      onBack={() => (window.history.length > 1 ? navigate(-1) : navigate('/app/repertoire'))}
       onUpdateSong={onUpdateSong}
       canEdit={isMinister}
     />
@@ -242,7 +244,8 @@ export default function App() {
     }
   });
   
-  const { activeRole: ecosystemRole, simulatedPerson: simulatedMember } = useCurrentRole();
+  const { activeRole: ecosystemRole, simulatedPerson: simulatedMember, isOverridden, isDevMode } = useCurrentRole();
+  const storeUser = useAppStore((s) => s.user);
 
   // Atualiza dinamicamente título, manifest e ícone de atalho para "Louvor App"
   useEffect(() => {
@@ -300,10 +303,17 @@ export default function App() {
 
     const isLeadership =
       ecosystemRole === 'pastoral' ||
+      ecosystemRole === 'primeiro_pastor' ||
+      ecosystemRole === 'segundo_pastor' ||
       ecosystemRole === 'admin' ||
       ecosystemRole === 'louvor';
-    const resolvedName = simulatedMember?.name || 'Caio Augusto';
-    const resolvedId = simulatedMember?.id || 'caio-admin';
+    const resolvedName =
+      simulatedMember?.name ||
+      user?.user_metadata?.full_name ||
+      user?.user_metadata?.name ||
+      user?.email?.split('@')[0] ||
+      'Integrante';
+    const resolvedId = simulatedMember?.id || user?.id || 'guest';
     return {
       id: resolvedId,
       name: resolvedName,
@@ -311,7 +321,7 @@ export default function App() {
       onboarding_completed: true,
       functional_role: isLeadership ? 'minister' : 'vocal',
     };
-  }, [loggedWorshipMember, ecosystemRole, simulatedMember]);
+  }, [loggedWorshipMember, ecosystemRole, simulatedMember, user]);
 
   const handleLouvorSignOut = useCallback(async () => {
     localStorage.removeItem('louvor_logged_member');
@@ -429,7 +439,21 @@ export default function App() {
     const initAuth = async () => {
       try {
         setIsAuthLoading(true);
-        const { data: { session } } = await supabase.auth.getSession();
+        let { data: { session } } = await supabase.auth.getSession();
+
+        if (!session?.user && isDevMode) {
+          try {
+            const { data: adminAuth } = await supabase.auth.signInWithPassword({
+              email: ADMIN_DEFAULT_EMAIL,
+              password: ADMIN_DEFAULT_PASSWORD,
+            });
+            if (adminAuth?.session) {
+              session = adminAuth.session;
+            }
+          } catch {
+            // fallback local profile
+          }
+        }
 
         if (!isMounted) {
           return;
@@ -444,7 +468,9 @@ export default function App() {
             return;
           }
 
-          setProfile(userProfile);
+          setProfile(userProfile ?? localProfile);
+        } else if (isDevMode || storeUser) {
+          setProfile(localProfile);
         }
       } catch (error) {
         if (!isMounted) {
@@ -501,6 +527,12 @@ export default function App() {
   }, [isLocalMode, loadData, localProfile]);
 
   useEffect(() => {
+    if (isAuthLoading) return;
+    if (!isLocalMode && !user && !isDevMode && !storeUser) {
+      setIsLoading(false);
+      return;
+    }
+
     void loadData({ withLoading: true, allowSeed: true });
 
     let debounceTimer: ReturnType<typeof setTimeout>;
@@ -515,7 +547,7 @@ export default function App() {
       clearTimeout(debounceTimer);
       unsubscribeFromAppData(channel);
     };
-  }, [loadData]);
+  }, [loadData, isAuthLoading, isLocalMode, user]);
 
   useEffect(() => {
     if (isAuthLoading) return;
@@ -716,17 +748,45 @@ export default function App() {
     }
   };
 
-  const effectiveProfile = profile ?? localProfile;
-  const isMinister = effectiveProfile?.role === 'minister' || effectiveProfile?.role === 'pastor';
-  const canDeleteEvent = isMinister || ['Caio', 'Caio Augusto', 'Caio Augusto ', 'Silvia', 'Pastor Sidney', 'Pr Sidney'].includes(effectiveProfile?.name || '');
+  const effectiveProfile = isOverridden ? localProfile : (profile ?? localProfile);
+  const isLeadershipEcosystem =
+    !isOverridden &&
+    (ecosystemRole === 'admin' ||
+      ecosystemRole === 'primeiro_pastor' ||
+      ecosystemRole === 'segundo_pastor' ||
+      ecosystemRole === 'pastoral' ||
+      ecosystemRole === 'louvor');
+  const isMinister =
+    effectiveProfile?.role === 'minister' ||
+    effectiveProfile?.role === 'pastor' ||
+    isLeadershipEcosystem;
+  const canDeleteEvent = isMinister;
 
   const renderContent = () => {
+    const loginElement = (
+      <Login
+        team={team}
+        onLogin={(selectedMember) => {
+          if (selectedMember) {
+            setLoggedWorshipMember(selectedMember);
+          }
+          void loadData({ withLoading: false });
+          navigate('/app/dashboard', { replace: true });
+        }}
+      />
+    );
+
+    // Quando montado diretamente em /louvor/login ou /app/login, evita loop no Route index
+    if (location.pathname.endsWith('/login')) {
+      return loginElement;
+    }
+
     return (
       <Routes>
         <Route
           index
           element={
-            loggedWorshipMember || user ? (
+            loggedWorshipMember || user || isDevMode || storeUser ? (
               <Navigate to="/app/dashboard" replace />
             ) : (
               <Navigate to="/louvor/login" replace />
@@ -734,21 +794,7 @@ export default function App() {
           }
         />
         
-        <Route
-          path="login"
-          element={
-            <Login
-              team={team}
-              onLogin={(selectedMember) => {
-                if (selectedMember) {
-                  setLoggedWorshipMember(selectedMember);
-                }
-                void loadData({ withLoading: false });
-                navigate('/app/dashboard', { replace: true });
-              }}
-            />
-          }
-        />
+        <Route path="login" element={loginElement} />
         <Route path="onboarding" element={profile ? <OnboardingWizard profile={profile} onComplete={setProfile} /> : <Navigate to="/app/dashboard" replace />} />
         
         <Route path="avaliacao" element={<EvaluationWizard />} />
@@ -904,6 +950,7 @@ export default function App() {
         <Route path="profile" element={
           <ProfileMenu 
             onBack={() => navigate('/app/dashboard')}
+            onSignOut={handleLouvorSignOut}
           />
         } />
         

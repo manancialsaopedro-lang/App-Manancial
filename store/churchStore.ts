@@ -864,7 +864,38 @@ export const useChurchStore = create<ChurchStoreState>()(
       },
 
       completeRegistration: async (tokenOrId: string, updates: Partial<ChurchMember>) => {
-        // 1. Atualiza na memória local
+        const currentTarget = get().members.find(
+          (m) => m.inviteToken === tokenOrId || m.id === tokenOrId
+        );
+
+        const rawPhone = (updates.phoneWhatsApp || currentTarget?.phoneWhatsApp || '').replace(/\D/g, '');
+        const whatsappInt = rawPhone.startsWith('55') ? rawPhone : rawPhone ? `55${rawPhone}` : '';
+
+        // 1. Persiste no Supabase via RPC escopada por token (segura para anon e auth)
+        const { data: rpcSuccess, error: rpcError } = await supabase().rpc(
+          'complete_member_registration_by_token',
+          {
+            p_token: tokenOrId,
+            p_full_name: (updates.fullName || currentTarget?.fullName || '').trim(),
+            p_phone: rawPhone,
+            p_whatsapp: whatsappInt,
+            p_email: updates.email ?? currentTarget?.email ?? null,
+            p_birth_date: updates.birthDate || currentTarget?.birthDate || null,
+            p_baptism_date: updates.baptismDate || null,
+            p_ministry: (updates.ministry as string) || currentTarget?.ministry || null,
+            p_address: updates.address ?? currentTarget?.address ?? null,
+            p_pastoral_notes: updates.pastoralNotes ?? currentTarget?.pastoralNotes ?? null,
+          }
+        );
+
+        if (rpcError) {
+          throw rpcError;
+        }
+        if (!rpcSuccess && !currentTarget) {
+          return false;
+        }
+
+        // 2. Atualiza memória local apenas após confirmação
         set((state) => ({
           members: state.members.map((m) =>
             m.inviteToken === tokenOrId || m.id === tokenOrId
@@ -873,39 +904,7 @@ export const useChurchStore = create<ChurchStoreState>()(
           )
         }));
 
-        // 2. Sincroniza com Supabase se disponível
-        try {
-          const target = get().members.find(
-            (m) => m.inviteToken === tokenOrId || m.id === tokenOrId
-          );
-          if (target) {
-            const cleanPhone = (updates.phoneWhatsApp || target.phoneWhatsApp).replace(/\D/g, '');
-            const whatsappInt = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
-            
-            await supabase()
-              .from('church_members')
-              .update({
-                full_name: updates.fullName || target.fullName,
-                phone: cleanPhone,
-                whatsapp: whatsappInt,
-                email: updates.email || target.email || null,
-                birth_date: updates.birthDate || target.birthDate || null,
-                baptism_date: updates.baptismDate || target.baptismDate || null,
-                role: (updates.role as string) || target.role,
-                ministry: (updates.ministry as string) || target.ministry,
-                address: updates.address || target.address || null,
-                notes: updates.pastoralNotes || target.pastoralNotes || null,
-                registration_status: 'CONCLUIDO',
-                status: 'ATIVO',
-                updated_at: new Date().toISOString()
-              })
-              .or(`invite_token.eq.${tokenOrId},id.eq.${tokenOrId}`);
-          }
-          return true;
-        } catch (err) {
-          console.warn('Erro ao sincronizar finalização no Supabase:', err);
-          return true;
-        }
+        return Boolean(rpcSuccess || currentTarget);
       },
 
       syncWithSupabase: async () => {

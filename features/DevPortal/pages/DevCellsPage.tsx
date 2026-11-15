@@ -17,22 +17,15 @@ import {
   ExternalLink,
   Sparkles
 } from 'lucide-react';
+import {
+  ChurchCellGroup,
+  deleteChurchCell,
+  fetchChurchCells,
+  getStoredCells,
+  saveChurchCell
+} from '../../Church/data/churchModulesApi';
 
-interface CellGroup {
-  id: string;
-  name: string;
-  leaderName: string;
-  leaderPhone: string;
-  hostName: string;
-  neighborhood: string;
-  address: string;
-  meetingDay: string;
-  meetingTime: string;
-  category: 'Famílias' | 'Jovens' | 'Casais' | 'Mulheres' | 'Homens' | 'Mista';
-  membersCount: number;
-}
-
-const STORAGE_KEY = 'manancial_church_cells';
+type CellGroup = ChurchCellGroup;
 
 const INITIAL_CELLS: CellGroup[] = [
   {
@@ -90,15 +83,10 @@ const INITIAL_CELLS: CellGroup[] = [
 ];
 
 export const DevCellsPage: React.FC = () => {
-  const [cells, setCells] = useState<CellGroup[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error('Erro ao ler células:', e);
-    }
-    return INITIAL_CELLS;
-  });
+  const [cells, setCells] = useState<CellGroup[]>(() => getStoredCells([]));
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [syncWarning, setSyncWarning] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('todas');
@@ -119,12 +107,24 @@ export const DevCellsPage: React.FC = () => {
   const [membersCount, setMembersCount] = useState<number>(10);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(cells));
-    } catch (e) {
-      console.error('Erro ao salvar células:', e);
-    }
-  }, [cells]);
+    let active = true;
+    fetchChurchCells(INITIAL_CELLS)
+      .then((res) => {
+        if (!active) return;
+        setCells(res.data);
+        setSyncWarning(
+          !res.syncedRemote && res.error
+            ? `Exibindo dados locais (${res.error}).`
+            : null
+        );
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -161,59 +161,68 @@ export const DevCellsPage: React.FC = () => {
     setModalOpen(true);
   };
 
-  const handleSaveCell = (e: React.FormEvent) => {
+  const handleSaveCell = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
     if (!name.trim() || !leaderName.trim()) {
       showToast('Por favor, preencha o Nome da Célula e o Líder.');
       return;
     }
 
-    if (editingId) {
-      setCells((prev) =>
-        prev.map((c) =>
-          c.id === editingId
-            ? {
-                ...c,
-                name: name.trim(),
-                leaderName: leaderName.trim(),
-                leaderPhone: leaderPhone.trim(),
-                hostName: hostName.trim(),
-                neighborhood: neighborhood.trim(),
-                address: address.trim(),
-                meetingDay,
-                meetingTime,
-                category,
-                membersCount: Number(membersCount) || 0,
-              }
-            : c
-        )
+    setIsSaving(true);
+    try {
+      const res = await saveChurchCell(
+        {
+          id: editingId ?? undefined,
+          name: name.trim(),
+          leaderName: leaderName.trim(),
+          leaderPhone: leaderPhone.trim(),
+          hostName: hostName.trim(),
+          neighborhood: neighborhood.trim(),
+          address: address.trim(),
+          meetingDay,
+          meetingTime,
+          category,
+          membersCount: Number(membersCount) || 0,
+        },
+        !!editingId
       );
-      showToast(`Célula "${name}" atualizada com sucesso!`);
-    } else {
-      const newCell: CellGroup = {
-        id: Date.now().toString(),
-        name: name.trim(),
-        leaderName: leaderName.trim(),
-        leaderPhone: leaderPhone.trim(),
-        hostName: hostName.trim(),
-        neighborhood: neighborhood.trim(),
-        address: address.trim(),
-        meetingDay,
-        meetingTime,
-        category,
-        membersCount: Number(membersCount) || 0,
-      };
-      setCells([newCell, ...cells]);
-      showToast(`Célula "${name}" cadastrada com sucesso!`);
-    }
 
-    setModalOpen(false);
+      if (editingId) {
+        setCells((prev) => prev.map((c) => (c.id === editingId ? res.data : c)));
+        showToast(
+          res.syncedRemote
+            ? `Célula "${name}" atualizada com sucesso!`
+            : `Célula "${name}" atualizada localmente (falha ao sincronizar com servidor).`
+        );
+      } else {
+        setCells((prev) => [res.data, ...prev]);
+        showToast(
+          res.syncedRemote
+            ? `Célula "${name}" cadastrada com sucesso!`
+            : `Célula "${name}" salva localmente (falha ao sincronizar com servidor).`
+        );
+      }
+
+      if (!res.syncedRemote && res.error) {
+        setSyncWarning(`Alteração pendente de sincronização (${res.error}).`);
+      }
+
+      setModalOpen(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDeleteCell = (id: string, cellName: string) => {
+  const handleDeleteCell = async (id: string, cellName: string) => {
     if (window.confirm(`Deseja realmente remover a "${cellName}"?`)) {
+      const res = await deleteChurchCell(id);
       setCells((prev) => prev.filter((c) => c.id !== id));
-      showToast(`Célula "${cellName}" removida.`);
+      showToast(
+        res.syncedRemote
+          ? `Célula "${cellName}" removida.`
+          : `Célula "${cellName}" removida localmente (${res.error || 'offline'}).`
+      );
     }
   };
 
@@ -233,9 +242,21 @@ export const DevCellsPage: React.FC = () => {
     <div className="space-y-6">
       {/* Toast Feedback */}
       {toastMessage && (
-        <div className="fixed top-5 right-5 z-[100] bg-[#082f38] text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-cyan-500 animate-in fade-in">
+        <div className="fixed top-20 right-4 sm:right-6 z-[90] bg-[#082f38] text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-cyan-500 animate-in fade-in">
           <CheckCircle2 size={18} className="text-cyan-400" />
           <span className="text-xs font-semibold">{toastMessage}</span>
+        </div>
+      )}
+
+      {syncWarning && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-xs font-semibold">
+          {syncWarning}
+        </div>
+      )}
+
+      {isLoading && cells.length === 0 && (
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-6 text-center text-xs font-bold text-slate-500">
+          Carregando células da igreja...
         </div>
       )}
 
@@ -628,10 +649,11 @@ export const DevCellsPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#082f38] hover:bg-[#0a434d] text-cyan-200 text-xs font-black uppercase tracking-wider"
+                  disabled={isSaving}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#082f38] hover:bg-[#0a434d] text-cyan-200 text-xs font-black uppercase tracking-wider disabled:opacity-60"
                 >
                   <Save size={14} />
-                  <span>Salvar Célula</span>
+                  <span>{isSaving ? 'Salvando...' : 'Salvar Célula'}</span>
                 </button>
               </div>
             </form>

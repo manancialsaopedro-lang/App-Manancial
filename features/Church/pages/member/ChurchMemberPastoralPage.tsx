@@ -15,9 +15,9 @@ import {
 import {
   ChurchRequestItem,
   PASTORAL_TOPICS,
-  getStoredPastoralRequests,
-  saveStoredPastoralRequests
+  getStoredPastoralRequests
 } from '../../data/churchMemberData';
+import { deleteChurchRequest, fetchChurchRequests } from '../../data/churchModulesApi';
 import {
   PastoralRequestModal,
   PastoralRequestDetailModal
@@ -40,15 +40,29 @@ export const ChurchMemberPastoralPage: React.FC = () => {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [preselectedTopic, setPreselectedTopic] = useState<string | undefined>(undefined);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(true);
 
-  const loadRequests = () => {
+  const loadLocalCache = () => {
     setRequests(getStoredPastoralRequests());
   };
 
   useEffect(() => {
-    loadRequests();
-    window.addEventListener('manancial-requests-updated', loadRequests);
-    return () => window.removeEventListener('manancial-requests-updated', loadRequests);
+    let active = true;
+    loadLocalCache();
+    fetchChurchRequests()
+      .then((res) => {
+        if (active) {
+          setRequests(res.data);
+        }
+      })
+      .finally(() => {
+        if (active) setIsLoadingRequests(false);
+      });
+    window.addEventListener('manancial-requests-updated', loadLocalCache);
+    return () => {
+      active = false;
+      window.removeEventListener('manancial-requests-updated', loadLocalCache);
+    };
   }, []);
 
   const handleOpenWithTopic = (topicId?: string) => {
@@ -56,12 +70,15 @@ export const ChurchMemberPastoralPage: React.FC = () => {
     setModalOpen(true);
   };
 
-  const handleDeleteRequest = (id: string) => {
-    const updated = requests.filter((r) => r.id !== id);
-    setRequests(updated);
-    saveStoredPastoralRequests(updated);
+  const handleDeleteRequest = async (id: string) => {
+    const res = await deleteChurchRequest(id);
+    setRequests((prev) => prev.filter((r) => r.id !== id));
     setSelectedRequest(null);
-    showToast('Solicitação de atendimento pastoral cancelada.');
+    showToast(
+      res.syncedRemote
+        ? 'Solicitação de atendimento pastoral cancelada.'
+        : 'Solicitação removida localmente (verifique sua conexão).'
+    );
   };
 
   const filteredRequests = requests.filter((req) => {
@@ -238,7 +255,13 @@ export const ChurchMemberPastoralPage: React.FC = () => {
         </div>
 
         {/* Lista de Solicitações */}
-        {filteredRequests.length === 0 ? (
+        {isLoadingRequests && requests.length === 0 ? (
+          <div className="py-12 px-4 text-center rounded-2xl bg-slate-50 border border-slate-200">
+            <p className="text-xs font-bold text-slate-500 animate-pulse">
+              Carregando suas solicitações pastorais...
+            </p>
+          </div>
+        ) : filteredRequests.length === 0 ? (
           <div className="py-12 px-4 text-center rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200">
             <Inbox size={34} className="mx-auto text-slate-400 mb-2.5" />
             <p className="text-sm font-extrabold text-slate-800">
@@ -311,7 +334,7 @@ export const ChurchMemberPastoralPage: React.FC = () => {
         memberFullName={memberFullName}
         initialTopicId={preselectedTopic}
         onSuccess={() => {
-          loadRequests();
+          fetchChurchRequests().then((res) => setRequests(res.data));
           showToast('Solicitação registrada! Notificação enviada ao Pastor.');
         }}
       />

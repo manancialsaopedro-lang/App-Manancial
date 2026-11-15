@@ -31,15 +31,19 @@ export type CampRole =
 
 // Papel Unificado para compatibilidade com o sistema
 export type UserRole =
-  | 'pastoral'      // Pastor / Liderança ministerial (acesso total)
-  | 'membro'        // Membro da congregação (Espaço Membro & Acampante)
-  | 'organizacao'   // Tesouraria / Staff / Caixa / Cantina
-  | 'gincana'       // Sub-app Acampamento: Coordenação da Gincana
-  | 'louvor'        // Ministério de Louvor: Líder / Ministro
-  | 'lider_equipe'  // Sub-app Acampamento: Líder de Tribo
-  | 'admin'         // Compatibilidade legada (mapeado para pastoral)
-  | 'editor'        // Compatibilidade legada (mapeado para organizacao)
-  | 'viewer';       // Compatibilidade legada (mapeado para membro)
+  | 'admin'            // Desenvolvedor / Admin Geral (Caio)
+  | 'primeiro_pastor'  // Pastores da Manancial (Primeiros Pastores / Presidentes Fundadores - Acesso Total)
+  | 'segundo_pastor'   // Segundos Pastores (Mesmo acesso total aos primeiros pastores, label eclesiástica)
+  | 'equipe_pastoral'  // Equipe Pastoral & Liderança (Radar, Acolhimento, Visitas, Membros)
+  | 'pastoral'         // Sinônimo legado para primeiro_pastor
+  | 'membro'           // Membro da congregação (Espaço Membro & Acampante)
+  | 'visitante'        // Visitante (Boas-vindas, pedidos, solicitação de visita)
+  | 'organizacao'      // Tesouraria / Staff / Caixa / Cantina
+  | 'gincana'          // Sub-app Acampamento: Coordenação da Gincana
+  | 'louvor'           // Ministério de Louvor: Líder / Ministro
+  | 'lider_equipe'     // Sub-app Acampamento: Líder de Tribo
+  | 'editor'           // Compatibilidade legada (mapeado para organizacao)
+  | 'viewer';          // Compatibilidade legada (mapeado para membro)
 
 // --- AUTH TYPES ---
 export interface User {
@@ -49,6 +53,10 @@ export interface User {
   avatar_url?: string;
   role: UserRole;
   personId?: string; // Vínculo com registro em Person (para participantes)
+  churchMemberId?: string;
+  isWorshipMember?: boolean;
+  isWorshipLeader?: boolean;
+  worshipTeamId?: string;
 }
 
 export interface Person {
@@ -62,6 +70,7 @@ export interface Person {
   paymentStatus: PaymentStatus;
   paymentMethod?: PaymentMethod;
   lastPaymentDate?: string;
+  paymentHistory?: number[];
 }
 
 export interface Proof {
@@ -206,6 +215,32 @@ export interface ProjectionItem {
   source?: 'BASE' | 'STOCK' | 'MOVEMENT'; // Origin of the row in cost detail
 }
 
+export interface FinancialEvent {
+  id: string;
+  name: string;
+  badge: string;
+  dateLabel: string;
+  color: string;
+  status?: 'ATIVO' | 'ENCERRADO' | 'PLANEJADO';
+  targetBudget?: number;
+  targetRevenue?: number;
+  campYear?: '2026' | '2027';
+  description?: string;
+}
+
+export interface FixedBillItem {
+  id: string;
+  title: string;
+  category: TransactionCategory;
+  amount: number;
+  dueDay: number;
+  status: 'PAGO' | 'PENDENTE' | 'ATRASADO';
+  recurring: boolean;
+  notes?: string;
+  eventId?: string;
+  lastPaidTxId?: string;
+}
+
 export interface AppState {
   // Auth State
   user: User | null;
@@ -225,15 +260,32 @@ export interface AppState {
   transactions: Transaction[];
   fixedCostRent: number; // Aluguel chácara
   
-  // Projections
+  // Projections & Eventos & Contas Fixas & Histórico 2026
   expenseProjections: ProjectionItem[];
+  camp2026People: Person[];
+  camp2026Projections: ProjectionItem[];
+  financialEvents: FinancialEvent[];
+  fixedBills: FixedBillItem[];
 
   // Cantina
   products: Product[];
   sales: Sale[];
 
   // Auth Actions
-  signIn: (email: string, name?: string) => void;
+  signIn: (
+    email: string,
+    name?: string,
+    role?: UserRole,
+    personId?: string,
+    extras?: {
+      id?: string;
+      avatar_url?: string;
+      churchMemberId?: string;
+      isWorshipMember?: boolean;
+      isWorshipLeader?: boolean;
+      worshipTeamId?: string;
+    }
+  ) => void;
   signOut: () => void;
   setAuthReady: (ready: boolean) => void;
 
@@ -242,6 +294,13 @@ export interface AppState {
   setPeople: (people: Person[]) => void;
   updatePerson: (id: string, updates: Partial<Person>) => void;
   deletePerson: (id: string) => void;
+  resetToOfficialList: () => void;
+  syncSupabasePeople: (dbPeople: Person[]) => void;
+
+  setCamp2026People: (people: Person[]) => void;
+  addCamp2026Person: (person: Omit<Person, 'id'>) => void;
+  updateCamp2026Person: (id: string, updates: Partial<Person>) => void;
+  deleteCamp2026Person: (id: string) => void;
   
   updateProof: (id: string, updates: Partial<Proof>) => void;
   // Atualizado para suportar ScoreEvents
@@ -265,11 +324,27 @@ export interface AppState {
   removeTransaction: (id: string) => void;
   updateFixedCostRent: (value: number) => void;
   
-  // Actions Projeção
+  // Actions Projeção (2027) & Histórico (2026)
   addProjectionItem: (label: string, amount: number) => void;
   addProjectionEntry: (item: Omit<ProjectionItem, 'id'>) => string;
   updateProjectionItem: (id: string, updates: Partial<ProjectionItem>) => void;
   deleteProjectionItem: (id: string) => void;
+
+  addCamp2026Projection: (item: Omit<ProjectionItem, 'id'>) => string;
+  updateCamp2026Projection: (id: string, updates: Partial<ProjectionItem>) => void;
+  deleteCamp2026Projection: (id: string) => void;
+
+  // Actions Eventos Financeiros
+  setFinancialEvents: (events: FinancialEvent[]) => void;
+  addFinancialEvent: (event: Omit<FinancialEvent, 'id'> & { id?: string }) => FinancialEvent;
+  updateFinancialEvent: (id: string, updates: Partial<FinancialEvent>) => void;
+  deleteFinancialEvent: (id: string) => void;
+
+  // Actions Contas Fixas
+  setFixedBills: (bills: FixedBillItem[]) => void;
+  addFixedBill: (bill: Omit<FixedBillItem, 'id'>) => FixedBillItem;
+  updateFixedBill: (id: string, updates: Partial<FixedBillItem>) => void;
+  deleteFixedBill: (id: string) => void;
 
   // Actions Cantina
   addProduct: (p: Omit<Product, 'id'>) => void;

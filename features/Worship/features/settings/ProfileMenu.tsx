@@ -6,13 +6,18 @@ import {
   ChevronRight,
   ShieldCheck,
   Music,
-  Heart
+  Heart,
+  ArrowLeft,
+  LogOut
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { BackButton } from '../../components/BackButton';
+import { useCurrentRole } from '../../../../hooks/useCurrentRole';
 
-export default function ProfileMenu({ onBack }: { onBack?: () => void }) {
+export default function ProfileMenu({ onBack, onSignOut }: { onBack?: () => void; onSignOut?: () => void }) {
   const navigate = useNavigate();
+  const { canAccessPastoral, canAccessOrg } = useCurrentRole();
+  const churchHomePath = canAccessPastoral || canAccessOrg ? '/hub' : '/igreja/membro';
 
   const menuItems = [
     {
@@ -30,6 +35,14 @@ export default function ProfileMenu({ onBack }: { onBack?: () => void }) {
       icon: User,
       color: 'bg-purple-50 text-purple-600',
       path: '/app/settings'
+    },
+    {
+      id: 'church',
+      title: 'Portal da Igreja',
+      description: 'Volte ao painel principal do App Manancial.',
+      icon: ArrowLeft,
+      color: 'bg-cyan-50 text-cyan-700',
+      path: churchHomePath
     }
   ];
 
@@ -51,7 +64,7 @@ export default function ProfileMenu({ onBack }: { onBack?: () => void }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {menuItems.map((item) => (
           <button
             key={item.id}
@@ -110,6 +123,19 @@ export default function ProfileMenu({ onBack }: { onBack?: () => void }) {
           </div>
         </div>
       </div>
+
+      {onSignOut && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onSignOut}
+            className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-red-50 text-red-600 hover:bg-red-100 border border-red-200/70 font-bold text-xs uppercase tracking-wider transition-all active:scale-95"
+          >
+            <LogOut size={16} />
+            <span>Sair do Louvor App</span>
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 }

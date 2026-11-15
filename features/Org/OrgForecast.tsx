@@ -25,6 +25,7 @@ export const OrgForecast = () => {
   const [newItem, setNewItem] = useState({ label: '', amount: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const [reviewItem, setReviewItem] = useState<ProjectionItem | null>(null);
   const [reviewData, setReviewData] = useState({
@@ -170,7 +171,7 @@ export const OrgForecast = () => {
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 pb-20">
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate('/org/cashier-hub')} className="p-3 rounded-full hover:bg-gray-100 transition-colors">
+        <button onClick={() => navigate('/org/analytics')} className="p-3 rounded-full hover:bg-gray-100 transition-colors" aria-label="Voltar para Análises">
           <ArrowLeft size={24} className="text-gray-500" />
         </button>
         <div>
@@ -353,8 +354,30 @@ export const OrgForecast = () => {
                                 <CheckSquare size={14} /> <span className="hidden md:inline">Revisar</span>
                               </button>
                               <div className="w-px h-6 bg-gray-200 mx-1" />
-                              <button onClick={() => startEdit(item)} className="p-2 text-gray-400 hover:text-blue-600 transition-colors"><Edit2 size={16} /></button>
-                              <button onClick={() => deleteProjectionItem(item.id)} className="p-2 text-gray-400 hover:text-red-600 transition-colors"><Trash2 size={16} /></button>
+                              <button onClick={() => startEdit(item)} className="p-2 text-gray-400 hover:text-blue-600 transition-colors" aria-label="Editar projeção"><Edit2 size={16} /></button>
+                              {confirmDeleteId === item.id ? (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      deleteProjectionItem(item.id);
+                                      setConfirmDeleteId(null);
+                                    }}
+                                    className="px-2 py-1 rounded-lg bg-red-600 text-white text-[11px] font-bold"
+                                  >
+                                    Confirmar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmDeleteId(null)}
+                                    className="px-2 py-1 rounded-lg bg-gray-100 text-gray-600 text-[11px] font-bold"
+                                  >
+                                    Não
+                                  </button>
+                                </div>
+                              ) : (
+                                <button onClick={() => setConfirmDeleteId(item.id)} className="p-2 text-gray-400 hover:text-red-600 transition-colors" aria-label="Excluir projeção"><Trash2 size={16} /></button>
+                              )}
                             </>
                           ) : (
                             <div className="flex items-center gap-2">

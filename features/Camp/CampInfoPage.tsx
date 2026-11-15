@@ -26,11 +26,13 @@ import {
   X
 } from 'lucide-react';
 import { useAppStore } from '../../store';
+import { useCurrentRole } from '../../hooks/useCurrentRole';
 import { CAMP_2027_CONFIG } from '../../constants';
 
 export const CampInfoPage: React.FC = () => {
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useAppStore();
+  const { canAccessPastoral, canAccessOrg } = useCurrentRole();
 
   const [copiedPix, setCopiedPix] = useState(false);
   const [selectedTab, setSelectedTab] = useState<'geral' | 'investimento' | 'levar'>('geral');
@@ -63,7 +65,7 @@ export const CampInfoPage: React.FC = () => {
     const text = encodeURIComponent(
       `Olá! Gostaria de mais informações sobre as inscrições e vagas do ${CAMP_2027_CONFIG.title} em São Pedro - SP!`
     );
-    window.open(`https://wa.me/5511976543210?text=${text}`, '_blank');
+    window.open(`https://wa.me/5519993843839?text=${text}`, '_blank', 'noopener,noreferrer');
   };
 
   const themeColors = {
@@ -81,14 +83,14 @@ export const CampInfoPage: React.FC = () => {
   ];
 
   return (
-    <div className={`min-h-[100dvh] transition-colors duration-500 pb-28 ${themeColors.bg}`}>
+    <div className={`min-h-[100dvh] transition-colors duration-500 pb-36 sm:pb-28 ${themeColors.bg}`}>
       {/* TOP BAR FIXA COM COMPENSAÇÃO DE ALTURA */}
       <header className={`sticky top-0 z-40 backdrop-blur-xl border-b transition-colors px-4 py-3 flex items-center justify-between ${
         isDarkMode ? 'bg-[#090d16]/80 border-slate-800' : 'bg-white/80 border-slate-200'
       }`}>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/acampamento'))}
             className={`p-2.5 rounded-2xl transition-all active:scale-95 border ${
               isDarkMode ? 'bg-slate-800/80 border-slate-700 text-slate-200 hover:bg-slate-800' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
             }`}
@@ -544,18 +546,20 @@ export const CampInfoPage: React.FC = () => {
       )}
 
       {/* BARRA FIXA INFERIOR DE AÇÃO (MOBILE FRIENDLY) */}
-      <div className={`fixed bottom-0 left-0 right-0 z-30 p-3.5 backdrop-blur-xl border-t transition-colors ${
+      <div className={`fixed bottom-0 left-0 right-0 z-30 px-3.5 pt-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] backdrop-blur-xl border-t transition-colors ${
         isDarkMode ? 'bg-[#090d16]/90 border-slate-800' : 'bg-white/90 border-slate-200'
       }`}>
-        <div className="max-w-4xl mx-auto flex items-center gap-3">
-          <button
-            onClick={() => navigate('/acampamento/pagamentos')}
-            className={`flex-1 py-3 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 border transition-all active:scale-98 ${
-              isDarkMode ? 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700' : 'bg-slate-100 border-slate-200 text-slate-800 hover:bg-slate-200'
-            }`}
-          >
-            <DollarSign size={15} /> Visão Pastoral de Pagamentos
-          </button>
+        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
+          {(canAccessPastoral || canAccessOrg) && (
+            <button
+              onClick={() => navigate('/acampamento/pagamentos')}
+              className={`flex-1 py-3 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 border transition-all active:scale-98 ${
+                isDarkMode ? 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700' : 'bg-slate-100 border-slate-200 text-slate-800 hover:bg-slate-200'
+              }`}
+            >
+              <DollarSign size={15} /> Visão Pastoral de Pagamentos
+            </button>
+          )}
 
           <button
             onClick={openWhatsAppInquiry}

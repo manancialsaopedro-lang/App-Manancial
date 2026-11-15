@@ -218,7 +218,7 @@ export const DevAttendancePage: React.FC = () => {
               ) : (
                 filteredMembers.map((m) => {
                   const isPresent = attendedMemberIds.has(m.id);
-                  const absentWaUrl = generateWhatsAppUrl(m.id, 'ausencia');
+                  const absentWaUrl = generateWhatsAppUrl(m.id, 'falta');
 
                   return (
                     <tr

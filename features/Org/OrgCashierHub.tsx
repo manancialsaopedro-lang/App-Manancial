@@ -8,50 +8,66 @@ export const OrgCashierHub = () => {
 
   const options = [
     {
-      title: 'Movimentação',
-      subtitle: 'Entradas e Saídas',
-      icon: ArrowRightLeft,
-      path: '/org/financials',
-      color: 'text-blue-600',
-      bg: 'bg-blue-50'
-    },
-    {
-      title: 'Cantina / PDV',
-      subtitle: 'Vendas e Estoque',
-      icon: ShoppingBag,
-      path: '/org/canteen',
-      color: 'text-orange-600',
-      bg: 'bg-orange-50'
-    },
-    {
-      title: 'Projeção Financeira',
-      subtitle: 'Orçamento e Planejamento',
-      icon: Target,
-      path: '/org/forecast',
-      color: 'text-teal-600',
-      bg: 'bg-teal-50'
-    },
-    {
-      title: 'Detalhamento de Custos',
-      subtitle: 'Despesas detalhadas',
-      icon: TrendingDown,
-      path: '/org/analytics/costs',
-      color: 'text-rose-600',
-      bg: 'bg-rose-50'
-    },
-    {
-      title: 'Histórico',
-      subtitle: 'Compras por Pessoa',
-      icon: ScrollText,
-      path: '/org/history',
+      title: 'Central Financeira Unificada',
+      subtitle: 'Visão Geral, 2026 vs 2027, Eventos e DRE',
+      icon: Wallet,
+      path: '/financeiro?tab=visao_geral',
       color: 'text-purple-600',
       bg: 'bg-purple-50'
     },
     {
-      title: 'Fechamento',
-      subtitle: 'Relatório Diário/Geral',
+      title: 'Entradas, Saídas & Contas',
+      subtitle: 'Livro Caixa e Contas Fixas',
+      icon: ArrowRightLeft,
+      path: '/financeiro?tab=fluxo',
+      color: 'text-blue-600',
+      bg: 'bg-blue-50'
+    },
+    {
+      title: 'Projeção Acampamento 2027',
+      subtitle: 'Simulador, Orçamento e 6x Parcelas',
+      icon: Target,
+      path: '/financeiro?tab=acamp_2027',
+      color: 'text-teal-600',
+      bg: 'bg-teal-50'
+    },
+    {
+      title: 'Acampamento Passado 2026',
+      subtitle: 'Histórico 2026, Inscritos e Custos',
+      icon: TrendingDown,
+      path: '/financeiro?tab=acamp_2026',
+      color: 'text-amber-600',
+      bg: 'bg-amber-50'
+    },
+    {
+      title: 'Estoque & Produtos',
+      subtitle: 'Inventário, Compras e Comandas',
+      icon: ShoppingBag,
+      path: '/financeiro?tab=estoque',
+      color: 'text-cyan-600',
+      bg: 'bg-cyan-50'
+    },
+    {
+      title: 'Cantina / Frente de Caixa (PDV)',
+      subtitle: 'Vendas Rápidas e Comandas',
+      icon: ShoppingBag,
+      path: '/cantina',
+      color: 'text-orange-600',
+      bg: 'bg-orange-50'
+    },
+    {
+      title: 'Histórico por Pessoa',
+      subtitle: 'Compras por Participante',
+      icon: ScrollText,
+      path: '/org/history',
+      color: 'text-indigo-600',
+      bg: 'bg-indigo-50'
+    },
+    {
+      title: 'Fechamento Diário / Balancete',
+      subtitle: 'Relatório Oficial e Exportação',
       icon: CalendarCheck,
-      path: '/org/closing',
+      path: '/financeiro?tab=balancete',
       color: 'text-emerald-600',
       bg: 'bg-emerald-50'
     }

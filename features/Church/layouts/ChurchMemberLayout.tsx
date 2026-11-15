@@ -23,18 +23,19 @@ import {
   getStoredPastoralRequests
 } from '../data/churchMemberData';
 import { PastoralRequestModal } from '../components/PastoralRequestModal';
+import { fetchChurchRequests } from '../data/churchModulesApi';
 
 export const ChurchMemberLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { simulatedPerson, canAccessPastoral } = useCurrentRole();
-  const { isDarkMode, toggleTheme } = useAppStore();
+  const { user, isDarkMode, toggleTheme } = useAppStore();
 
   const [pendingCount, setPendingCount] = useState(0);
   const [globalPastoralModalOpen, setGlobalPastoralModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const memberFullName = simulatedPerson?.name || 'Sidney';
+  const memberFullName = simulatedPerson?.name || user?.name || 'Membro Manancial';
   const memberFirstName = memberFullName.split(' ')[0] || 'Membro';
 
   const refreshCounts = () => {
@@ -43,9 +44,16 @@ export const ChurchMemberLayout: React.FC = () => {
   };
 
   useEffect(() => {
+    let active = true;
     refreshCounts();
+    fetchChurchRequests().then((res) => {
+      if (active) {
+        setPendingCount(res.data.filter((r) => r.status !== 'Atendido').length);
+      }
+    });
     window.addEventListener('manancial-requests-updated', refreshCounts);
     return () => {
+      active = false;
       window.removeEventListener('manancial-requests-updated', refreshCounts);
     };
   }, [location.pathname]);
@@ -235,45 +243,49 @@ export const ChurchMemberLayout: React.FC = () => {
       ===================================================================== */}
       <div className="flex-1 lg:pl-72 flex flex-col min-w-0">
         {/* Topbar Compacta (Mobile & Desktop) */}
-        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 sm:px-6 lg:px-8 py-3">
+        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3 pt-[max(0.625rem,env(safe-area-inset-top))]">
           <div className="max-w-5xl mx-auto flex items-center justify-between gap-2">
             {/* Identidade Mobile / Breadcrumb Desktop */}
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="lg:hidden w-9 h-9 rounded-xl bg-[#082f38] flex items-center justify-center text-cyan-300 shadow-xs shrink-0">
-                <Church size={18} />
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+              <div className="lg:hidden w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#082f38] flex items-center justify-center text-cyan-300 shadow-xs shrink-0">
+                <Church size={17} />
               </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 min-w-0">
                   <span className="text-xs sm:text-sm font-black tracking-tight text-slate-900 truncate">
-                    IGREJA MANANCIAL SÃO PEDRO
+                    <span className="sm:hidden">Manancial</span>
+                    <span className="hidden sm:inline">IGREJA MANANCIAL SÃO PEDRO</span>
                   </span>
-                  <span className="hidden sm:inline-block text-[10px] font-black uppercase tracking-wider text-[#082f38] bg-cyan-50 px-2 py-0.5 rounded-full border border-cyan-200">
+                  <span className="hidden md:inline-block shrink-0 text-[10px] font-black uppercase tracking-wider text-[#082f38] bg-cyan-50 px-2 py-0.5 rounded-full border border-cyan-200">
                     App do Membro
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-500 font-semibold truncate">
-                  Olá, {memberFirstName} • Comunhão, Cuidado Pastoral & Palavra
+                  Olá, {memberFirstName}
+                  <span className="hidden sm:inline"> • Comunhão, Cuidado Pastoral &amp; Palavra</span>
                 </p>
               </div>
             </div>
 
             {/* Ações Rápidas no Topo */}
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
                 type="button"
                 onClick={toggleTheme}
                 className="p-2 rounded-xl text-slate-600 hover:bg-slate-100 border border-slate-200 transition-all active:scale-95 cursor-pointer"
                 title={isDarkMode ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'}
+                aria-label={isDarkMode ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'}
               >
-                {isDarkMode ? <Sun size={16} className="text-amber-400" /> : <Moon size={16} />}
+                {isDarkMode ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} />}
               </button>
 
               <a
                 href={INSTAGRAM_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-extrabold text-pink-700 bg-pink-50 hover:bg-pink-100 border border-pink-200 transition-all active:scale-95"
+                className="inline-flex items-center gap-1.5 p-2 md:px-3 md:py-2 rounded-xl text-xs font-extrabold text-pink-700 bg-pink-50 hover:bg-pink-100 border border-pink-200 transition-all active:scale-95"
                 title="Instagram Oficial @manancialsaopedro"
+                aria-label="Instagram Oficial"
               >
                 <Instagram size={15} className="text-pink-600 shrink-0" />
                 <span className="hidden md:inline">@manancialsaopedro</span>
@@ -282,21 +294,23 @@ export const ChurchMemberLayout: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setGlobalPastoralModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold text-white bg-[#082f38] hover:bg-[#0a434d] shadow-xs transition-all active:scale-95 cursor-pointer"
+                className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-2 rounded-xl text-[11px] sm:text-xs font-extrabold text-white bg-[#082f38] hover:bg-[#0a434d] shadow-xs transition-all active:scale-95 cursor-pointer"
+                title="Solicitar Atendimento Pastoral"
               >
-                <Plus size={14} className="text-cyan-300" />
-                <span>Atendimento Pastoral</span>
+                <Plus size={14} className="text-cyan-300 shrink-0" />
+                <span className="sm:hidden">Gabinete</span>
+                <span className="hidden sm:inline">Atendimento Pastoral</span>
               </button>
 
               {canAccessPastoral && (
                 <button
                   type="button"
                   onClick={() => navigate('/igreja')}
-                  className="lg:hidden inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-[11px] font-extrabold text-[#082f38] bg-slate-100 hover:bg-cyan-50 border border-slate-200 transition-all cursor-pointer"
+                  className="lg:hidden inline-flex items-center gap-1 px-2 py-2 rounded-xl text-[11px] font-extrabold text-[#082f38] bg-slate-100 hover:bg-cyan-50 border border-slate-200 transition-all cursor-pointer"
                   title="Abrir Painel Pastoral"
                 >
                   <span>Pastor</span>
-                  <ArrowUpRight size={13} />
+                  <ArrowUpRight size={12} />
                 </button>
               )}
             </div>
@@ -304,7 +318,7 @@ export const ChurchMemberLayout: React.FC = () => {
         </header>
 
         {/* Conteúdo da Subpágina Atual com compensação garantida para a barra mobile */}
-        <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-7 pb-28 lg:pb-12">
+        <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-7 pb-32 lg:pb-12">
           <Outlet
             context={{
               memberFullName,

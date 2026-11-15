@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { signOut as supabaseSignOut } from '../../../../lib/supabase';
 import { useAppStore } from '../../../../store';
+import { useCurrentRole } from '../../../../hooks/useCurrentRole';
 import {
   CHURCH_PIX_KEY,
   CHURCH_PIX_NAME,
@@ -37,6 +38,7 @@ interface MemberLayoutContext {
 export const ChurchMemberProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const { signOut } = useAppStore();
+  const { canAccessLouvor } = useCurrentRole();
   const { memberFullName, openPastoralModal, showToast } =
     useOutletContext<MemberLayoutContext>();
 
@@ -261,7 +263,7 @@ export const ChurchMemberProfilePage: React.FC = () => {
                     Curso de Teologia (Terças-feiras)
                   </span>
                   <span className="text-[11px] text-slate-600 font-medium">
-                    Aulas com o Pr. Adenilson Freitas às 19:30
+                    Aulas com o Pr. Adenilson Freitas às 08:00
                   </span>
                 </div>
               </div>
@@ -289,26 +291,28 @@ export const ChurchMemberProfilePage: React.FC = () => {
               <ArrowRight size={16} className="text-slate-500 shrink-0" />
             </button>
 
-            <button
-              type="button"
-              onClick={() => navigate('/app/dashboard')}
-              className="w-full p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-between gap-3 transition-colors cursor-pointer text-left"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#082f38] text-cyan-300 flex items-center justify-center shrink-0">
-                  <Music size={19} />
+            {canAccessLouvor && (
+              <button
+                type="button"
+                onClick={() => navigate('/app/dashboard')}
+                className="w-full p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-between gap-3 transition-colors cursor-pointer text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#082f38] text-cyan-300 flex items-center justify-center shrink-0">
+                    <Music size={19} />
+                  </div>
+                  <div>
+                    <span className="text-xs sm:text-sm font-black text-slate-900 block">
+                      Ministério de Louvor Manancial
+                    </span>
+                    <span className="text-[11px] text-slate-600 font-medium">
+                      Escalas, repertório e cifras
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-xs sm:text-sm font-black text-slate-900 block">
-                    Ministério de Louvor Manancial
-                  </span>
-                  <span className="text-[11px] text-slate-600 font-medium">
-                    Escalas, repertório e cifras
-                  </span>
-                </div>
-              </div>
-              <ArrowRight size={16} className="text-slate-500 shrink-0" />
-            </button>
+                <ArrowRight size={16} className="text-slate-500 shrink-0" />
+              </button>
+            )}
 
             <a
               href={INSTAGRAM_URL}
@@ -337,7 +341,8 @@ export const ChurchMemberProfilePage: React.FC = () => {
               onClick={async () => {
                 await supabaseSignOut().catch(() => {});
                 signOut();
-                navigate('/');
+                useAppStore.getState().setDevRole(null);
+                navigate('/login', { replace: true });
               }}
               className="w-full p-4 rounded-2xl bg-rose-50/70 hover:bg-rose-100/70 border border-rose-200 flex items-center justify-between gap-3 transition-colors cursor-pointer text-left"
             >

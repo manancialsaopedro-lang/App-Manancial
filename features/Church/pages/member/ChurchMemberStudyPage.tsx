@@ -17,11 +17,14 @@ import {
   BAPTISM_INSTRUCTIONS_STEPS,
   STORAGE_COURSES_KEY,
   STORAGE_BAPTISM_INTENT_KEY,
-  MemberCourseItem,
-  ChurchRequestItem,
-  getStoredPastoralRequests,
-  saveStoredPastoralRequests
+  MemberCourseItem
 } from '../../data/churchMemberData';
+import {
+  ChurchCourseTitle,
+  createChurchRequest,
+  fetchChurchCourses,
+  saveChurchCourse
+} from '../../data/churchModulesApi';
 import { PastoralRequestModal } from '../../components/PastoralRequestModal';
 
 interface MemberLayoutContext {
@@ -50,130 +53,142 @@ export const ChurchMemberStudyPage: React.FC = () => {
 
   // Atendimento com Pr. Adenilson
   const [adenilsonModalOpen, setAdenilsonModalOpen] = useState(false);
+  const [isSubmittingEnrollment, setIsSubmittingEnrollment] = useState(false);
+
+  const applyCoursesList = (list: { studentName?: string; courseTitle: string }[]) => {
+    const myCourseTitles = list
+      .filter((c) =>
+        (c.studentName || '').toLowerCase().includes(memberFirstName.toLowerCase())
+      )
+      .map((c) => c.courseTitle);
+    setEnrolledCourses(myCourseTitles);
+    if (myCourseTitles.includes('Batismo nas Águas')) {
+      setBaptismRegistered(true);
+    }
+  };
 
   const loadEnrollments = () => {
     try {
       const raw = localStorage.getItem(STORAGE_COURSES_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        const myCourseTitles = parsed
-          .filter((c: any) =>
-            (c.studentName || '').toLowerCase().includes(memberFirstName.toLowerCase())
-          )
-          .map((c: any) => c.courseTitle);
-        setEnrolledCourses(myCourseTitles);
-        if (myCourseTitles.includes('Batismo nas Águas')) {
-          setBaptismRegistered(true);
-        }
+        if (Array.isArray(parsed)) applyCoursesList(parsed);
       }
       const savedBaptism = localStorage.getItem(STORAGE_BAPTISM_INTENT_KEY);
       if (savedBaptism === 'true') {
         setBaptismRegistered(true);
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
   };
 
   useEffect(() => {
+    let active = true;
     setStudentName(memberFullName);
     loadEnrollments();
+    fetchChurchCourses().then((res) => {
+      if (active && res.syncedRemote) {
+        applyCoursesList(res.data);
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, [memberFullName, memberFirstName]);
 
-  const handleConfirmCourseEnrollment = (e: React.FormEvent) => {
+  const handleConfirmCourseEnrollment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCourseModal || !studentName.trim()) return;
+    if (!selectedCourseModal || !studentName.trim() || isSubmittingEnrollment) return;
 
+    setIsSubmittingEnrollment(true);
     try {
-      const existingRaw = localStorage.getItem(STORAGE_COURSES_KEY);
-      const existingList = existingRaw ? JSON.parse(existingRaw) : [];
-      const newEnrollment = {
-        id: 'student_' + Date.now(),
-        studentName: studentName.trim(),
-        phoneWhatsApp: studentPhone.trim() || '(22) 99999-0000',
-        courseTitle: selectedCourseModal.title,
-        teacherName: selectedCourseModal.teacher,
-        startDate: new Date().toISOString().split('T')[0],
-        completedLessons: 0,
-        totalLessons: selectedCourseModal.totalLessons,
-        status: 'Em Andamento',
-        notes:
-          studentNotes.trim() ||
-          `Matrícula realizada pelo App do Membro no curso ${selectedCourseModal.title}.`,
-      };
-      localStorage.setItem(
-        STORAGE_COURSES_KEY,
-        JSON.stringify([newEnrollment, ...existingList])
+      const res = await saveChurchCourse(
+        {
+          studentName: studentName.trim(),
+          phoneWhatsApp: studentPhone.trim() || '(22) 99999-0000',
+          courseTitle: selectedCourseModal.title as ChurchCourseTitle,
+          teacherName: selectedCourseModal.teacher,
+          startDate: new Date().toISOString().split('T')[0],
+          completedLessons: 0,
+          totalLessons: selectedCourseModal.totalLessons,
+          status: 'Em Andamento',
+          notes:
+            studentNotes.trim() ||
+            `Matrícula realizada pelo App do Membro no curso ${selectedCourseModal.title}.`,
+        },
+        false
       );
-    } catch (err) {
-      console.warn('Erro ao salvar matrícula:', err);
-    }
 
-    setEnrolledCourses((prev) => [...prev, selectedCourseModal.title]);
-    showToast(`Matrícula confirmada em "${selectedCourseModal.title}"!`);
-    setSelectedCourseModal(null);
-    setStudentNotes('');
+      setEnrolledCourses((prev) => [...prev, selectedCourseModal.title]);
+      showToast(
+        res.syncedRemote
+          ? `Matrícula confirmada em "${selectedCourseModal.title}"!`
+          : `Matrícula registrada localmente em "${selectedCourseModal.title}" (verifique conexão).`
+      );
+      setSelectedCourseModal(null);
+      setStudentNotes('');
+    } finally {
+      setIsSubmittingEnrollment(false);
+    }
   };
 
-  const handleConfirmBaptismDecision = (e: React.FormEvent) => {
+  const handleConfirmBaptismDecision = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!studentName.trim()) return;
+    if (!studentName.trim() || isSubmittingEnrollment) return;
 
-    // 1. Registra na lista de Cursos (Batismo nas Águas)
+    setIsSubmittingEnrollment(true);
     try {
-      const existingRaw = localStorage.getItem(STORAGE_COURSES_KEY);
-      const existingList = existingRaw ? JSON.parse(existingRaw) : [];
-      const newBaptismStudent = {
-        id: 'baptism_' + Date.now(),
-        studentName: studentName.trim(),
-        phoneWhatsApp: baptismPhone.trim() || '(22) 99999-0000',
-        courseTitle: 'Batismo nas Águas',
-        teacherName: 'Pr. Carlos & Equipe Pastoral',
-        startDate: new Date().toISOString().split('T')[0],
-        completedLessons: 0,
-        totalLessons: 4,
-        status: 'Em Andamento',
-        notes: `Quero me Batizar! Horário preferencial: ${baptismShift}. ${baptismTestimony.trim()}`,
-      };
-      localStorage.setItem(
-        STORAGE_COURSES_KEY,
-        JSON.stringify([newBaptismStudent, ...existingList])
+      const courseRes = await saveChurchCourse(
+        {
+          studentName: studentName.trim(),
+          phoneWhatsApp: baptismPhone.trim() || '(22) 99999-0000',
+          courseTitle: 'Batismo nas Águas',
+          teacherName: 'Pr. Carlos & Equipe Pastoral',
+          startDate: new Date().toISOString().split('T')[0],
+          completedLessons: 0,
+          totalLessons: 4,
+          status: 'Em Andamento',
+          notes: `Quero me Batizar! Horário preferencial: ${baptismShift}. ${baptismTestimony.trim()}`,
+        },
+        false
       );
-      localStorage.setItem(STORAGE_BAPTISM_INTENT_KEY, 'true');
-    } catch (err) {
-      console.warn('Erro ao registrar batismo:', err);
+      try {
+        localStorage.setItem(STORAGE_BAPTISM_INTENT_KEY, 'true');
+      } catch {
+        // ignore storage write error
+      }
+
+      const reqRes = await createChurchRequest({
+        source: 'MEMBER_PORTAL',
+        subject: 'Quero me Batizar nas Águas (Inscrição & Preparação)',
+        type: 'Atendimento Pastoral',
+        subCategory: 'Batismo nas Águas',
+        requester: studentName.trim(),
+        phone: baptismPhone.trim() || undefined,
+        details: `Decisão pelo Batismo nas Águas registrada pelo App do Membro. Disponibilidade para aulas preparatórias: ${baptismShift}. ${
+          baptismTestimony.trim() ? `Observação: ${baptismTestimony.trim()}` : ''
+        }`,
+        status: 'Pendente',
+        urgency: 'Normal',
+        preferredShift: baptismShift,
+        privacyLevel: 'Pastores',
+        assignedPastor: 'Pastor Titular (Atende direto ou direciona)',
+        routingMode: 'Atendimento Direto',
+        pastorNotified: true,
+      });
+
+      setBaptismRegistered(true);
+      setEnrolledCourses((prev) => [...prev, 'Batismo nas Águas']);
+      setBaptismModalOpen(false);
+      showToast(
+        courseRes.syncedRemote && reqRes.syncedRemote
+          ? 'Que alegria! Sua decisão "Quero me Batizar" foi registrada e o Pastor já foi notificado!'
+          : 'Decisão "Quero me Batizar" registrada localmente (verifique conexão para sincronizar).'
+      );
+    } finally {
+      setIsSubmittingEnrollment(false);
     }
-
-    // 2. Envia também notificação de Atendimento Pastoral para o Pastor acompanhar o batizando
-    const newPastoralReq: ChurchRequestItem = {
-      id: Date.now().toString(),
-      subject: 'Quero me Batizar nas Águas (Inscrição & Preparação)',
-      type: 'Atendimento Pastoral',
-      subCategory: 'Batismo nas Águas',
-      requester: studentName.trim(),
-      phone: baptismPhone.trim() || undefined,
-      details: `Decisão pelo Batismo nas Águas registrada pelo App do Membro. Disponibilidade para aulas preparatórias: ${baptismShift}. ${
-        baptismTestimony.trim() ? `Observação: ${baptismTestimony.trim()}` : ''
-      }`,
-      createdAt: new Date().toLocaleDateString('pt-BR'),
-      status: 'Pendente',
-      urgency: 'Normal',
-      preferredShift: baptismShift,
-      privacyLevel: 'Pastores',
-      assignedPastor: 'Pastor Titular (Atende direto ou direciona)',
-      routingMode: 'Atendimento Direto',
-      pastorNotified: true,
-    };
-
-    const currentReqs = getStoredPastoralRequests();
-    saveStoredPastoralRequests([newPastoralReq, ...currentReqs]);
-
-    setBaptismRegistered(true);
-    setEnrolledCourses((prev) => [...prev, 'Batismo nas Águas']);
-    setBaptismModalOpen(false);
-    showToast(
-      'Que alegria! Sua decisão "Quero me Batizar" foi registrada e o Pastor já foi notificado!'
-    );
   };
 
   const theologyCourse = AVAILABLE_CHURCH_COURSES[0];
@@ -522,10 +537,11 @@ export const ChurchMemberStudyPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider shadow-md cursor-pointer"
+                  disabled={isSubmittingEnrollment}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider shadow-md cursor-pointer disabled:opacity-60"
                 >
                   <HeartHandshake size={16} />
-                  <span>Confirmar "Quero me Batizar"</span>
+                  <span>{isSubmittingEnrollment ? 'Registrando...' : 'Confirmar "Quero me Batizar"'}</span>
                 </button>
               </div>
             </form>
@@ -617,10 +633,11 @@ export const ChurchMemberStudyPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#082f38] hover:bg-[#0a434d] text-amber-300 text-xs font-black uppercase tracking-wider shadow-md cursor-pointer"
+                  disabled={isSubmittingEnrollment}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#082f38] hover:bg-[#0a434d] text-amber-300 text-xs font-black uppercase tracking-wider shadow-md cursor-pointer disabled:opacity-60"
                 >
                   <GraduationCap size={16} />
-                  <span>Confirmar Matrícula</span>
+                  <span>{isSubmittingEnrollment ? 'Confirmando...' : 'Confirmar Matrícula'}</span>
                 </button>
               </div>
             </form>

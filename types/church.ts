@@ -45,6 +45,14 @@ export interface ChurchMember {
   registrationStatus?: 'PENDENTE' | 'CONCLUIDO';
   inviteToken?: string;
   familyGroupId?: string;
+  // Campos de Acolhimento Pastoral e Visitas
+  wantsVisit?: boolean;
+  needsPrayer?: boolean;
+  assignedPastorId?: string;
+  assignedPastorName?: string;
+  visitStatus?: 'PENDENTE' | 'EM_CONTATO' | 'AGENDADA' | 'CONCLUIDA' | 'CANCELADA';
+  visitScheduledDate?: string;
+  visitScheduledTime?: string;
   // Campos unificados do Ministério de Louvor
   isWorshipMember?: boolean;
   worshipDisplayName?: string;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Church,
   Calendar,
@@ -11,7 +12,9 @@ import {
   Save,
   FileSpreadsheet,
   Receipt,
-  Bell
+  Bell,
+  X,
+  ArrowRight
 } from 'lucide-react';
 import { DevTabs, TabItem } from '../components/DevTabs';
 import {
@@ -44,6 +47,7 @@ const DEFAULT_CHURCH_DATA: ChurchData = {
 };
 
 export const DevChurchInfoPage: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('info');
   const [church, setChurch] = useState<ChurchData>(() => {
     try {
@@ -168,27 +172,49 @@ export const DevChurchInfoPage: React.FC = () => {
   };
 
   const tabs: TabItem[] = [
-    { id: 'detalhes', label: 'Detalhes', icon: FileSpreadsheet },
-    { id: 'info', label: 'Informações da Igreja', icon: Church },
-    { id: 'faturas', label: 'Faturas', icon: Receipt },
-    { id: 'notificacoes', label: 'Notificações', icon: Bell, badge: '3' },
+    { id: 'info', label: 'Informações & Cultos', icon: Church },
+    { id: 'detalhes', label: 'Resumo Institucional', icon: FileSpreadsheet },
+    { id: 'faturas', label: 'Tesouraria', icon: Receipt },
+    { id: 'notificacoes', label: 'Avisos & Pedidos', icon: Bell },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Toast Notification */}
+      {/* Toast Notification positioned below DevLayout header (h-16) */}
       {toastMessage && (
-        <div className="fixed top-5 right-5 z-[100] bg-[#082f38] text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-cyan-500 animate-in fade-in slide-in-from-top-3">
-          <CheckCircle2 size={18} className="text-cyan-400" />
-          <span className="text-xs font-semibold">{toastMessage}</span>
+        <div
+          role="status"
+          className="fixed top-20 right-4 sm:right-6 z-[90] max-w-md bg-[#082f38] text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-cyan-500 animate-in fade-in slide-in-from-top-3"
+        >
+          <CheckCircle2 size={18} className="text-cyan-400 shrink-0" />
+          <span className="text-xs font-semibold flex-1">{toastMessage}</span>
+          <button
+            type="button"
+            onClick={() => setToastMessage(null)}
+            aria-label="Fechar aviso"
+            className="text-cyan-300 hover:text-white p-1"
+          >
+            <X size={14} />
+          </button>
         </div>
       )}
 
-      {/* Error Notification */}
+      {/* Error Notification positioned below DevLayout header (h-16) */}
       {errorMessage && (
-        <div className="fixed top-5 right-5 z-[100] bg-rose-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-rose-600 animate-in fade-in slide-in-from-top-3">
-          <AlertCircle size={18} className="text-rose-300" />
-          <span className="text-xs font-semibold">{errorMessage}</span>
+        <div
+          role="alert"
+          className="fixed top-20 right-4 sm:right-6 z-[90] max-w-md bg-rose-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-rose-600 animate-in fade-in slide-in-from-top-3"
+        >
+          <AlertCircle size={18} className="text-rose-300 shrink-0" />
+          <span className="text-xs font-semibold flex-1">{errorMessage}</span>
+          <button
+            type="button"
+            onClick={() => setErrorMessage(null)}
+            aria-label="Fechar erro"
+            className="text-rose-200 hover:text-white p-1"
+          >
+            <X size={14} />
+          </button>
         </div>
       )}
 
@@ -197,25 +223,96 @@ export const DevChurchInfoPage: React.FC = () => {
         <DevTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
       </div>
 
-      {activeTab !== 'info' ? (
-        /* Empty / Alternative Tab View */
-        <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-200/80">
-          <div className="w-16 h-16 rounded-full bg-cyan-50 text-cyan-800 mx-auto flex items-center justify-center mb-4">
-            <Church size={32} />
+      {activeTab === 'detalhes' ? (
+        <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200/80 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div>
+              <h3 className="text-base font-black text-slate-800">{church.name}</h3>
+              <p className="text-xs text-slate-500">{church.legalName} • CNPJ: {church.document}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('info')}
+              className="px-4 py-2 rounded-lg bg-[#082f38] hover:bg-[#0a434d] text-cyan-200 text-xs font-black uppercase tracking-wider transition-all self-start sm:self-auto"
+            >
+              Editar Informações
+            </button>
           </div>
-          <h3 className="text-lg font-bold text-slate-800 mb-1">
-            Aba {tabs.find((t) => t.id === activeTab)?.label}
-          </h3>
-          <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
-            Módulo em preparação. Você pode gerenciar as informações cadastrais e horários na aba "Informações da Igreja".
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70">
+              <div className="text-[11px] font-bold uppercase text-slate-400">Cultos Semanais Ativos</div>
+              <div className="text-2xl font-black text-slate-800 mt-1">{services.length}</div>
+            </div>
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70">
+              <div className="text-[11px] font-bold uppercase text-slate-400">Data de Fundação</div>
+              <div className="text-lg font-black text-slate-800 mt-1">{church.foundationDate || '—'}</div>
+            </div>
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70">
+              <div className="text-[11px] font-bold uppercase text-slate-400">Portal Público</div>
+              <button
+                type="button"
+                onClick={() => navigate('/landing')}
+                className="mt-1 inline-flex items-center gap-1.5 text-sm font-black text-cyan-700 hover:text-cyan-900"
+              >
+                Abrir Landing Page <ArrowRight size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : activeTab === 'faturas' ? (
+        <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-slate-200/80 space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-purple-50 text-purple-700 mx-auto flex items-center justify-center">
+            <Receipt size={28} />
+          </div>
+          <h3 className="text-lg font-bold text-slate-800">Tesouraria &amp; Lançamentos</h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto">
+            Contas fixas, dízimos, ofertas e conciliação de eventos estão centralizados no módulo Financeiro Manancial.
           </p>
-          <button
-            type="button"
-            onClick={() => setActiveTab('info')}
-            className="px-5 py-2.5 rounded-lg bg-[#082f38] hover:bg-[#0a434d] text-cyan-200 text-xs font-black uppercase tracking-wider transition-all"
-          >
-            Voltar para Informações da Igreja
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => navigate('/financeiro')}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#082f38] hover:bg-[#0a434d] text-cyan-200 text-xs font-black uppercase tracking-wider transition-all"
+            >
+              <span>Abrir Financeiro</span>
+              <ArrowRight size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('info')}
+              className="px-4 py-2.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold"
+            >
+              Voltar para Dados
+            </button>
+          </div>
+        </div>
+      ) : activeTab === 'notificacoes' ? (
+        <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-slate-200/80 space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-cyan-50 text-cyan-800 mx-auto flex items-center justify-center">
+            <Bell size={28} />
+          </div>
+          <h3 className="text-lg font-bold text-slate-800">Central de Avisos &amp; Solicitações</h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto">
+            Acompanhe solicitações pastorais de membros e dispare avisos para a congregação.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => navigate('/solicitacoes')}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#082f38] hover:bg-[#0a434d] text-cyan-200 text-xs font-black uppercase tracking-wider transition-all"
+            >
+              <span>Ver Solicitações</span>
+              <ArrowRight size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/notificacoes')}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-cyan-600 text-cyan-800 hover:bg-cyan-50 text-xs font-black uppercase tracking-wider transition-all"
+            >
+              <span>Mural de Notificações</span>
+              <ArrowRight size={14} />
+            </button>
+          </div>
         </div>
       ) : (
         /* Main Tab: Informações da Igreja */

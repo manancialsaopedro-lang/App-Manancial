@@ -397,6 +397,36 @@ export const AVAILABLE_CHURCH_COURSES: MemberCourseItem[] = [
       'Lição 3: Excelência no Serviço ao Reino',
     ],
   },
+  {
+    id: 'curso-casais',
+    title: 'Curso de Casais',
+    teacher: 'Ministério da Família Manancial',
+    scheduleLabel: 'Encontros Semanais • 8 Lições Práticas',
+    totalLessons: 8,
+    description:
+      'Aliança inegociável, comunicação, perdão, vida financeira e propósito espiritual para fortalecer e restaurar o casamento à luz da Palavra.',
+    badge: 'Ministério da Família',
+    modules: [
+      'Encontro 1: O Propósito Eterno da Aliança no Casamento',
+      'Encontro 2: Comunicação, Honra Mútua e Resolução de Conflitos',
+      'Encontro 3: Intimidade, Vida Financeira e Sacerdócio no Lar',
+    ],
+  },
+  {
+    id: 'curso-pais',
+    title: 'Curso de Pais',
+    teacher: 'Ministério da Família & Equipe Pastoral',
+    scheduleLabel: 'Encontros Semanais • 6 Lições',
+    totalLessons: 6,
+    description:
+      'Princípios bíblicos para criar filhos no caminho do Senhor, pastorear o coração de crianças e adolescentes e construir um lar cheio de graça.',
+    badge: 'Ministério da Família',
+    modules: [
+      'Encontro 1: Pastoreando o Coração dos Filhos desde a Infância',
+      'Encontro 2: Limites com Amor, Disciplina Bíblica e Exemplo no Lar',
+      'Encontro 3: Protegendo a Nova Geração e Firmando Valores Eternos',
+    ],
+  },
 ];
 
 // Helpers de leitura e gravação sincronizados

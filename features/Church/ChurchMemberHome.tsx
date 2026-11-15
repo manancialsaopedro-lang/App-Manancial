@@ -16,8 +16,10 @@ import {
   BellRing,
   Share2,
   ChevronRight,
-  UserCheck
+  UserCheck,
+  Music
 } from 'lucide-react';
+import { useCurrentRole } from '../../hooks/useCurrentRole';
 import {
   CHURCH_NEWS_FEED,
   INSTAGRAM_URL,
@@ -28,6 +30,7 @@ import {
   getStoredPastoralRequests
 } from './data/churchMemberData';
 import { useWeeklyServices } from './data/churchWeeklyServices';
+import { fetchChurchRequests } from './data/churchModulesApi';
 
 interface MemberLayoutContext {
   memberFullName: string;
@@ -40,6 +43,7 @@ export const ChurchMemberHome: React.FC = () => {
   const navigate = useNavigate();
   const { memberFirstName, openPastoralModal, showToast } =
     useOutletContext<MemberLayoutContext>();
+  const { canAccessLouvor, activeRole } = useCurrentRole();
 
   const [requests, setRequests] = useState<ChurchRequestItem[]>([]);
   const [checkedInToday, setCheckedInToday] = useState(false);
@@ -61,9 +65,16 @@ export const ChurchMemberHome: React.FC = () => {
   };
 
   useEffect(() => {
+    let active = true;
     loadData();
+    fetchChurchRequests().then((res) => {
+      if (active) setRequests(res.data);
+    });
     window.addEventListener('manancial-requests-updated', loadData);
-    return () => window.removeEventListener('manancial-requests-updated', loadData);
+    return () => {
+      active = false;
+      window.removeEventListener('manancial-requests-updated', loadData);
+    };
   }, []);
 
   const handleToggleWorshipCheckin = () => {
@@ -259,6 +270,35 @@ export const ChurchMemberHome: React.FC = () => {
           </div>
         </button>
       </section>
+
+      {/* 2.1 ATALHO MINISTÉRIO DE LOUVOR (Músicos / Ministros / Acesso Louvor) */}
+      {(canAccessLouvor || activeRole === 'louvor') && (
+        <section className="bg-gradient-to-r from-[#0d1527] via-[#1a2342] to-[#251749] rounded-3xl p-5 sm:p-6 text-white border border-purple-400/25 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-300 shrink-0">
+              <Music size={24} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-purple-500/30 text-purple-200 border border-purple-400/30">
+                  Ministério de Louvor
+                </span>
+                <span className="text-xs text-purple-300 font-semibold">Integrador Oficial</span>
+              </div>
+              <h2 className="text-base font-black text-white mt-1">Repertório, Cifras e Escalas do Louvor</h2>
+              <p className="text-xs text-slate-300">Acesse suas escalas de domingo, cifras transponíveis e estudos em 1 toque.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/app/dashboard')}
+            className="w-full sm:w-auto px-5 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shrink-0 cursor-pointer shadow-md shadow-purple-950/40 active:scale-95"
+          >
+            <span>Acessar Louvor App</span>
+            <ArrowRight size={14} />
+          </button>
+        </section>
+      )}
 
       {/* 3. GRID PRINCIPAL LIMPO: NOVIDADES & DIAS DE CULTO (ESQUERDA) + RESUMO PASTORAL & EVENTO (DIREITA) */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

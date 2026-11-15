@@ -3,12 +3,16 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Clock, MapPin, Package, MoreVertical, Flag, Utensils, Music, BedDouble, Sun } from 'lucide-react';
 import { useAppStore } from '../../store';
+import { useCurrentRole } from '../../hooks/useCurrentRole';
 import { Card } from '../../components/Shared';
 
 export const ScheduleManager = () => {
   const navigate = useNavigate();
-  const { schedule, addScheduleItem, deleteScheduleItem } = useAppStore();
+  const { user, schedule, addScheduleItem, deleteScheduleItem } = useAppStore();
+  const { activeRole, canAccessGincana } = useCurrentRole();
+  const canManageGincana = ['admin', 'pastoral', 'primeiro_pastor', 'segundo_pastor', 'gincana'].includes(activeRole);
   const [showForm, setShowForm] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Form State
   const [title, setTitle] = useState('');
@@ -56,7 +60,11 @@ export const ScheduleManager = () => {
        {/* HEADER */}
        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-12">
          <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/gincana/dash')} className="p-3 rounded-full hover:bg-gray-100 transition-colors">
+            <button
+              onClick={() => navigate(canAccessGincana ? '/gincana/dash' : (user ? '/membro/home' : '/acampamento'))}
+              className="p-3 rounded-full hover:bg-gray-100 transition-colors"
+              aria-label="Voltar"
+            >
                <ArrowLeft size={24} className="text-gray-500" />
             </button>
             <div>
@@ -64,23 +72,29 @@ export const ScheduleManager = () => {
                <p className="text-gray-400 font-bold text-sm">Trajetória do Acampamento</p>
             </div>
          </div>
-         <div className="flex gap-3 w-full md:w-auto">
-            <button 
-               onClick={() => navigate('/gincana/materiais')} 
-               className="flex-1 md:flex-none bg-orange-100 text-orange-700 px-5 py-3 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-orange-200 transition-colors"
-            >
-               <Package size={20} /> Materiais
-            </button>
-            <button 
-               onClick={() => setShowForm(!showForm)} 
-               className="flex-1 md:flex-none bg-black text-white px-5 py-3 rounded-2xl font-black flex items-center justify-center gap-2 hover:scale-105 transition-transform shadow-lg"
-            >
-               <Plus size={20} /> Evento
-            </button>
-         </div>
+         {(canAccessGincana || canManageGincana) && (
+           <div className="flex gap-3 w-full md:w-auto">
+              {canAccessGincana && (
+                <button 
+                   onClick={() => navigate('/gincana/materiais')} 
+                   className="flex-1 md:flex-none bg-orange-100 text-orange-700 px-5 py-3 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-orange-200 transition-colors"
+                >
+                   <Package size={20} /> Materiais
+                </button>
+              )}
+              {canManageGincana && (
+                <button 
+                   onClick={() => setShowForm(!showForm)} 
+                   className="flex-1 md:flex-none bg-black text-white px-5 py-3 rounded-2xl font-black flex items-center justify-center gap-2 hover:scale-105 transition-transform shadow-lg"
+                >
+                   <Plus size={20} /> Evento
+                </button>
+              )}
+           </div>
+         )}
        </div>
 
-       {showForm && (
+       {showForm && canManageGincana && (
           <Card className="p-6 bg-blue-50 border-blue-100 mb-10 animate-in slide-in-from-top-4">
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input placeholder="Título" value={title} onChange={e => setTitle(e.target.value)} className="p-3 rounded-xl outline-none" />
@@ -150,12 +164,38 @@ export const ScheduleManager = () => {
                                      </div>
                                   )}
                                </div>
-                               <button 
-                                  onClick={() => deleteScheduleItem(item.id)} 
-                                  className="text-gray-200 hover:text-red-400 transition-colors p-1"
-                               >
-                                  <Trash2 size={16} />
-                               </button>
+                               {canManageGincana && (
+                                 confirmDeleteId === item.id ? (
+                                   <div className="flex items-center gap-1 shrink-0">
+                                     <button
+                                       type="button"
+                                       onClick={() => {
+                                         deleteScheduleItem(item.id);
+                                         setConfirmDeleteId(null);
+                                       }}
+                                       className="px-2 py-1 rounded-lg bg-red-600 text-white text-[11px] font-bold"
+                                     >
+                                       Confirmar
+                                     </button>
+                                     <button
+                                       type="button"
+                                       onClick={() => setConfirmDeleteId(null)}
+                                       className="px-2 py-1 rounded-lg bg-gray-100 text-gray-600 text-[11px] font-bold"
+                                     >
+                                       Não
+                                     </button>
+                                   </div>
+                                 ) : (
+                                   <button 
+                                      type="button"
+                                      onClick={() => setConfirmDeleteId(item.id)} 
+                                      className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                      aria-label={`Excluir ${item.title}`}
+                                   >
+                                      <Trash2 size={16} />
+                                   </button>
+                                 )
+                               )}
                             </div>
                          </div>
                       </div>

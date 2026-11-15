@@ -76,7 +76,7 @@ export const DevWhatsAppMessagesPage: React.FC = () => {
       selectedCategory === 'Aniversário'
         ? 'aniversario'
         : selectedCategory === 'Ausência'
-        ? 'ausencia'
+        ? 'falta'
         : selectedCategory === 'Boas-Vindas'
         ? 'visitante'
         : 'lembrete'

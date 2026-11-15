@@ -20,21 +20,16 @@ import {
   UserCheck
 } from 'lucide-react';
 import { useChurchStore } from '../../../store/churchStore';
+import {
+  ChurchCourseStudent,
+  ChurchCourseTitle,
+  deleteChurchCourse,
+  fetchChurchCourses,
+  getStoredCourses,
+  saveChurchCourse
+} from '../../Church/data/churchModulesApi';
 
-export interface CourseStudent {
-  id: string;
-  studentName: string;
-  phoneWhatsApp: string;
-  courseTitle: 'Curso de Teologia' | 'Batismo nas Águas' | 'Novos Convertidos' | 'Escola Bíblica de Maturidade' | 'Academia de Líderes';
-  teacherName: string;
-  startDate: string;
-  completedLessons: number;
-  totalLessons: number;
-  status: 'Em Andamento' | 'Concluído' | 'Trancado';
-  notes?: string;
-}
-
-const STORAGE_KEY = 'manancial_church_courses';
+export type CourseStudent = ChurchCourseStudent;
 
 const INITIAL_STUDENTS: CourseStudent[] = [
   {
@@ -115,6 +110,8 @@ const COURSE_TYPES = [
   'Curso de Teologia',
   'Batismo nas Águas',
   'Novos Convertidos',
+  'Curso de Casais',
+  'Curso de Pais',
   'Escola Bíblica de Maturidade',
   'Academia de Líderes'
 ] as const;
@@ -122,15 +119,10 @@ const COURSE_TYPES = [
 export const DevCoursesPage: React.FC = () => {
   const { generateWhatsAppUrl } = useChurchStore();
 
-  const [students, setStudents] = useState<CourseStudent[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error('Erro ao ler estudantes de cursos:', e);
-    }
-    return INITIAL_STUDENTS;
-  });
+  const [students, setStudents] = useState<CourseStudent[]>(() => getStoredCourses([]));
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [syncWarning, setSyncWarning] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<string>('todos');
@@ -153,12 +145,29 @@ export const DevCoursesPage: React.FC = () => {
   });
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(students));
-    } catch (e) {
-      console.error('Erro ao persistir cursos:', e);
-    }
-  }, [students]);
+    let active = true;
+    const load = () => {
+      fetchChurchCourses(INITIAL_STUDENTS)
+        .then((res) => {
+          if (!active) return;
+          setStudents(res.data);
+          setSyncWarning(
+            !res.syncedRemote && res.error
+              ? `Exibindo dados locais (${res.error}).`
+              : null
+          );
+        })
+        .finally(() => {
+          if (active) setIsLoading(false);
+        });
+    };
+    load();
+    window.addEventListener('manancial-courses-updated', load);
+    return () => {
+      active = false;
+      window.removeEventListener('manancial-courses-updated', load);
+    };
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -197,53 +206,79 @@ export const DevCoursesPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSaveStudent = (e: React.FormEvent) => {
+  const handleSaveStudent = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
     if (!formData.studentName.trim()) {
       showToast('Por favor, informe o nome do aluno.');
       return;
     }
 
-    if (editingId) {
-      setStudents((prev) =>
-        prev.map((s) => (s.id === editingId ? { ...s, ...formData } : s))
+    setIsSaving(true);
+    try {
+      const res = await saveChurchCourse(
+        {
+          id: editingId ?? undefined,
+          ...formData,
+          courseTitle: formData.courseTitle as ChurchCourseTitle,
+        },
+        !!editingId
       );
-      showToast('Inscrição atualizada com sucesso!');
-    } else {
-      const newStudent: CourseStudent = {
-        id: 'student_' + Date.now(),
-        ...formData,
-      };
-      setStudents((prev) => [newStudent, ...prev]);
-      showToast('Novo aluno matriculado com sucesso!');
-    }
 
-    setIsModalOpen(false);
+      if (editingId) {
+        setStudents((prev) => prev.map((s) => (s.id === editingId ? res.data : s)));
+        showToast(
+          res.syncedRemote
+            ? 'Inscrição atualizada com sucesso!'
+            : 'Inscrição salva localmente (sem sincronização com servidor).'
+        );
+      } else {
+        setStudents((prev) => [res.data, ...prev]);
+        showToast(
+          res.syncedRemote
+            ? 'Novo aluno matriculado com sucesso!'
+            : 'Matrícula salva localmente (sem sincronização com servidor).'
+        );
+      }
+
+      if (!res.syncedRemote && res.error) {
+        setSyncWarning(`Alteração pendente de sincronização (${res.error}).`);
+      }
+      setIsModalOpen(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDeleteStudent = (id: string, name: string) => {
+  const handleDeleteStudent = async (id: string, name: string) => {
     if (confirm(`Deseja realmente remover o aluno "${name}" do curso?`)) {
+      const res = await deleteChurchCourse(id);
       setStudents((prev) => prev.filter((s) => s.id !== id));
-      showToast('Aluno removido com sucesso.');
+      showToast(
+        res.syncedRemote
+          ? 'Aluno removido com sucesso.'
+          : `Aluno removido localmente (${res.error || 'offline'}).`
+      );
     }
   };
 
-  const handleIncrementLesson = (id: string) => {
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (s.id === id) {
-          const nextVal = Math.min(s.totalLessons, s.completedLessons + 1);
-          const isComplete = nextVal === s.totalLessons;
-          return {
-            ...s,
-            completedLessons: nextVal,
-            status: isComplete ? 'Concluído' : s.status,
-          };
-        }
-        return s;
-      })
+  const handleIncrementLesson = async (id: string) => {
+    const target = students.find((s) => s.id === id);
+    if (!target) return;
+    const nextVal = Math.min(target.totalLessons, target.completedLessons + 1);
+    const isComplete = nextVal === target.totalLessons;
+    const updatedItem: CourseStudent = {
+      ...target,
+      completedLessons: nextVal,
+      status: isComplete ? 'Concluído' : target.status,
+    };
+    setStudents((prev) => prev.map((s) => (s.id === id ? updatedItem : s)));
+    const res = await saveChurchCourse(updatedItem, true);
+    showToast(
+      res.syncedRemote
+        ? 'Presença na lição registrada!'
+        : 'Presença registrada localmente (erro ao salvar no servidor).'
     );
-    showToast('Presença na lição registrada!');
   };
 
   const handleSendWhatsAppEncouragement = (s: CourseStudent) => {
@@ -276,9 +311,21 @@ export const DevCoursesPage: React.FC = () => {
     <div className="space-y-6">
       {/* Toast */}
       {toastMessage && (
-        <div className="fixed top-5 right-5 z-[100] bg-cyan-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-cyan-600 animate-in fade-in slide-in-from-top-3">
+        <div className="fixed top-20 right-4 sm:right-6 z-[90] bg-cyan-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-cyan-600 animate-in fade-in slide-in-from-top-3">
           <CheckCircle2 size={18} className="text-cyan-300" />
           <span className="text-xs font-bold">{toastMessage}</span>
+        </div>
+      )}
+
+      {syncWarning && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-xs font-semibold">
+          {syncWarning}
+        </div>
+      )}
+
+      {isLoading && students.length === 0 && (
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-6 text-center text-xs font-bold text-slate-500">
+          Carregando matrículas e cursos...
         </div>
       )}
 
@@ -688,10 +735,11 @@ export const DevCoursesPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl text-xs font-black bg-[#082f38] text-cyan-200 hover:text-white uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-cyan-950/20 active:scale-95 transition-all"
+                  disabled={isSaving}
+                  className="px-5 py-2.5 rounded-xl text-xs font-black bg-[#082f38] text-cyan-200 hover:text-white uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-cyan-950/20 active:scale-95 transition-all disabled:opacity-60"
                 >
                   <Save size={15} />
-                  <span>Salvar Inscrição</span>
+                  <span>{isSaving ? 'Salvando...' : 'Salvar Inscrição'}</span>
                 </button>
               </div>
             </form>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import {
   Calendar,
@@ -12,7 +12,8 @@ import {
   Instagram,
   ExternalLink,
   Megaphone,
-  X
+  X,
+  Camera,
 } from 'lucide-react';
 import {
   UPCOMING_CHURCH_EVENTS,
@@ -21,9 +22,15 @@ import {
   MemberEventItem,
   toWorshipItems,
   getConfirmedEventIds,
-  saveConfirmedEventIds
+  saveConfirmedEventIds,
 } from '../../data/churchMemberData';
 import { useWeeklyServices } from '../../data/churchWeeklyServices';
+import {
+  ChurchEventRecord,
+  fetchChurchSiteEvents,
+  getStoredSiteEvents,
+} from '../../data/churchSiteContentApi';
+import { SitePhotoGallerySection } from '../../../Landing/components/SitePhotoGalleryModal';
 
 interface MemberLayoutContext {
   memberFullName: string;
@@ -32,6 +39,28 @@ interface MemberLayoutContext {
   showToast: (msg: string) => void;
 }
 
+const mapSiteEventToMemberEvent = (ev: ChurchEventRecord): MemberEventItem => {
+  const formattedDate = ev.eventDate.includes('-')
+    ? ev.eventDate.split('-').reverse().join('/')
+    : ev.eventDate;
+
+  return {
+    id: ev.id,
+    title: ev.title,
+    category: (ev.category as any) || 'Culto Especial',
+    date: formattedDate,
+    time: ev.eventTime,
+    location: ev.location,
+    description: ev.description,
+    targetAudience: ev.targetAudience,
+    registeredCount: ev.registeredCount,
+    capacity: ev.capacity,
+    directLink: ev.directLink,
+    bannerGrad: ev.bannerColor || 'from-[#082f38] to-[#0e4b57]',
+    badgeText: ev.badgeText,
+  };
+};
+
 export const ChurchMemberEventsPage: React.FC = () => {
   const navigate = useNavigate();
   const { showToast, openPastoralModal } = useOutletContext<MemberLayoutContext>();
@@ -39,13 +68,49 @@ export const ChurchMemberEventsPage: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>('todos');
   const [confirmedEvents, setConfirmedEvents] = useState<string[]>([]);
   const [selectedEventDetail, setSelectedEventDetail] = useState<MemberEventItem | null>(null);
+  const [siteEvents, setSiteEvents] = useState<ChurchEventRecord[]>(() => getStoredSiteEvents());
 
   const { services, loading: schedulesLoading, error: schedulesError } = useWeeklyServices();
   const schedules = toWorshipItems(services);
 
   useEffect(() => {
     setConfirmedEvents(getConfirmedEventIds());
+    let mounted = true;
+
+    fetchChurchSiteEvents().then((res) => {
+      if (mounted && res.data.length > 0) {
+        setSiteEvents(res.data);
+      }
+    });
+
+    const handleUpdated = () => {
+      setSiteEvents(getStoredSiteEvents());
+    };
+
+    window.addEventListener('manancial-site-events-updated', handleUpdated);
+    return () => {
+      mounted = false;
+      window.removeEventListener('manancial-site-events-updated', handleUpdated);
+    };
   }, []);
+
+  const allUpcomingEvents = useMemo<MemberEventItem[]>(() => {
+    const upcomingFromSite = siteEvents
+      .filter((e) => e.isUpcoming)
+      .map(mapSiteEventToMemberEvent);
+    if (upcomingFromSite.length > 0) {
+      return upcomingFromSite;
+    }
+    return UPCOMING_CHURCH_EVENTS;
+  }, [siteEvents]);
+
+  const availableCategories = useMemo(() => {
+    const cats = new Set<string>();
+    allUpcomingEvents.forEach((ev) => {
+      if (ev.category) cats.add(ev.category);
+    });
+    return ['todos', ...Array.from(cats)];
+  }, [allUpcomingEvents]);
 
   const handleToggleEventPresence = (ev: MemberEventItem) => {
     const exists = confirmedEvents.includes(ev.id);
@@ -62,7 +127,7 @@ export const ChurchMemberEventsPage: React.FC = () => {
     }
   };
 
-  const filteredEvents = UPCOMING_CHURCH_EVENTS.filter((ev) =>
+  const filteredEvents = allUpcomingEvents.filter((ev) =>
     categoryFilter === 'todos' ? true : ev.category === categoryFilter
   );
 
@@ -80,27 +145,25 @@ export const ChurchMemberEventsPage: React.FC = () => {
               <span>Próximos Eventos da Igreja</span>
             </h1>
             <p className="text-xs text-slate-600 font-medium mt-0.5">
-              Confirme sua participação nos retiros, vigílias, batismos e conferências.
+              Confirme sua participação nos retiros, vigílias, Manhã com Deus, Evangelismo e Dia da Família.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
-            {(['todos', 'Retiro', 'Vigília', 'Culto Especial', 'Conferência'] as const).map(
-              (cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setCategoryFilter(cat)}
-                  className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                    categoryFilter === cat
-                      ? 'bg-[#082f38] text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  {cat === 'todos' ? 'Todos' : cat}
-                </button>
-              )
-            )}
+            {availableCategories.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setCategoryFilter(cat)}
+                className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  categoryFilter === cat
+                    ? 'bg-[#082f38] text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                {cat === 'todos' ? 'Todos' : cat}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -108,6 +171,10 @@ export const ChurchMemberEventsPage: React.FC = () => {
           {filteredEvents.map((ev) => {
             const isConfirmed = confirmedEvents.includes(ev.id);
             const displayCount = ev.registeredCount + (isConfirmed ? 1 : 0);
+            const isCamp =
+              ev.category === 'Retiro' ||
+              ev.category === 'Acamp Manancial' ||
+              Boolean(ev.directLink);
 
             return (
               <div
@@ -135,7 +202,7 @@ export const ChurchMemberEventsPage: React.FC = () => {
                     </div>
 
                     <div className="w-11 h-11 rounded-2xl bg-white/15 border border-white/25 flex items-center justify-center text-white shrink-0">
-                      {ev.category === 'Retiro' ? <Tent size={22} /> : <Calendar size={20} />}
+                      {isCamp ? <Tent size={22} /> : <Calendar size={20} />}
                     </div>
                   </div>
 
@@ -211,7 +278,18 @@ export const ChurchMemberEventsPage: React.FC = () => {
         </div>
       </section>
 
-      {/* 2. DIAS DE CULTO & PROGRAMAÇÃO SEMANAL + NOVIDADES */}
+      {/* 2. GALERIA DE REGISTROS & EVENTOS REALIZADOS */}
+      <section className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs">
+        <SitePhotoGallerySection
+          title="Registros dos Nossos Cultos, Ministérios & Eventos"
+          subtitle="Reveja momentos especiais de comunhão da família Manancial."
+          showSectionTabs={true}
+          isLight={true}
+          maxItems={6}
+        />
+      </section>
+
+      {/* 3. DIAS DE CULTO & PROGRAMAÇÃO SEMANAL + NOVIDADES */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Dias de Culto (6 cols) */}
         <div className="lg:col-span-6 bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs space-y-4">

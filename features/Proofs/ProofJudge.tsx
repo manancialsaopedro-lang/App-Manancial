@@ -19,6 +19,8 @@ export const ProofJudge = () => {
   // Critérios
   const criteriaList = ['Criatividade', 'Execução', 'Organização', 'Cooperação'];
   const [scores, setScores] = useState<Record<string, number>>({});
+  const [confirming, setConfirming] = useState(false);
+  const [savedNotice, setSavedNotice] = useState<string | null>(null);
 
   if (!proof) return <Navigate to="/gincana/proofs" />;
 
@@ -28,25 +30,23 @@ export const ProofJudge = () => {
 
   const totalScore = (Object.values(scores) as number[]).reduce((a, b) => a + b, 0);
 
-  const handleSubmit = () => {
-    if (confirm(`Confirmar nota ${totalScore} para ${TEAM_UI[activeTeam].name}?`)) {
-       registerJudgeEvaluation({
-         proofId: proof.id,
-         teamId: activeTeam,
-         judgeName,
-         criteria: scores,
-         totalPoints: totalScore
-       });
-       alert("Avaliação registrada!");
-       setScores({});
-       // Opcional: navegar para próxima equipe
-    }
+  const handleConfirmSubmit = () => {
+    registerJudgeEvaluation({
+      proofId: proof.id,
+      teamId: activeTeam,
+      judgeName,
+      criteria: scores,
+      totalPoints: totalScore
+    });
+    setConfirming(false);
+    setSavedNotice(`Avaliação (${totalScore} pts) registrada para ${TEAM_UI[activeTeam].name}!`);
+    setScores({});
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 pb-20">
+    <div className="max-w-3xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 pb-28">
       <div className="flex justify-between items-center">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-400 font-bold hover:text-gray-900">
+        <button onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/gincana/proofs'))} className="flex items-center gap-2 text-gray-400 font-bold hover:text-gray-900">
           <ArrowLeft size={18} /> Voltar
         </button>
         <div className="flex items-center gap-2 bg-purple-100 text-purple-700 px-4 py-2 rounded-xl">
@@ -102,17 +102,47 @@ export const ProofJudge = () => {
             ))}
          </div>
 
-         <div className="mt-10 pt-10 border-t border-gray-100 flex justify-between items-center">
+         {savedNotice && (
+            <div className="mt-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-bold flex items-center justify-between">
+              <span className="flex items-center gap-2"><CheckCircle size={18} /> {savedNotice}</span>
+              <button type="button" onClick={() => setSavedNotice(null)} className="text-xs underline">Fechar</button>
+            </div>
+         )}
+
+         <div className="mt-10 pt-8 border-t border-gray-100 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
             <div>
                <span className="text-xs font-bold uppercase text-gray-400 block">Nota Final</span>
                <span className="text-5xl font-black text-gray-900">{totalScore}</span>
             </div>
-            <button 
-              onClick={handleSubmit}
-              className="bg-purple-600 text-white px-8 py-4 rounded-2xl font-black shadow-xl shadow-purple-500/30 hover:bg-purple-500 transition-all flex items-center gap-2"
-            >
-              <CheckCircle size={20} /> Confirmar Avaliação
-            </button>
+            {confirming ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirming(false)}
+                  className="px-4 py-3 rounded-2xl bg-gray-100 text-gray-700 font-bold text-sm"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmSubmit}
+                  className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black shadow-lg hover:bg-emerald-500 transition-all flex items-center gap-2"
+                >
+                  <CheckCircle size={18} /> Gravar {totalScore} pts ({TEAM_UI[activeTeam].name})
+                </button>
+              </div>
+            ) : (
+              <button 
+                type="button"
+                onClick={() => {
+                  setSavedNotice(null);
+                  setConfirming(true);
+                }}
+                className="bg-purple-600 text-white px-8 py-4 rounded-2xl font-black shadow-xl shadow-purple-500/30 hover:bg-purple-500 transition-all flex items-center justify-center gap-2"
+              >
+                <CheckCircle size={20} /> Confirmar Avaliação
+              </button>
+            )}
          </div>
       </Card>
     </div>

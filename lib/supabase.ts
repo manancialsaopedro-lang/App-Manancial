@@ -67,15 +67,38 @@ export const supabase = (): SupabaseClient => {
   return client;
 };
 
-const getAuthRedirectUrl = () => {
-  const configured = getEnv("VITE_SUPABASE_REDIRECT_URL");
-  if (configured) return configured;
-
-  if (typeof window === "undefined") {
-    return "";
+export const getAuthRedirectUrl = (extraQuery?: string) => {
+  if (typeof window !== "undefined" && window.location?.origin) {
+    const base = `${window.location.origin}/#/auth/confirm`;
+    return extraQuery ? `${base}?${extraQuery}` : base;
   }
 
-  return `${window.location.origin}/#/auth/confirm`;
+  const configured = getEnv("VITE_SUPABASE_REDIRECT_URL");
+  if (configured) {
+    const normalized = configured.includes("#")
+      ? configured
+      : `${configured.replace(/\/$/, "")}/#/auth/confirm`;
+    return extraQuery ? `${normalized}?${extraQuery}` : normalized;
+  }
+
+  return "";
+};
+
+export const ADMIN_BUILDER_EMAILS = [
+  "stcaioaug@gmail.com",
+  "stcaioaug@hotmail.com",
+  "manancialsaopedro@gmail.com",
+  "caioaugustoaranha@gmail.com",
+  "caioaugustomenino@hotmail.com",
+  "elevesuaedicao@gmail.com",
+];
+
+export const ADMIN_DEFAULT_EMAIL = "stcaioaug@gmail.com";
+export const ADMIN_DEFAULT_PASSWORD = "Manancial2026!";
+
+export const isAdminEmail = (email?: string | null): boolean => {
+  if (!email) return false;
+  return ADMIN_BUILDER_EMAILS.includes(email.trim().toLowerCase());
 };
 
 export const signInWithGoogle = async () => {
@@ -100,12 +123,34 @@ export const signUpWithEmail = async (email: string, password: string, name?: st
       emailRedirectTo: getAuthRedirectUrl(),
       data: {
         name: name || undefined,
-        full_name: name || undefined
-      }
-    }
+        full_name: name || undefined,
+      },
+    },
   });
 };
 
 export const signInWithEmailPassword = async (email: string, password: string) => {
   return supabase().auth.signInWithPassword({ email, password });
+};
+
+export const sendMagicLink = async (email: string) => {
+  return supabase().auth.signInWithOtp({
+    email: email.trim().toLowerCase(),
+    options: {
+      emailRedirectTo: getAuthRedirectUrl("type=magiclink"),
+      shouldCreateUser: true,
+    },
+  });
+};
+
+export const sendPasswordRecovery = async (email: string) => {
+  return supabase().auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+    redirectTo: getAuthRedirectUrl("type=recovery"),
+  });
+};
+
+export const updateUserPassword = async (newPassword: string) => {
+  return supabase().auth.updateUser({
+    password: newPassword,
+  });
 };

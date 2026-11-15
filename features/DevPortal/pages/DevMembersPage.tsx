@@ -58,8 +58,11 @@ import {
   AlertDialogTitle,
 } from '../../../components/ui/AlertDialog';
 import { Combobox } from '../../../components/ui/Combobox';
+import { useCurrentRole } from '../../../hooks/useCurrentRole';
 
 export const DevMembersPage: React.FC = () => {
+  const { activeRole } = useCurrentRole();
+  const canDeleteMembers = activeRole !== 'equipe_pastoral';
   const {
     members,
     addMember,
@@ -78,6 +81,7 @@ export const DevMembersPage: React.FC = () => {
   const [selectedMember, setSelectedMember] = useState<ChurchMember | null>(null);
   const [memberToDelete, setMemberToDelete] = useState<ChurchMember | null>(null);
   const [bulkDeleteList, setBulkDeleteList] = useState<ChurchMember[] | null>(null);
+  const bulkClearRef = React.useRef<(() => void) | null>(null);
 
   // Form State (Idêntico à Imagem 3 da Basiléia)
   const [formData, setFormData] = useState({
@@ -205,8 +209,8 @@ export const DevMembersPage: React.FC = () => {
       if (found) {
         setActiveView('lista');
         setSelectedMember(found);
+        setSearchParams({}, { replace: true });
       }
-      setSearchParams({}, { replace: true });
     }
   }, [searchParams, members]);
 
@@ -490,14 +494,18 @@ export const DevMembersPage: React.FC = () => {
                     <Copy size={14} className="text-slate-600" />
                     <span>Copiar Link de Cadastro</span>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    variant="danger"
-                    onSelect={() => setMemberToDelete(m)}
-                  >
-                    <Trash2 size={14} />
-                    <span>Excluir Membro</span>
-                  </DropdownMenuItem>
+                  {canDeleteMembers && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        variant="danger"
+                        onSelect={() => setMemberToDelete(m)}
+                      >
+                        <Trash2 size={14} />
+                        <span>Excluir Membro</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -916,7 +924,7 @@ export const DevMembersPage: React.FC = () => {
         </form>
       ) : (
         /* --- VISUALIZAÇÃO EM DATATABLE AVANÇADO CORPORATIVO --- */
-        <DataTable
+        <DataTable<ChurchMember, unknown>
           columns={columns}
           data={filteredMembers}
           enableRowSelection
@@ -1040,14 +1048,19 @@ export const DevMembersPage: React.FC = () => {
                 <span>Copiar Contatos</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setBulkDeleteList(selectedRows)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500 text-rose-200 hover:text-white text-xs font-bold transition-colors border border-rose-500/30"
-              >
-                <Trash2 size={13} />
-                <span>Excluir ({selectedRows.length})</span>
-              </button>
+              {canDeleteMembers && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    bulkClearRef.current = clearSelection;
+                    setBulkDeleteList(selectedRows);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500 text-rose-200 hover:text-white text-xs font-bold transition-colors border border-rose-500/30"
+                >
+                  <Trash2 size={13} />
+                  <span>Excluir ({selectedRows.length})</span>
+                </button>
+              )}
             </>
           )}
         />
@@ -1328,7 +1341,10 @@ export const DevMembersPage: React.FC = () => {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               variant="danger"
-              onClick={() => confirmBulkDelete(() => {})}
+              onClick={() => {
+                confirmBulkDelete(bulkClearRef.current || (() => {}));
+                bulkClearRef.current = null;
+              }}
             >
               Confirmar Exclusão em Lote
             </AlertDialogAction>

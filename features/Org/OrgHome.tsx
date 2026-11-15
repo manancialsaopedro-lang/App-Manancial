@@ -9,6 +9,15 @@ export const OrgHome = () => {
 
   const cards = [
     {
+      title: 'Central Financeira Unificada',
+      description: 'Fluxo de caixa, Acampamentos 2026 & 2027, Eventos, Estoque e Balancete.',
+      icon: Wallet,
+      path: '/financeiro',
+      color: 'bg-purple-600',
+      textColor: 'text-purple-600',
+      bgColor: 'bg-purple-50'
+    },
+    {
       title: 'Dashboard Geral',
       description: 'Visão estratégica e métricas.',
       icon: PieChart,
@@ -27,13 +36,13 @@ export const OrgHome = () => {
       bgColor: 'bg-emerald-50'
     },
     {
-      title: 'Central do Caixa',
-      description: 'Cantina, Movimentações e Fechamento.',
+      title: 'Atalhos do Caixa & PDV',
+      description: 'Cantina, Projeção, Custos e Fechamento.',
       icon: Wallet,
       path: '/org/cashier-hub',
-      color: 'bg-purple-600',
-      textColor: 'text-purple-600',
-      bgColor: 'bg-purple-50'
+      color: 'bg-amber-600',
+      textColor: 'text-amber-600',
+      bgColor: 'bg-amber-50'
     }
   ];
 
@@ -43,7 +52,7 @@ export const OrgHome = () => {
         <div className="flex items-center gap-3 xl:hidden">
           <button
             type="button"
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/hub')}
             className="h-11 w-11 rounded-2xl border border-gray-200 bg-white text-gray-500 shadow-sm transition hover:text-gray-700"
             aria-label="Voltar para seleção de módulo"
             title="Voltar"

@@ -15,9 +15,12 @@ import {
   ExternalLink,
   Sun,
   Moon,
+  LogOut,
+  Home,
 } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { useCurrentRole } from '../../hooks/useCurrentRole';
+import { signOut as supabaseSignOut, isSupabaseConfigured } from '../../lib/supabase';
 
 interface AppCardProps {
   title: string;
@@ -34,12 +37,35 @@ interface AppCardProps {
   isMain?: boolean;
   statusText?: string;
   stats?: string;
+  allowed?: boolean;
 }
 
 export const EcosystemHubPage: React.FC = () => {
   const navigate = useNavigate();
-  const { isDarkMode, toggleTheme } = useAppStore();
-  const { activeRole } = useCurrentRole();
+  const { isDarkMode, toggleTheme, signOut } = useAppStore();
+  const {
+    activeRole,
+    defaultRoute,
+    roleLabel,
+    canAccessPastoral,
+    canAccessMember,
+    canAccessOrg,
+    canAccessLouvor,
+  } = useCurrentRole();
+
+  const handleLogout = async () => {
+    try {
+      if (isSupabaseConfigured) {
+        await supabaseSignOut();
+      }
+    } catch {
+      // ignora erro remoto e limpa sessão local
+    } finally {
+      localStorage.removeItem('louvor_logged_member');
+      signOut();
+      navigate('/login', { replace: true });
+    }
+  };
 
   const apps: AppCardProps[] = [
     {
@@ -174,6 +200,14 @@ export const EcosystemHubPage: React.FC = () => {
     },
   ];
 
+  const visibleApps = apps.filter((card) => {
+    if (card.path === '/igreja') return canAccessPastoral;
+    if (card.path === '/igreja/membro') return canAccessMember;
+    if (card.path === '/cantina' || card.path === '/financeiro') return canAccessOrg;
+    if (card.path === '/app/dashboard') return canAccessLouvor;
+    return true;
+  });
+
   return (
     <div
       className={`min-h-screen flex flex-col transition-colors duration-300 selection:bg-cyan-500 selection:text-black ${
@@ -291,15 +325,44 @@ export const EcosystemHubPage: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => navigate('/igreja')}
+              onClick={() => navigate('/landing')}
+              className={`p-2.5 rounded-xl border transition-all active:scale-95 flex items-center gap-1.5 text-xs font-bold ${
+                isDarkMode
+                  ? 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-300'
+                  : 'bg-slate-100 hover:bg-slate-200/80 border-slate-200 text-slate-700'
+              }`}
+              title="Ir para a Landing Page"
+            >
+              <Home size={16} />
+              <span className="hidden md:inline">Início</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate(defaultRoute)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-xs active:scale-95 transition-all shadow-md ${
                 isDarkMode
                   ? 'bg-gradient-to-r from-cyan-500 to-teal-500 text-slate-950 hover:brightness-110 shadow-cyan-500/20'
                   : 'bg-[#082f38] hover:bg-[#0a434d] text-cyan-200 shadow-cyan-950/15'
               }`}
+              title={roleLabel}
             >
-              <span>Abrir Gestão</span>
+              <span>Meu Painel</span>
               <ArrowRight size={14} />
+            </button>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className={`p-2.5 rounded-xl border transition-all active:scale-95 flex items-center gap-1.5 text-xs font-bold ${
+                isDarkMode
+                  ? 'bg-red-500/10 hover:bg-red-500/20 border-red-500/20 text-red-300'
+                  : 'bg-red-50 hover:bg-red-100 border-red-200 text-red-700'
+              }`}
+              title="Sair da conta"
+            >
+              <LogOut size={16} />
+              <span className="hidden md:inline">Sair</span>
             </button>
           </div>
         </div>
@@ -353,13 +416,13 @@ export const EcosystemHubPage: React.FC = () => {
             </h3>
           </div>
           <span className="text-xs font-semibold text-slate-500">
-            {apps.length} seções disponíveis
+            {visibleApps.length} seções disponíveis
           </span>
         </div>
 
         {/* Modules Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {apps.map((app) => {
+          {visibleApps.map((app) => {
             const Icon = app.icon;
             return (
               <div

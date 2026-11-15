@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Menu,
@@ -39,8 +39,10 @@ import {
 } from 'lucide-react';
 import { signOut as supabaseSignOut } from '../../../lib/supabase';
 import { useAppStore } from '../../../store';
+import { useCurrentRole } from '../../../hooks/useCurrentRole';
 import { CommandPalette } from '../../../components/ui/CommandPalette';
 import { TooltipProvider } from '../../../components/ui/Tooltip';
+import { fetchChurchRequests } from '../../Church/data/churchModulesApi';
 
 interface NavSubItem {
   label: string;
@@ -69,14 +71,45 @@ export const DevLayout: React.FC = () => {
     gincana: false,
     caixa: false,
   });
-  const [unreadNotifications, setUnreadNotifications] = useState(3);
-  const [showNotificationToast, setShowNotificationToast] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [spotlightOpen, setSpotlightOpen] = useState(false);
   const [customToastMessage, setCustomToastMessage] = useState<string | null>(null);
 
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isDarkMode, toggleTheme, signOut: storeSignOut } = useAppStore();
+  const { activeRole, roleLabel, roleBadge, canAccessOrg, canAccessGincana } = useCurrentRole();
+
+  React.useEffect(() => {
+    let active = true;
+    const syncPendingRequests = () => {
+      try {
+        const raw = localStorage.getItem('manancial_church_requests');
+        if (!raw) {
+          setUnreadNotifications(0);
+          return;
+        }
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          const pending = parsed.filter((r: { status?: string }) => r?.status && r.status !== 'Atendido').length;
+          setUnreadNotifications(pending);
+        }
+      } catch {
+        setUnreadNotifications(0);
+      }
+    };
+    syncPendingRequests();
+    fetchChurchRequests().then((res) => {
+      if (active && res.syncedRemote) {
+        setUnreadNotifications(res.data.filter((r) => r.status !== 'Atendido').length);
+      }
+    });
+    window.addEventListener('manancial-requests-updated', syncPendingRequests);
+    return () => {
+      active = false;
+      window.removeEventListener('manancial-requests-updated', syncPendingRequests);
+    };
+  }, [location.pathname]);
 
   const triggerCustomToast = (msg: string) => {
     setCustomToastMessage(msg);
@@ -90,129 +123,125 @@ export const DevLayout: React.FC = () => {
     }));
   };
 
-  const navSections: NavSection[] = [
-    {
-      title: 'Igreja & Secretaria',
-      items: [
-        {
-          id: 'igreja',
-          label: 'Dados da Igreja',
-          icon: Church,
-          path: '/igreja',
-        },
-        {
-          id: 'solicitacoes',
-          label: 'Solicitações',
-          icon: Inbox,
-          path: '/solicitacoes',
-          badge: 'Novo',
-        },
-        {
-          id: 'notificacoes',
-          label: 'Notificações WhatsApp',
-          icon: MessageSquare,
-          path: '/notificacoes',
-        },
-        {
-          id: 'membros',
-          label: 'Membros & Presença',
-          icon: Users,
-          subItems: [
-            { label: 'Lista de Membros', path: '/membros' },
-            { label: 'Chamada & Presença', path: '/presenca' },
-            { label: 'Mensagens em 1 Toque', path: '/mensagens' },
-            { label: 'Relatórios de Culto', path: '/relatorios' },
-            { label: 'Visitantes Cadastrados', path: '/visitantes' },
-          ],
-        },
-        {
-          id: 'celulas',
-          label: 'Células & Grupos',
-          icon: Layers,
-          path: '/celulas',
-        },
-        {
-          id: 'cursos',
-          label: 'Cursos & Discipulado',
-          icon: GraduationCap,
-          path: '/cursos',
-        },
-        {
-          id: 'eventos',
-          label: 'Eventos & Calendário',
-          icon: Calendar,
-          path: '/eventos',
-        },
-        {
-          id: 'louvor',
-          label: 'Min. de Louvor',
-          icon: Music,
-          path: '/app/dashboard',
-        },
-      ],
-    },
-    {
-      title: 'Acampamento & Gincana',
-      items: [
-        {
-          id: 'acampamento',
-          label: 'Retiro & Acampamento',
-          icon: Tent,
-          subItems: [
-            { label: 'Visão Geral do Retiro', path: '/acampamento' },
-            { label: 'Informações & Regras 2027', path: '/acampamento/informacoes' },
-            { label: 'Gestão de Pagamentos', path: '/acampamento/pagamentos' },
-          ],
-        },
-        {
-          id: 'gincana',
-          label: 'Gincana 25:14',
-          icon: Trophy,
-          subItems: [
-            { label: 'Placar Geral ao Vivo', path: '/gincana/placar' },
-            { label: 'Coordenação & Painel', path: '/gincana/dash' },
-            { label: 'Provas & Jurados', path: '/gincana/proofs' },
-            { label: 'Equipes & Tribos', path: '/gincana/equipes-geral' },
-            { label: 'Cronograma do Retiro', path: '/gincana/time' },
-          ],
-        },
-      ],
-    },
-    {
-      title: 'Caixa & Cantina',
-      items: [
-        {
-          id: 'caixa',
-          label: 'Operação Financeira',
-          icon: Wallet,
-          subItems: [
-            { label: 'Financeiro & Tesouraria', path: '/financeiro' },
-            { label: 'Cantina & PDV Oficial', path: '/cantina' },
-            { label: 'Central do Caixa', path: '/org/cashier-hub' },
-            { label: 'Fechamento Diário', path: '/org/closing' },
-          ],
-        },
-      ],
-    },
-    {
+  const navSections: NavSection[] = useMemo(() => {
+    const sections: NavSection[] = [
+      {
+        title: 'Igreja & Secretaria',
+        items: [
+          {
+            id: 'igreja',
+            label: 'Dados da Igreja',
+            icon: Church,
+            path: '/igreja',
+          },
+          {
+            id: 'solicitacoes',
+            label: 'Solicitações',
+            icon: Inbox,
+            path: '/solicitacoes',
+            badge: 'Novo',
+          },
+          {
+            id: 'notificacoes',
+            label: 'Notificações WhatsApp',
+            icon: MessageSquare,
+            path: '/notificacoes',
+          },
+          {
+            id: 'membros',
+            label: 'Membros & Presença',
+            icon: Users,
+            subItems: [
+              { label: 'Lista de Membros', path: '/membros' },
+              { label: 'Radar de Visitantes & Visitas', path: '/visitantes' },
+              { label: 'Chamada & Presença', path: '/presenca' },
+              { label: 'Mensagens em 1 Toque', path: '/mensagens' },
+              { label: 'Relatórios de Culto', path: '/relatorios' },
+            ],
+          },
+          {
+            id: 'celulas',
+            label: 'Células & Grupos',
+            icon: Layers,
+            path: '/celulas',
+          },
+          {
+            id: 'cursos',
+            label: 'Cursos & Discipulado',
+            icon: GraduationCap,
+            path: '/cursos',
+          },
+          {
+            id: 'eventos',
+            label: 'Eventos & Calendário',
+            icon: Calendar,
+            path: '/eventos',
+          },
+          {
+            id: 'louvor',
+            label: 'Min. de Louvor',
+            icon: Music,
+            path: '/app/dashboard',
+          },
+        ],
+      },
+    ];
+
+    if (canAccessGincana || activeRole === 'admin' || activeRole === 'primeiro_pastor' || activeRole === 'segundo_pastor') {
+      sections.push({
+        title: 'Acampamento & Gincana',
+        items: [
+          {
+            id: 'acampamento',
+            label: 'Retiro & Acampamento',
+            icon: Tent,
+            subItems: [
+              { label: 'Visão Geral do Retiro', path: '/acampamento' },
+              { label: 'Informações & Regras 2027', path: '/acampamento/informacoes' },
+              { label: 'Gestão de Pagamentos & Custos', path: '/acampamento/pagamentos' },
+            ],
+          },
+          {
+            id: 'gincana',
+            label: 'Gincana 25:14',
+            icon: Trophy,
+            subItems: [
+              { label: 'Placar Geral ao Vivo', path: '/gincana/placar' },
+              { label: 'Coordenação & Painel', path: '/gincana/dash' },
+              { label: 'Provas & Jurados', path: '/gincana/proofs' },
+              { label: 'Equipes & Tribos', path: '/gincana/equipes-geral' },
+              { label: 'Cronograma do Retiro', path: '/gincana/time' },
+            ],
+          },
+        ],
+      });
+    }
+
+    if (canAccessOrg) {
+      sections.push({
+        title: 'Caixa & Cantina',
+        items: [
+          {
+            id: 'caixa',
+            label: 'Operação Financeira',
+            icon: Wallet,
+            subItems: [
+              { label: 'Financeiro & Tesouraria', path: '/financeiro' },
+              { label: 'Cantina & PDV Oficial', path: '/cantina' },
+              { label: 'Central do Caixa', path: '/org/cashier-hub' },
+              { label: 'Fechamento Diário', path: '/org/closing' },
+            ],
+          },
+        ],
+      });
+    }
+
+    sections.push({
       title: 'Páginas Públicas',
       items: [
         {
-          id: 'splash-prepage',
-          label: 'Pré-Page Fluida',
-          icon: Waves,
-          path: '/',
-          badge: 'Abertura',
-        },
-        {
-          id: 'auth-login',
-          label: 'Login & Acesso',
-          icon: LogIn,
-          path: '/login',
-        },
-        {
           id: 'landing',
-          label: 'Nova Landing Page',
+          label: 'Site Oficial Manancial',
           icon: Globe,
           path: '/landing',
           badge: 'Online',
@@ -223,14 +252,31 @@ export const DevLayout: React.FC = () => {
           icon: Sparkles,
           path: '/visitante',
         },
+        {
+          id: 'splash-prepage',
+          label: 'Boas-Vindas',
+          icon: Waves,
+          path: '/',
+        },
+        {
+          id: 'auth-login',
+          label: 'Login & Acesso',
+          icon: LogIn,
+          path: '/login',
+        },
       ],
-    },
-  ];
+    });
+
+    return sections;
+  }, [canAccessOrg, canAccessGincana, activeRole]);
 
   const handleNotificationClick = () => {
-    setShowNotificationToast(true);
-    setUnreadNotifications(0);
-    setTimeout(() => setShowNotificationToast(false), 3000);
+    if (unreadNotifications > 0) {
+      navigate('/solicitacoes');
+    } else {
+      triggerCustomToast('Todas as solicitações pastorais estão atendidas.');
+      navigate('/notificacoes');
+    }
   };
 
   const renderNavContent = () => (
@@ -245,8 +291,8 @@ export const DevLayout: React.FC = () => {
             <h1 className="font-black text-sm tracking-tight text-white flex items-center gap-1.5">
               Manancial <span className="text-cyan-300 font-medium">Gestão</span>
             </h1>
-            <p className="text-[10px] text-cyan-300/60 font-semibold uppercase tracking-wider">
-              Painel Integrado
+            <p className="text-[10px] text-cyan-300/80 font-bold tracking-wider">
+              {roleBadge || 'Painel Integrado'}
             </p>
           </div>
         </div>
@@ -393,12 +439,10 @@ export const DevLayout: React.FC = () => {
         />
 
         {/* Toast Feedback */}
-        {(showNotificationToast || customToastMessage) && (
+        {customToastMessage && (
           <div className="fixed top-5 right-5 z-[100] bg-cyan-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-cyan-700 animate-in fade-in slide-in-from-top-3">
             <Bell size={18} className="text-cyan-300" />
-            <span className="text-xs font-medium">
-              {customToastMessage || 'Você não tem novas notificações no momento.'}
-            </span>
+            <span className="text-xs font-medium">{customToastMessage}</span>
           </div>
         )}
 
@@ -512,7 +556,8 @@ export const DevLayout: React.FC = () => {
                 onClick={async () => {
                   await supabaseSignOut().catch(() => {});
                   storeSignOut();
-                  navigate('/');
+                  useAppStore.getState().setDevRole(null);
+                  navigate('/login', { replace: true });
                 }}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer active:scale-95"
                 title="Sair da Conta (Logout)"

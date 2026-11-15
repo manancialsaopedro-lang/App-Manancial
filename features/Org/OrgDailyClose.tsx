@@ -1,7 +1,7 @@
 ﻿
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, DollarSign, AlertCircle, ShoppingBag, Package, TrendingUp, CreditCard, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Calendar, DollarSign, AlertCircle, ShoppingBag, Package, TrendingUp, CreditCard, ArrowRight } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { Card } from '../../components/Shared';
 
@@ -82,11 +82,21 @@ export const OrgDailyClose = () => {
   return (
     <div className="space-y-8 animate-in fade-in pb-12">
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6">
-         <div>
-            <h2 className="text-3xl font-black tracking-tighter text-gray-900">Fechamento Geral</h2>
-            <p className="text-gray-500 font-medium">
-               Análise financeira de {new Date(startDate + 'T00:00:00').toLocaleDateString('pt-BR')} {isSameDay ? '' : ` Até ${new Date(endDate + 'T00:00:00').toLocaleDateString('pt-BR')}`}.
-            </p>
+         <div className="flex items-start gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/org/cashier-hub')}
+              className="mt-1 p-2.5 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors shrink-0"
+              aria-label="Voltar para Central do Caixa"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div>
+              <h2 className="text-3xl font-black tracking-tighter text-gray-900">Fechamento Geral</h2>
+              <p className="text-gray-500 font-medium">
+                 Análise financeira de {new Date(startDate + 'T00:00:00').toLocaleDateString('pt-BR')} {isSameDay ? '' : ` Até ${new Date(endDate + 'T00:00:00').toLocaleDateString('pt-BR')}`}.
+              </p>
+            </div>
          </div>
          
          {/* SELETORES DE DATA (INTERVALO) */}

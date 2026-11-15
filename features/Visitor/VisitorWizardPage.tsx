@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   Heart, 
   Sparkles, 
@@ -12,9 +13,12 @@ import {
   Calendar,
   Loader2,
   ShieldCheck,
-  HeartHandshake
+  HeartHandshake,
+  AlertTriangle,
+  RefreshCw
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useWeeklyServices, WEEKDAY_LABELS } from '../Church/data/churchWeeklyServices';
 
 // Interfaces dos dados do Wizard
 interface VisitorFormData {
@@ -64,16 +68,24 @@ const formatPhone = (value: string): string => {
 };
 
 export const VisitorWizardPage: React.FC = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState<number>(0);
   const [formData, setFormData] = useState<VisitorFormData>(INITIAL_FORM);
   const [inviteId, setInviteId] = useState<string>('invite-1771383949600-e013eec11d51a8');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [savedOfflineError, setSavedOfflineError] = useState<string | null>(null);
+  const { services: weeklyServices, loading: servicesLoading } = useWeeklyServices();
 
   // Busca token de convite ativo se houver no Supabase ou na URL
   useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const paramInvite = searchParams.get('convite') || searchParams.get('invite');
+    const windowParams = new URLSearchParams(window.location.search);
+    const paramInvite =
+      searchParams.get('convite') ||
+      searchParams.get('invite') ||
+      windowParams.get('convite') ||
+      windowParams.get('invite');
     if (paramInvite) {
       setInviteId(paramInvite);
       return;
@@ -97,7 +109,7 @@ export const VisitorWizardPage: React.FC = () => {
     };
 
     fetchActiveInvite();
-  }, []);
+  }, [searchParams]);
 
   // Handlers de formulário
   const updateField = <K extends keyof VisitorFormData>(field: K, value: VisitorFormData[K]) => {
@@ -132,7 +144,9 @@ export const VisitorWizardPage: React.FC = () => {
 
   // Salvar no Supabase
   const handleFinalSubmit = async () => {
+    if (isSubmitting) return;
     setIsSubmitting(true);
+    setSavedOfflineError(null);
 
     try {
       const cleanDigits = formData.phone.replace(/\D/g, '');
@@ -190,6 +204,7 @@ export const VisitorWizardPage: React.FC = () => {
         visit_count: visitCount,
         needs_prayer: needsPrayer,
         wants_visit: wantsVisit,
+        visit_status: wantsVisit ? 'PENDENTE' : undefined,
         notes: notesParts.join(' | '),
         first_visit_date: new Date().toISOString().split('T')[0],
       };
@@ -197,22 +212,38 @@ export const VisitorWizardPage: React.FC = () => {
       const { error } = await supabase().from('church_members').insert([payload]);
 
       if (error) {
-        console.warn('Erro ao salvar no Supabase, tentando fallback local:', error.message);
-        // Salva cópia em localStorage para garantir que nada se perca mesmo com falha de conexão
-        const localSaved = JSON.parse(localStorage.getItem('manancial_pending_visitors') || '[]');
-        localSaved.push({ ...payload, clientTimestamp: new Date().toISOString() });
-        localStorage.setItem('manancial_pending_visitors', JSON.stringify(localSaved));
+        console.warn('Erro ao salvar no Supabase, salvando rascunho local:', error.message);
+        try {
+          const localSaved = JSON.parse(localStorage.getItem('manancial_pending_visitors') || '[]');
+          localSaved.push({ ...payload, clientTimestamp: new Date().toISOString() });
+          localStorage.setItem('manancial_pending_visitors', JSON.stringify(localSaved));
+        } catch {
+          // ignora erro de localStorage
+        }
+        setSubmitSuccess(false);
+        setSavedOfflineError(
+          'Não foi possível enviar ao servidor neste momento. Salvamos seus dados neste aparelho para você tentar reenviar.'
+        );
+        setStep(6);
+        return;
       }
 
       setSubmitSuccess(true);
+      setSavedOfflineError(null);
       setStep(6);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro na submissão:', err);
-      // Salva localmente para segurança
-      const localSaved = JSON.parse(localStorage.getItem('manancial_pending_visitors') || '[]');
-      localSaved.push({ ...formData, clientTimestamp: new Date().toISOString() });
-      localStorage.setItem('manancial_pending_visitors', JSON.stringify(localSaved));
-      setSubmitSuccess(true);
+      try {
+        const localSaved = JSON.parse(localStorage.getItem('manancial_pending_visitors') || '[]');
+        localSaved.push({ ...formData, clientTimestamp: new Date().toISOString() });
+        localStorage.setItem('manancial_pending_visitors', JSON.stringify(localSaved));
+      } catch {
+        // ignora erro de localStorage
+      }
+      setSubmitSuccess(false);
+      setSavedOfflineError(
+        'Falha de conexão ao enviar sua ficha. Guardamos um rascunho seguro neste dispositivo para você tentar novamente.'
+      );
       setStep(6);
     } finally {
       setIsSubmitting(false);
@@ -380,7 +411,7 @@ export const VisitorWizardPage: React.FC = () => {
               Separamos 1 minutinho para podermos te conhecer melhor
             </p>
 
-            <div className="pt-2">
+            <div className="pt-2 space-y-2.5">
               <button
                 type="button"
                 onClick={() => setStep(1)}
@@ -388,6 +419,14 @@ export const VisitorWizardPage: React.FC = () => {
               >
                 <span>Quero me Conectar</span>
                 <ChevronRight className="w-5 h-5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/landing')}
+                className="w-full py-3 px-4 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 bg-white/80 hover:bg-white border border-slate-200 transition-colors"
+              >
+                Voltar para o site da igreja
               </button>
             </div>
           </div>
@@ -894,17 +933,48 @@ export const VisitorWizardPage: React.FC = () => {
               />
             </div>
 
-            <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center mx-auto text-emerald-600 shadow-xl shadow-emerald-500/20">
-              <CheckCircle2 className="w-8 h-8" />
+            <div
+              className={`w-16 h-16 rounded-full border-2 flex items-center justify-center mx-auto shadow-xl ${
+                savedOfflineError
+                  ? 'bg-amber-500/15 border-amber-500 text-amber-600 shadow-amber-500/20'
+                  : 'bg-emerald-500/20 border-emerald-500 text-emerald-600 shadow-emerald-500/20'
+              }`}
+            >
+              {savedOfflineError ? (
+                <AlertTriangle className="w-8 h-8" />
+              ) : (
+                <CheckCircle2 className="w-8 h-8" />
+              )}
             </div>
 
             <div className="space-y-2">
               <h2 className="text-2xl font-extrabold text-slate-900">
                 Obrigado, {formData.fullName.split(' ')[0] || 'Convidado'}!
               </h2>
-              <p className="text-sm font-semibold text-cyan-800">
-                Seus dados foram recebidos com muito carinho pela nossa liderança.
-              </p>
+              {savedOfflineError ? (
+                <div className="p-3.5 rounded-2xl border border-amber-300 bg-amber-50 text-amber-900 text-xs font-semibold space-y-2.5 text-left">
+                  <p>{savedOfflineError}</p>
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={handleFinalSubmit}
+                    className="w-full py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4" />
+                    )}
+                    <span>{isSubmitting ? 'Reenviando...' : 'Tentar reenviar agora'}</span>
+                  </button>
+                </div>
+              ) : (
+                <p className="text-sm font-semibold text-cyan-800">
+                  {submitSuccess
+                    ? 'Seus dados foram recebidos com muito carinho pela nossa liderança.'
+                    : 'Cadastro finalizado.'}
+                </p>
+              )}
               {formData.intention === 'QUERO_SER_MEMBRO' && (
                 <div className="p-3 rounded-xl border text-xs max-w-xs mx-auto bg-cyan-50 border-cyan-300 text-cyan-900 font-medium">
                   🎉 Ficamos muito felizes pelo seu desejo de fazer parte da família Manancial! Nossa liderança entrará em contato pelo seu WhatsApp.
@@ -918,17 +988,29 @@ export const VisitorWizardPage: React.FC = () => {
                 <Calendar className="w-4 h-4 text-cyan-600" />
                 Nossos Próximos Cultos:
               </div>
-              <div className="space-y-1 text-slate-700">
-                <div>• <strong>Domingo 09h30:</strong> Culto da Família & Ceia</div>
-                <div>• <strong>Domingo 18h00:</strong> Culto de Celebração</div>
-                <div>• <strong>Quarta-feira 19h30:</strong> Culto da Palavra & Oração</div>
-              </div>
+              {servicesLoading && weeklyServices.length === 0 ? (
+                <p className="text-slate-500 font-medium">Carregando horários dos cultos...</p>
+              ) : weeklyServices.length === 0 ? (
+                <p className="text-slate-500 font-medium">
+                  Consulte nossa equipe na recepção para os horários da semana.
+                </p>
+              ) : (
+                <div className="space-y-1 text-slate-700">
+                  {weeklyServices.map((svc) => (
+                    <div key={svc.id}>
+                      • <strong>{WEEKDAY_LABELS[svc.dayOfWeek] || 'Culto'} {svc.time.replace(':', 'h')}:</strong>{' '}
+                      {svc.title}
+                      {svc.tag && svc.tag !== svc.title ? ` (${svc.tag})` : ''}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Ações Finais */}
             <div className="space-y-2.5 pt-2">
               <a
-                href="https://wa.me/5511999999999?text=Olá!%20Acabei%20de%20visitar%20a%20Igreja%20Manancial%20e%20gostaria%20de%20falar%20com%20a%20recepção."
+                href="https://wa.me/5519993843839?text=Olá!%20Acabei%20de%20visitar%20a%20Igreja%20Manancial%20e%20gostaria%20de%20falar%20com%20a%20recepção."
                 target="_blank"
                 rel="noreferrer"
                 className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 active:scale-[0.98] transition-transform"
@@ -946,6 +1028,14 @@ export const VisitorWizardPage: React.FC = () => {
                 className="w-full py-2.5 px-4 rounded-xl text-xs transition-colors bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold"
               >
                 Cadastrar outro visitante
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/landing')}
+                className="w-full py-2.5 px-4 rounded-xl text-xs transition-colors border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold"
+              >
+                Voltar ao site Manancial
               </button>
             </div>
           </div>

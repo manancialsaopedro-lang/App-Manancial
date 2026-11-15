@@ -1,0 +1,48 @@
+import * as React from "react"
+import { LiquidToggle, NimbusToggleIcons } from "@/components/ui/liquid-glass-toggle"
+
+export default function Demo() {
+  const [dark, setDark] = React.useState(false)
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 36,
+        padding: "0 16px",
+        background: dark ? "#0B132B" : "#DCEBF5",
+        transition: "background-color .6s ease",
+      }}
+    >
+      <LiquidToggle
+        size={64}
+        tone={dark ? "dark" : "light"}
+        checked={dark}
+        onCheckedChange={setDark}
+        icons={{ off: NimbusToggleIcons.sun, on: NimbusToggleIcons.moon }}
+        label="Dark mode"
+      />
+      <span
+        style={{
+          font: "500 12px/1 ui-sans-serif, -apple-system, 'Segoe UI', system-ui, sans-serif",
+          color: dark ? "rgba(241,247,255,.5)" : "rgba(11,19,43,.5)",
+          transition: "color .6s ease",
+        }}
+      >
+        Nimbus UI · by{" "}
+        <a
+          href="https://guglielmogiannattasio.it"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: dark ? "rgba(241,247,255,.75)" : "rgba(11,19,43,.7)" }}
+        >
+          guglielmogiannattasio.it
+        </a>
+      </span>
+    </div>
+  )
+}

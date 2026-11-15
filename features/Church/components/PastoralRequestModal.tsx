@@ -19,10 +19,9 @@ import {
 import {
   ChurchRequestItem,
   PASTORAL_TOPICS,
-  PASTOR_ROUTING_OPTIONS,
-  getStoredPastoralRequests,
-  saveStoredPastoralRequests
+  PASTOR_ROUTING_OPTIONS
 } from '../data/churchMemberData';
+import { createChurchRequest } from '../data/churchModulesApi';
 
 interface PastoralRequestModalProps {
   isOpen: boolean;
@@ -53,6 +52,8 @@ export const PastoralRequestModal: React.FC<PastoralRequestModalProps> = ({
   const [requesterName, setRequesterName] = useState(memberFullName);
   const [requesterPhone, setRequesterPhone] = useState('');
   const [privacyLevel, setPrivacyLevel] = useState<'Pastores' | 'Intercessão'>('Pastores');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitWarning, setSubmitWarning] = useState<string | null>(null);
 
   const memberFirstName = memberFullName.split(' ')[0] || 'Membro';
 
@@ -72,6 +73,7 @@ export const PastoralRequestModal: React.FC<PastoralRequestModalProps> = ({
       setPreferredPastorRouting(PASTOR_ROUTING_OPTIONS[0]);
       setRequesterName(memberFullName);
       setPrivacyLevel('Pastores');
+      setSubmitWarning(null);
     }
   }, [isOpen, initialTopicId, initialSubject, memberFullName]);
 
@@ -80,9 +82,12 @@ export const PastoralRequestModal: React.FC<PastoralRequestModalProps> = ({
   const activeTopic =
     PASTORAL_TOPICS.find((t) => t.id === selectedTopicId) || PASTORAL_TOPICS[0];
 
-  const handleConfirmWizard = (e: React.FormEvent) => {
+  const handleConfirmWizard = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!requestSubject.trim() || !requesterName.trim()) return;
+    if (!requestSubject.trim() || !requesterName.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setSubmitWarning(null);
 
     const isDirectedToAdenilson = preferredPastorRouting.includes('Adenilson');
     const isDirectedToTeam = preferredPastorRouting.includes('Auxiliares');
@@ -96,34 +101,37 @@ export const PastoralRequestModal: React.FC<PastoralRequestModalProps> = ({
     const routingMode: 'Atendimento Direto' | 'Direcionado' =
       isDirectedToAdenilson || isDirectedToTeam ? 'Direcionado' : 'Atendimento Direto';
 
-    const newRequest: ChurchRequestItem = {
-      id: Date.now().toString(),
-      subject: requestSubject.trim(),
-      type: 'Atendimento Pastoral',
-      subCategory: activeTopic.label,
-      requester: requesterName.trim(),
-      phone: requesterPhone.trim() || undefined,
-      details: requestDetails.trim()
-        ? `${requestDetails.trim()} | Área: ${activeTopic.label} | Turno: ${preferredShift} | Prioridade: ${urgency} | Direcionamento: ${assignedPastorLabel}`
-        : `Área: ${activeTopic.label} | Turno preferencial: ${preferredShift} | Prioridade: ${urgency} | Direcionamento: ${assignedPastorLabel}`,
-      createdAt: new Date().toLocaleDateString('pt-BR'),
-      status: 'Pendente',
-      urgency,
-      preferredShift,
-      privacyLevel,
-      assignedPastor: assignedPastorLabel,
-      routingMode,
-      pastorNotified: true,
-    };
+    try {
+      const result = await createChurchRequest({
+        source: 'MEMBER_PORTAL',
+        subject: requestSubject.trim(),
+        type: 'Atendimento Pastoral',
+        subCategory: activeTopic.label,
+        requester: requesterName.trim(),
+        phone: requesterPhone.trim() || undefined,
+        details: requestDetails.trim()
+          ? `${requestDetails.trim()} | Área: ${activeTopic.label} | Turno: ${preferredShift} | Prioridade: ${urgency} | Direcionamento: ${assignedPastorLabel}`
+          : `Área: ${activeTopic.label} | Turno preferencial: ${preferredShift} | Prioridade: ${urgency} | Direcionamento: ${assignedPastorLabel}`,
+        status: 'Pendente',
+        urgency,
+        preferredShift,
+        privacyLevel,
+        assignedPastor: assignedPastorLabel,
+        routingMode,
+        pastorNotified: true,
+      });
 
-    const currentList = getStoredPastoralRequests();
-    const updated = [newRequest, ...currentList];
-    saveStoredPastoralRequests(updated);
+      if (!result.syncedRemote && result.error) {
+        setSubmitWarning('Solicitação salva localmente, mas houve instabilidade ao sincronizar com o servidor.');
+      }
 
-    if (onSuccess) {
-      onSuccess(newRequest);
+      if (onSuccess) {
+        onSuccess(result.data);
+      }
+      setWizardStep(4);
+    } finally {
+      setIsSubmitting(false);
     }
-    setWizardStep(4);
   };
 
   return (
@@ -479,10 +487,11 @@ export const PastoralRequestModal: React.FC<PastoralRequestModalProps> = ({
 
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-black uppercase tracking-wider shadow-lg shadow-emerald-600/25 transition-all active:scale-95 cursor-pointer"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-black uppercase tracking-wider shadow-lg shadow-emerald-600/25 transition-all active:scale-95 cursor-pointer disabled:opacity-60"
                 >
                   <Send size={15} />
-                  <span>Notificar Pastor & Enviar</span>
+                  <span>{isSubmitting ? 'Enviando...' : 'Notificar Pastor & Enviar'}</span>
                 </button>
               </div>
             </form>
@@ -505,6 +514,11 @@ export const PastoralRequestModal: React.FC<PastoralRequestModalProps> = ({
                   O Pastor já recebeu a notificação da sua solicitação e poderá realizar o{' '}
                   <strong>atendimento direto</strong> ou <strong>direcionar para outros pastores</strong> da equipe conforme a necessidade.
                 </p>
+                {submitWarning && (
+                  <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 max-w-md mx-auto">
+                    {submitWarning}
+                  </p>
+                )}
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 max-w-md mx-auto text-left text-xs space-y-1.5 text-slate-700">

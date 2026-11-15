@@ -1,14 +1,15 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, Users, ShoppingBag, Plus, CheckCircle, ArrowRight, X, Calendar, Wallet, Trash2 } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Users, ShoppingBag, Plus, CheckCircle, ArrowRight, X, Calendar, Wallet, Trash2, AlertCircle } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { Card } from '../../components/Shared';
 import { PaymentMethod, TransactionCategory } from '../../types';
+import { createTransaction, deleteTransaction } from '../../lib/api/transactions';
 
 export const OrgRevenueDetail = () => {
   const navigate = useNavigate();
-  const { people, transactions, addTransaction, removeTransaction, sales } = useAppStore();
+  const { people, transactions, setTransactions, removeTransaction, sales } = useAppStore();
 
   // --- WIZARD STATE ---
   const [showWizard, setShowWizard] = useState(false);
@@ -40,17 +41,49 @@ export const OrgRevenueDetail = () => {
   const handleNext = () => setStep(prev => prev + 1);
   const handleBack = () => setStep(prev => prev - 1);
   
-  const handleSubmit = () => {
-    addTransaction({
-      description: formData.description,
-      amount: Number(formData.amount),
-      type: 'ENTRADA',
-      category: formData.category,
-      paymentMethod: formData.method,
-    });
-    setShowWizard(false);
-    setStep(1);
-    setFormData({ category: 'OUTROS', description: '', amount: '', method: 'Pix' });
+  const [isSaving, setIsSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    setErrorMsg(null);
+    try {
+      const created = await createTransaction({
+        description: formData.description.trim() || 'Entrada Manual',
+        amount: Number(formData.amount),
+        type: 'ENTRADA',
+        category: formData.category,
+        date: new Date().toISOString(),
+        paymentMethod: formData.method,
+      });
+      setTransactions([created, ...transactions.filter((t) => t.id !== created.id)]);
+      setShowWizard(false);
+      setStep(1);
+      setFormData({ category: 'OUTROS', description: '', amount: '', method: 'Pix' });
+    } catch (error) {
+      console.error('Erro ao salvar entrada manual:', error);
+      setErrorMsg(error instanceof Error ? error.message : 'Não foi possível salvar a entrada manual.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleConfirmDelete = async (id: string) => {
+    setDeletingId(id);
+    setErrorMsg(null);
+    try {
+      await deleteTransaction(id);
+      removeTransaction(id);
+      setConfirmDeleteId(null);
+    } catch (error) {
+      console.error('Erro ao remover transacao:', error);
+      setErrorMsg(error instanceof Error ? error.message : 'Não foi possível remover a transação.');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const categories = [
@@ -107,13 +140,21 @@ export const OrgRevenueDetail = () => {
         </Card>
       </div>
 
+      {errorMsg && (
+         <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 text-red-700 px-5 py-3 rounded-2xl text-sm font-bold">
+            <div className="flex items-center gap-2"><AlertCircle size={18} /><span>{errorMsg}</span></div>
+            <button type="button" onClick={() => setErrorMsg(null)} className="text-red-500 hover:text-red-700"><X size={16} /></button>
+         </div>
+      )}
+
       {/* Detailed Table (Manual Entries) */}
       <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
          <div className="p-8 border-b border-gray-100">
             <h3 className="font-black text-xl text-gray-900">Entradas Manuais & Extras</h3>
             <p className="text-gray-400 text-xs mt-1">Lista apenas transações manuais do tipo "Outros" ou ajustes. Inscrições e Vendas são gerenciadas em seus módulos.</p>
          </div>
-         <table className="w-full text-left">
+         <div className="overflow-x-auto">
+         <table className="w-full text-left min-w-[560px]">
             <thead className="bg-gray-50 border-b border-gray-100">
                <tr>
                   <th className="px-8 py-4 text-[10px] font-black uppercase text-gray-400">Descrição</th>
@@ -136,9 +177,35 @@ export const OrgRevenueDetail = () => {
                      </td>
                      <td className="px-8 py-4 text-right font-black text-emerald-500">R$ {t.amount.toFixed(2)}</td>
                      <td className="px-8 py-4 text-center">
-                        <button onClick={() => removeTransaction(t.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
-                           <Trash2 size={16} />
-                        </button>
+                        {confirmDeleteId === t.id ? (
+                           <div className="inline-flex items-center gap-1.5">
+                              <button
+                                 type="button"
+                                 disabled={deletingId === t.id}
+                                 onClick={() => handleConfirmDelete(t.id)}
+                                 className="px-2.5 py-1 rounded-lg bg-red-600 text-white text-xs font-bold disabled:opacity-50"
+                              >
+                                 {deletingId === t.id ? '...' : 'Confirmar'}
+                              </button>
+                              <button
+                                 type="button"
+                                 disabled={deletingId === t.id}
+                                 onClick={() => setConfirmDeleteId(null)}
+                                 className="px-2 py-1 rounded-lg bg-gray-100 text-gray-600 text-xs font-bold"
+                              >
+                                 Não
+                              </button>
+                           </div>
+                        ) : (
+                           <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(t.id)}
+                              className="p-2 text-gray-400 hover:text-red-500 transition-colors opacity-75 sm:opacity-60 sm:group-hover:opacity-100"
+                              aria-label={`Excluir ${t.description}`}
+                           >
+                              <Trash2 size={16} />
+                           </button>
+                        )}
                      </td>
                   </tr>
                ))}
@@ -147,6 +214,7 @@ export const OrgRevenueDetail = () => {
                )}
             </tbody>
          </table>
+         </div>
       </div>
 
        {/* WIZARD MODAL */}
@@ -260,13 +328,13 @@ export const OrgRevenueDetail = () => {
                         </div>
 
                         <div className="flex gap-3 pt-6">
-                           <button onClick={handleBack} className="flex-1 py-3 text-gray-400 font-bold hover:bg-gray-50 rounded-xl transition-colors">Voltar</button>
+                           <button onClick={handleBack} disabled={isSaving} className="flex-1 py-3 text-gray-400 font-bold hover:bg-gray-50 rounded-xl transition-colors disabled:opacity-50">Voltar</button>
                            <button 
                               onClick={handleSubmit} 
-                              disabled={!formData.amount || Number(formData.amount) <= 0}
+                              disabled={isSaving || !formData.amount || Number(formData.amount) <= 0}
                               className="flex-1 py-4 bg-emerald-600 text-white rounded-xl font-black shadow-xl shadow-emerald-500/20 disabled:opacity-50 hover:scale-105 transition-all flex items-center justify-center gap-2"
                            >
-                              <CheckCircle size={20} /> Confirmar Entrada
+                              <CheckCircle size={20} /> {isSaving ? 'Salvando...' : 'Confirmar Entrada'}
                            </button>
                         </div>
                      </div>

@@ -66,6 +66,7 @@ export default function StudySongDetail({ song, userProfile, onBack, isMinister 
   // Modals & Forms
   const [isUploaderOpen, setIsUploaderOpen] = useState(false);
   const [isSectionFormOpen, setIsSectionFormOpen] = useState(false);
+  const [confirmDeleteTarget, setConfirmDeleteTarget] = useState<{ type: 'section' | 'track' | 'recording'; id: string } | null>(null);
   const [newSectionName, setNewSectionName] = useState('');
   const [newSectionStart, setNewSectionStart] = useState('0');
   const [newSectionEnd, setNewSectionEnd] = useState('60');
@@ -182,9 +183,13 @@ export default function StudySongDetail({ song, userProfile, onBack, isMinister 
   // Delete study section
   const handleDeleteSection = async (secId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Deseja excluir este trecho de estudo?')) return;
+    if (confirmDeleteTarget?.type !== 'section' || confirmDeleteTarget.id !== secId) {
+      setConfirmDeleteTarget({ type: 'section', id: secId });
+      return;
+    }
 
     try {
+      setConfirmDeleteTarget(null);
       await deleteStudySection(secId);
       setSections(prev => prev.filter(s => s.id !== secId));
       if (selectedSection?.id === secId) {
@@ -199,9 +204,13 @@ export default function StudySongDetail({ song, userProfile, onBack, isMinister 
 
   // Delete study audio track
   const handleDeleteTrack = async (trackId: string) => {
-    if (!confirm('Deseja excluir esta faixa de áudio?')) return;
+    if (confirmDeleteTarget?.type !== 'track' || confirmDeleteTarget.id !== trackId) {
+      setConfirmDeleteTarget({ type: 'track', id: trackId });
+      return;
+    }
 
     try {
+      setConfirmDeleteTarget(null);
       await deleteStudyAudioTrack(trackId);
       setTracks(prev => prev.filter(t => t.id !== trackId));
       toast.success('Faixa excluída');
@@ -281,9 +290,13 @@ export default function StudySongDetail({ song, userProfile, onBack, isMinister 
 
   // Delete Recording
   const handleDeleteRecording = async (recId: string) => {
-    if (!confirm('Deseja excluir esta gravação?')) return;
+    if (confirmDeleteTarget?.type !== 'recording' || confirmDeleteTarget.id !== recId) {
+      setConfirmDeleteTarget({ type: 'recording', id: recId });
+      return;
+    }
 
     try {
+      setConfirmDeleteTarget(null);
       await deleteStudyRecording(recId);
       setRecordings(prev => prev.filter(r => r.id !== recId));
       toast.success('Gravação excluída');
@@ -471,12 +484,39 @@ export default function StudySongDetail({ song, userProfile, onBack, isMinister 
                           </span>
                         )}
                         {isMinister && (
-                          <button
-                            onClick={(e) => handleDeleteSection(sec.id, e)}
-                            className={`p-1.5 rounded-lg transition-colors ${isSelected ? 'text-red-400 hover:bg-white/10' : 'text-slate-400 hover:text-red-600 hover:bg-slate-100'}`}
-                          >
-                            <Trash2 size={12} />
-                          </button>
+                          confirmDeleteTarget?.type === 'section' && confirmDeleteTarget.id === sec.id ? (
+                            <div
+                              className="flex items-center gap-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                onClick={(e) => void handleDeleteSection(sec.id, e)}
+                                className="px-2 py-0.5 rounded bg-red-600 text-white text-[9px] font-black uppercase"
+                              >
+                                Excluir
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setConfirmDeleteTarget(null);
+                                }}
+                                className="px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-[9px] font-bold"
+                              >
+                                Não
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => void handleDeleteSection(sec.id, e)}
+                              className={`p-1.5 rounded-lg transition-colors ${isSelected ? 'text-red-400 hover:bg-white/10' : 'text-slate-400 hover:text-red-600 hover:bg-slate-100'}`}
+                              title="Excluir trecho"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )
                         )}
                       </div>
                     </button>
@@ -584,6 +624,58 @@ export default function StudySongDetail({ song, userProfile, onBack, isMinister 
             />
           )}
 
+          {/* Audio Tracks Management (Leadership only) */}
+          {isMinister && tracks.length > 0 && (
+            <div className="glass p-6 rounded-[2.5rem] border border-white/50 space-y-3 bg-white/50">
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="text-xs font-black text-[#00153d] uppercase tracking-wider">Faixas de Áudio Cadastradas</h4>
+                <span className="text-[10px] font-bold text-slate-400">{tracks.length} arquivo(s)</span>
+              </div>
+              <div className="space-y-2">
+                {tracks.map((track) => (
+                  <div
+                    key={track.id}
+                    className="flex items-center justify-between gap-3 bg-white rounded-2xl border border-slate-100 px-4 py-2.5"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-800 truncate">
+                        {track.track_type === 'playback' ? 'Playback / Base' : track.track_type === 'leader_example' ? 'Exemplo do Líder' : `Guia Vocal (${track.vocal_part || 'unison'})`}
+                      </p>
+                      <p className="text-[10px] text-slate-400 truncate">{track.file_name || track.file_url}</p>
+                    </div>
+                    {confirmDeleteTarget?.type === 'track' && confirmDeleteTarget.id === track.id ? (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteTrack(track.id)}
+                          className="px-2.5 py-1 rounded-lg bg-red-600 text-white text-[10px] font-black uppercase"
+                        >
+                          Confirmar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteTarget(null)}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-bold"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteTrack(track.id)}
+                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0"
+                        title="Excluir faixa de áudio"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* User Recording History / Leader Reviews */}
           <div className="glass p-6 rounded-[2.5rem] border border-white/50 space-y-4 bg-white/50">
             <h4 className="text-sm font-black text-[#00153d] uppercase tracking-wide">Minhas Gravações para esta música</h4>
@@ -632,13 +724,33 @@ export default function StudySongDetail({ song, userProfile, onBack, isMinister 
                             Enviar p/ Líder
                           </button>
                         )}
-                        <button
-                          onClick={() => handleDeleteRecording(rec.id)}
-                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                          title="Excluir gravação"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {confirmDeleteTarget?.type === 'recording' && confirmDeleteTarget.id === rec.id ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteRecording(rec.id)}
+                              className="px-2.5 py-1 rounded-lg bg-red-600 text-white text-[10px] font-black uppercase"
+                            >
+                              Confirmar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteTarget(null)}
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-bold"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteRecording(rec.id)}
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                            title="Excluir gravação"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     </div>
 

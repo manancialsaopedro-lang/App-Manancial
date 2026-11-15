@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronRight, ChevronLeft, CheckCircle2, Shield, HeartHandshake, Mic2, Star, Clock, Users, ArrowRight } from 'lucide-react';
+import { ChevronRight, ChevronLeft, CheckCircle2, Shield, HeartHandshake, Mic2, Star, Clock, Users, ArrowRight, Home, RotateCcw } from 'lucide-react';
+import { BackButton } from '../../components/BackButton';
 import { createTeamEvaluation } from '../../lib/appData';
 import type { TeamEvaluation } from '../../types';
 
@@ -24,6 +26,7 @@ const QUESTIONS = [
 type Answers = Omit<TeamEvaluation, 'id' | 'created_at' | 'total_score' | 'team_member_id'>;
 
 export default function EvaluationWizard() {
+  const navigate = useNavigate();
   const [step, setStep] = useState(-1);
   const [answers, setAnswers] = useState<Answers>({
     member_name: '',
@@ -86,7 +89,7 @@ export default function EvaluationWizard() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-[#f8f8fc] flex items-center justify-center p-6">
+      <div className="min-h-[100dvh] bg-[#f8f8fc] flex items-center justify-center p-6">
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -99,13 +102,49 @@ export default function EvaluationWizard() {
           <p className="text-slate-500 mb-8 leading-relaxed">
             Muito obrigado pela sua sinceridade e tempo. Suas respostas são fundamentais para o crescimento do nosso ministério.
           </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/app/dashboard')}
+              className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-colors"
+            >
+              <Home size={16} />
+              <span>Ir para o Louvor</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsSuccess(false);
+                setStep(-1);
+                setAnswers({
+                  member_name: '',
+                  member_role: '',
+                  q1_uniao: 0,
+                  q2_comprometimento: 0,
+                  q3_espiritual: 0,
+                  q4_organizacao: 0,
+                  q5_comunicacao: 0,
+                  q6_humildade: 0,
+                  q7_excelencia: 0,
+                  q8_pontualidade: 0,
+                  q9_participacao: 0,
+                  q10_ambiente: 0,
+                  open_feedback: '',
+                });
+              }}
+              className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-colors"
+            >
+              <RotateCcw size={16} />
+              <span>Nova Avaliação</span>
+            </button>
+          </div>
         </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f8fc] flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden">
+    <div className="min-h-[100dvh] bg-[#f8f8fc] flex flex-col items-center justify-center p-4 sm:p-6 overflow-x-hidden">
       {/* Progress Bar */}
       {step >= 0 && (
         <div className="fixed top-0 left-0 w-full h-1.5 bg-blue-100 z-50">
@@ -119,6 +158,14 @@ export default function EvaluationWizard() {
       )}
 
       <div className="w-full max-w-xl relative">
+        {step === -1 && (
+          <div className="mb-4">
+            <BackButton
+              onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/app/dashboard'))}
+              label="Voltar ao Louvor"
+            />
+          </div>
+        )}
         <AnimatePresence mode="wait">
           {/* INTRO STEP */}
           {step === -1 && (

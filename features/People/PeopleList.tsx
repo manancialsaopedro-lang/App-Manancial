@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search, UserPlus, Trash2, X, CheckCircle, AlertCircle, Filter, ChevronDown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, UserPlus, Trash2, X, CheckCircle, AlertCircle, Filter, ChevronDown, ArrowLeft } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { TEAM_UI, INSTALLMENT_VALUE, CAMP_TOTAL_PRICE } from '../../constants';
 import { AgeGroup, TeamId, PersonType, PaymentStatus, Person } from '../../types';
@@ -7,9 +8,13 @@ import { AgeBadge } from '../../components/Shared';
 import { listPeople, createPerson, deletePerson as deletePersonApi, upsertPerson } from '../../lib/api/people';
 
 export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
+  const navigate = useNavigate();
   const { people, setPeople, updatePerson } = useAppStore();
   const [search, setSearch] = useState("");
   const [sortAlphabetically, setSortAlphabetically] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const getErrorMessage = (error: unknown) => (error instanceof Error && error.message ? error.message : "Erro desconhecido");
   
   // Filtros
@@ -95,8 +100,59 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
     return [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
   }, [filtered, sortAlphabetically]);
 
+  const clearFilters = () => {
+    setSearch("");
+    setFilterType('Todos');
+    setFilterAge('Todos');
+    setFilterStatus('Todos');
+    setFilterInstallments('Todos');
+  };
+
+  const handleConfirmDelete = async (id: string) => {
+    setDeletingId(id);
+    setActionError(null);
+    try {
+      await deletePersonApi(id);
+      await fetchPeople();
+      setConfirmDeleteId(null);
+    } catch (error) {
+      console.error("Erro ao remover pessoa:", error);
+      setActionError(`Não foi possível remover a pessoa. Motivo: ${getErrorMessage(error)}`);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(mode === 'org' ? '/org/home' : '/gincana/dash')}
+            className="p-2.5 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+            aria-label={mode === 'org' ? 'Voltar para Organização' : 'Voltar para Gincana'}
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tighter text-gray-900">
+              {mode === 'org' ? 'Inscritos do Acampamento' : 'Participantes da Gincana'}
+            </h2>
+            <p className="text-xs font-bold text-gray-400">{displayedPeople.length} registro(s) exibido(s)</p>
+          </div>
+        </div>
+      </div>
+
+      {actionError && (
+        <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl text-sm font-bold">
+          <span>{actionError}</span>
+          <button type="button" onClick={() => setActionError(null)} className="text-red-500 hover:text-red-700">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-4 w-full md:w-auto">
           <div className="relative w-full md:w-72">
@@ -204,6 +260,20 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
       )}
 
       <div className="md:hidden space-y-3">
+        {displayedPeople.length === 0 && (
+          <div className="bg-white rounded-3xl border border-dashed border-gray-200 p-8 text-center space-y-3">
+            <p className="text-gray-500 font-bold text-sm">Nenhum participante encontrado.</p>
+            {(search || filterType !== 'Todos' || filterAge !== 'Todos' || filterStatus !== 'Todos' || filterInstallments !== 'Todos') && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-bold text-xs hover:bg-gray-200 transition-colors"
+              >
+                Limpar filtros
+              </button>
+            )}
+          </div>
+        )}
         {displayedPeople.map(p => (
           <div key={p.id} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-4 space-y-3">
             <input
@@ -258,17 +328,34 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
               </div>
             )}
 
-            <button onClick={async () => {
-              try {
-                await deletePersonApi(p.id);
-                await fetchPeople();
-              } catch (error) {
-                console.error("Erro ao remover pessoa:", error);
-                alert(`Nao foi possivel remover a pessoa. Motivo: ${getErrorMessage(error)}`);
-              }
-            }} className="w-full py-2 rounded-xl text-red-500 bg-red-50 font-bold text-sm">
-              Excluir
-            </button>
+            {confirmDeleteId === p.id ? (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={deletingId === p.id}
+                  onClick={() => handleConfirmDelete(p.id)}
+                  className="flex-1 py-2 rounded-xl text-white bg-red-600 font-bold text-sm disabled:opacity-50"
+                >
+                  {deletingId === p.id ? 'Removendo...' : 'Confirmar exclusão'}
+                </button>
+                <button
+                  type="button"
+                  disabled={deletingId === p.id}
+                  onClick={() => setConfirmDeleteId(null)}
+                  className="px-4 py-2 rounded-xl text-gray-600 bg-gray-100 font-bold text-sm"
+                >
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteId(p.id)}
+                className="w-full py-2 rounded-xl text-red-500 bg-red-50 font-bold text-sm"
+              >
+                Excluir
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -353,18 +440,54 @@ export const PeopleList = ({ mode }: { mode: 'org' | 'gincana' }) => {
                   </td>
                 )}
                 <td className="px-8 py-4 text-center">
-                  <button onClick={async () => {
-                    try {
-                      await deletePersonApi(p.id);
-                      await fetchPeople();
-                    } catch (error) {
-                      console.error("Erro ao remover pessoa:", error);
-                      alert(`Nao foi possivel remover a pessoa. Motivo: ${getErrorMessage(error)}`);
-                    }
-                  }} className="p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={18} /></button>
+                  {confirmDeleteId === p.id ? (
+                    <div className="inline-flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={deletingId === p.id}
+                        onClick={() => handleConfirmDelete(p.id)}
+                        className="px-2.5 py-1.5 rounded-lg bg-red-600 text-white font-bold text-xs disabled:opacity-50"
+                      >
+                        {deletingId === p.id ? '...' : 'Confirmar'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={deletingId === p.id}
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="px-2 py-1.5 rounded-lg bg-gray-100 text-gray-600 font-bold text-xs"
+                      >
+                        Não
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteId(p.id)}
+                      className="p-2 text-gray-400 hover:text-red-500 opacity-75 sm:opacity-60 sm:group-hover:opacity-100 transition-all"
+                      aria-label={`Excluir ${p.name}`}
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
+            {displayedPeople.length === 0 && (
+              <tr>
+                <td colSpan={mode === 'org' ? 6 : 5} className="px-8 py-12 text-center">
+                  <p className="text-gray-400 font-bold">Nenhum participante encontrado.</p>
+                  {(search || filterType !== 'Todos' || filterAge !== 'Todos' || filterStatus !== 'Todos' || filterInstallments !== 'Todos') && (
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="mt-3 px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-bold text-xs hover:bg-gray-200 transition-colors"
+                    >
+                      Limpar filtros
+                    </button>
+                  )}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

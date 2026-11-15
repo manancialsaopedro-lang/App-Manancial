@@ -4,12 +4,15 @@ import { ArrowRight, ChevronDown, Layers, Moon, Sun, Waves } from 'lucide-react'
 import { ManancialEmblem } from './ManancialLogo';
 import { ManancialWaterCanvas } from './ManancialWaterCanvas';
 import { GlassFold } from '../ui/glass-fold';
+import { MeshGradient } from '../ui/mesh-gradient';
 
-export type PrepageBgMode = 'glass' | 'water';
+export type PrepageBgMode = 'glass' | 'water' | 'mesh';
 
 export function getSavedPrepageBg(): PrepageBgMode {
   try {
-    return localStorage.getItem('manancial_prepage_bg') === 'water' ? 'water' : 'glass';
+    const saved = localStorage.getItem('manancial_prepage_bg');
+    if (saved === 'water' || saved === 'mesh') return saved;
+    return 'glass';
   } catch {
     return 'glass';
   }
@@ -41,6 +44,7 @@ export interface ManancialSplashScreenProps {
   onPulse?: () => void;
   onEnterLanding?: () => void;
   onEnterAuth?: () => void;
+  onEnterAdmin?: () => void;
   isDarkMode?: boolean;
   onToggleTheme?: () => void;
   standalone?: boolean;
@@ -52,6 +56,7 @@ export function ManancialSplashScreen({
   onPulse,
   onEnterLanding,
   onEnterAuth,
+  onEnterAdmin,
   isDarkMode = true,
   onToggleTheme,
   standalone = false,
@@ -64,7 +69,7 @@ export function ManancialSplashScreen({
   useEffect(() => {
     const onBgChange = (e: Event) => {
       const detail = (e as CustomEvent<PrepageBgMode>).detail;
-      if (detail === 'glass' || detail === 'water') setBgMode(detail);
+      if (detail === 'glass' || detail === 'water' || detail === 'mesh') setBgMode(detail);
     };
     window.addEventListener('manancial-bg-change', onBgChange);
     return () => window.removeEventListener('manancial-bg-change', onBgChange);
@@ -86,9 +91,26 @@ export function ManancialSplashScreen({
     return () => window.clearInterval(intervalId);
   }, []);
 
+  const touchStartYRef = useRef<number | null>(null);
+
   const handleWheel = (e: React.WheelEvent<HTMLElement>) => {
     if (!onEnterLanding || wheelLockRef.current) return;
     if (e.deltaY > 42) {
+      wheelLockRef.current = true;
+      onEnterLanding();
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLElement>) => {
+    touchStartYRef.current = e.touches[0]?.clientY ?? null;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLElement>) => {
+    if (!onEnterLanding || wheelLockRef.current || touchStartYRef.current === null) return;
+    const endY = e.changedTouches[0]?.clientY ?? touchStartYRef.current;
+    const deltaY = touchStartYRef.current - endY;
+    touchStartYRef.current = null;
+    if (deltaY > 48) {
       wheelLockRef.current = true;
       onEnterLanding();
     }
@@ -98,6 +120,8 @@ export function ManancialSplashScreen({
     <main
       data-testid="splash-screen"
       onWheel={handleWheel}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       className="relative flex min-h-[100dvh] w-full flex-col items-center justify-between px-5 sm:px-10 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]"
     >
       {/* Top quiet header row */}
@@ -122,19 +146,18 @@ export function ManancialSplashScreen({
             <button
               type="button"
               onClick={onToggleTheme}
-              className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors active:scale-95 ${
+              aria-label="Alternar aparência"
+              className={`inline-flex cursor-pointer items-center justify-center rounded-lg border p-2 transition-colors active:scale-95 ${
                 isDarkMode
                   ? 'border-white/10 bg-white/[0.04] text-[#B2C9D1] hover:border-white/20 hover:bg-white/[0.09] hover:text-white'
                   : 'border-[#082F38]/12 bg-white/75 text-[#082F38] shadow-2xs hover:bg-white'
               }`}
-              title={isDarkMode ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'}
             >
               {isDarkMode ? (
-                <Sun className="h-3.5 w-3.5 text-amber-400" />
+                <Sun className="h-4 w-4 text-amber-400" />
               ) : (
-                <Moon className="h-3.5 w-3.5 text-[#082F38]" />
+                <Moon className="h-4 w-4 text-[#082F38]" />
               )}
-              <span>{isDarkMode ? 'Modo Claro' : 'Modo Escuro'}</span>
             </button>
           )}
 
@@ -148,7 +171,7 @@ export function ManancialSplashScreen({
                   : 'text-[#4A6B76] hover:text-[#082F38]'
               }`}
             >
-              Pular para a página inicial
+              Acessar o site da igreja
             </button>
           ) : (
             <span className="text-xs font-medium opacity-75">Carregando...</span>
@@ -182,7 +205,7 @@ export function ManancialSplashScreen({
               isDarkMode ? 'text-white' : 'text-[#082F38]'
             }`}
           >
-            Manancial
+            Igreja Família Manancial
           </motion.h1>
           <motion.p
             layoutId={MANANCIAL_SHARED_IDS.subtitle}
@@ -191,8 +214,7 @@ export function ManancialSplashScreen({
               isDarkMode ? 'text-[#B2C9D1]' : 'text-[#3B5B66]'
             }`}
           >
-            Gestão fluida para igrejas, membros e acampamentos — do financeiro no escritório à
-            gincana em campo.
+            Uma igreja acolhedora em São Pedro - SP, vivendo o Evangelho de Cristo em comunhão, ensino da Palavra e cuidado com cada família.
           </motion.p>
         </motion.div>
 
@@ -208,7 +230,7 @@ export function ManancialSplashScreen({
               isDarkMode ? 'text-[#88A5B0]' : 'text-[#4A6B76]'
             }`}
           >
-            <span>{isReady ? 'Ambiente pronto' : 'Preparando superfície'}</span>
+            <span>{isReady ? 'Seja muito bem-vindo(a)' : 'Bem-vindo(a) à nossa casa'}</span>
             <span
               className={`font-mono tabular-nums ${
                 isDarkMode ? 'text-[#B4D8E4]' : 'text-[#082F38] font-semibold'
@@ -280,61 +302,38 @@ export function ManancialSplashScreen({
                 <span>Entrar na conta</span>
               </motion.button>
             )}
+
+            {onEnterAdmin && (
+              <motion.button
+                type="button"
+                onClick={onEnterAdmin}
+                whileHover={{ scale: 1.045, y: -2 }}
+                whileTap={{ scale: 0.975 }}
+                transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+                className="inline-flex min-h-[46px] cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 px-6 py-3 text-sm font-black text-slate-950 shadow-lg shadow-amber-500/25 hover:brightness-110"
+              >
+                <span>Painel Admin (Acesso Livre)</span>
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </motion.button>
+            )}
           </motion.div>
         )}
       </div>
 
-      {/* Bottom Minimalist Background Switcher & Scroll Cue */}
+      {/* Bottom Quiet Footer & Scroll Cue */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8, delay: 0.65 }}
         className="relative z-10 flex w-full max-w-[1200px] flex-col items-center gap-3 sm:flex-row sm:justify-between"
       >
-        <div
-          role="group"
-          aria-label="Fundo da tela inicial"
-          className={`inline-flex items-center gap-0.5 rounded-full border p-0.5 backdrop-blur-md transition-colors ${
-            isDarkMode
-              ? 'border-white/10 bg-white/[0.04]'
-              : 'border-[#082F38]/10 bg-white/60'
+        <span
+          className={`text-xs font-medium ${
+            isDarkMode ? 'text-[#88A5B0]' : 'text-[#4A6B76]'
           }`}
         >
-          <button
-            type="button"
-            onClick={() => setSavedPrepageBg('glass')}
-            className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-all ${
-              bgMode === 'glass'
-                ? isDarkMode
-                  ? 'bg-white/15 text-white shadow-2xs'
-                  : 'bg-[#082F38] text-white shadow-2xs'
-                : isDarkMode
-                  ? 'text-white/45 hover:text-white/80'
-                  : 'text-[#082F38]/55 hover:text-[#082F38]'
-            }`}
-            title="Fundo Glass Fold"
-          >
-            <Layers className="h-3 w-3" />
-            <span>Glass</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setSavedPrepageBg('water')}
-            className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-all ${
-              bgMode === 'water'
-                ? isDarkMode
-                  ? 'bg-white/15 text-white shadow-2xs'
-                  : 'bg-[#082F38] text-white shadow-2xs'
-                : isDarkMode
-                  ? 'text-white/45 hover:text-white/80'
-                  : 'text-[#082F38]/55 hover:text-[#082F38]'
-            }`}
-            title="Fundo Fluido de Águas"
-          >
-            <Waves className="h-3 w-3" />
-            <span>Água</span>
-          </button>
-        </div>
+          São Pedro • SP — Comunidade Evangélica Manancial
+        </span>
 
         {onEnterLanding && (
           <button
@@ -346,7 +345,7 @@ export function ManancialSplashScreen({
                 : 'text-[#4A6B76] hover:text-[#082F38]'
             }`}
           >
-            <span>Deslizar para a página inicial</span>
+            <span>Explorar nossa igreja</span>
             <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         )}
@@ -372,8 +371,20 @@ export function ManancialSplashScreen({
               noise={0.12}
               className="h-full w-full"
             />
-          ) : (
+          ) : bgMode === 'water' ? (
             <ManancialWaterCanvas intensity="full" isDarkMode={isDarkMode} />
+          ) : (
+            <MeshGradient
+              color1="#4c9bff"
+              color2="#1f4fd8"
+              color3="#0a1a4a"
+              speed={0.8}
+              distortion={1}
+              swirl={0.57}
+              scale={1.45}
+              rotation={120}
+              className="h-full w-full"
+            />
           )}
         </div>
         <div className="relative z-10">{content}</div>

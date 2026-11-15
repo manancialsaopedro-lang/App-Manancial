@@ -93,7 +93,8 @@ export const OrgCollected = () => {
       </div>
 
       <div className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm">
-         <table className="w-full text-left">
+         <div className="overflow-x-auto">
+         <table className="w-full text-left min-w-[540px]">
             <thead className="bg-gray-50 border-b border-gray-100">
                <tr>
                   <th className="px-8 py-5 text-[10px] font-black uppercase text-gray-400">Nome</th>
@@ -132,6 +133,7 @@ export const OrgCollected = () => {
                )}
             </tbody>
          </table>
+         </div>
       </div>
     </div>
   );

@@ -84,14 +84,13 @@ export const MemberCompleteRegistrationPage: React.FC = () => {
         (m) => m.inviteToken === tokenParam || m.id === tokenParam
       );
 
-      // 2. Se não encontrou, busca no Supabase
+      // 2. Se não encontrou na memória local, busca via RPC escopada por token (compatível com anon e auth)
       if (!found) {
         try {
-          const { data, error } = await supabase()
-            .from('church_members')
-            .select('*')
-            .or(`invite_token.eq.${tokenParam},id.eq.${tokenParam}`)
-            .maybeSingle();
+          const { data, error } = await supabase().rpc(
+            'get_member_registration_by_token',
+            { p_token: tokenParam }
+          );
 
           if (data && !error) {
             found = {
@@ -106,13 +105,14 @@ export const MemberCompleteRegistrationPage: React.FC = () => {
               status: data.status === 'ATIVO' ? 'Ativo' : 'Em Observação',
               registrationStatus: data.registration_status || 'PENDENTE',
               address: data.address || undefined,
+              pastoralNotes: data.pastoral_notes || undefined,
               inviteToken: data.invite_token || undefined,
               consecutiveAbsences: 0,
               createdAt: data.created_at || new Date().toISOString()
             };
           }
         } catch (err) {
-          console.warn('Erro ao consultar Supabase:', err);
+          console.warn('Erro ao consultar Supabase via RPC:', err);
         }
       }
 
@@ -123,7 +123,7 @@ export const MemberCompleteRegistrationPage: React.FC = () => {
         setEmail(found.email || '');
         setBirthDate(found.birthDate || '');
         setBaptismDate(found.baptismDate || '');
-        setIsBaptized(found.baptismDate ? 'SIM' : 'SIM');
+        setIsBaptized(found.baptismDate ? 'SIM' : 'NAO');
         setMinistry(found.ministry || 'Nenhum');
         setAddress(found.address || '');
         setPastoralNotes(found.pastoralNotes || '');
@@ -328,20 +328,29 @@ export const MemberCompleteRegistrationPage: React.FC = () => {
     <div className="min-h-[100dvh] bg-[#080d1a] text-slate-100 flex flex-col justify-between pb-12">
       {/* HEADER FIXO SUPERIOR COMPENSADO */}
       <header className="sticky top-0 z-40 bg-[#0b1224]/90 backdrop-blur-md border-b border-slate-800 px-4 py-3.5">
-        <div className="max-w-xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-600 to-teal-500 flex items-center justify-center text-white shadow-sm">
+        <div className="max-w-xl mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <button
+              type="button"
+              onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+              className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 flex items-center justify-center text-slate-200 transition-colors shrink-0"
+              aria-label="Voltar"
+              title="Voltar"
+            >
+              <ArrowLeft size={16} />
+            </button>
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-600 to-teal-500 flex items-center justify-center text-white shadow-sm shrink-0">
               <Church size={18} />
             </div>
-            <div>
-              <h2 className="text-xs sm:text-sm font-black tracking-tight text-white leading-tight">
+            <div className="min-w-0">
+              <h2 className="text-xs sm:text-sm font-black tracking-tight text-white leading-tight truncate">
                 Igreja Evangélica Manancial
               </h2>
-              <p className="text-[10px] text-cyan-400 font-bold">Ficha Oficial de Membresia</p>
+              <p className="text-[10px] text-cyan-400 font-bold truncate">Ficha Oficial de Membresia</p>
             </div>
           </div>
 
-          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shrink-0">
             Pré-cadastro
           </span>
         </div>

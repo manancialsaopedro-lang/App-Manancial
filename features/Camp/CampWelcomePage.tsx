@@ -25,8 +25,8 @@ import { useAppStore } from '../../store';
 import { useCurrentRole } from '../../hooks/useCurrentRole';
 
 export const CampWelcomePage: React.FC = () => {
-  const { isDarkMode, toggleTheme } = useAppStore();
-  const { activeRole, simulatedPerson } = useCurrentRole();
+  const { user, isDarkMode, toggleTheme } = useAppStore();
+  const { activeRole, simulatedPerson, canAccessPastoral, canAccessOrg } = useCurrentRole();
   const navigate = useNavigate();
   const [mouse, setMouse] = useState({ x: 0, y: 0 });
   const [imgError, setImgError] = useState(false);
@@ -131,6 +131,7 @@ export const CampWelcomePage: React.FC = () => {
         ];
 
       case 'gincana':
+      case 'lider_equipe':
         return [
           {
             id: 'info',
@@ -169,6 +170,8 @@ export const CampWelcomePage: React.FC = () => {
         ];
 
       case 'pastoral':
+      case 'primeiro_pastor':
+      case 'segundo_pastor':
       case 'admin':
         return [
           { 
@@ -252,7 +255,7 @@ export const CampWelcomePage: React.FC = () => {
       {/* Top Bar with Back to Church button & Theme Toggle */}
       <div className="absolute top-6 left-6 right-6 flex items-center justify-between z-30">
         <button 
-          onClick={() => navigate('/')} 
+          onClick={() => navigate(user ? (canAccessPastoral ? '/hub' : canAccessOrg ? '/financeiro' : '/igreja/membro') : '/landing')} 
           className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-lg backdrop-blur-md transition-all hover:scale-105 font-bold text-xs ${
             isDarkMode ? 'bg-white/10 text-cyan-400 border border-white/10 hover:bg-white/20' : 'bg-white/90 text-cyan-800 border border-cyan-100 hover:bg-white'
           }`}
@@ -344,21 +347,23 @@ export const CampWelcomePage: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 w-full md:w-auto">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto">
               <button
                 onClick={() => navigate('/acampamento/informacoes')}
                 className="flex-1 md:flex-none px-4 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20 transition-transform active:scale-95"
               >
                 <Sparkles size={14} /> Ver Guia do Retiro
               </button>
-              <button
-                onClick={() => navigate('/acampamento/pagamentos')}
-                className={`flex-1 md:flex-none px-4 py-3 rounded-2xl border font-bold text-xs flex items-center justify-center gap-1.5 transition-transform active:scale-95 ${
-                  isDarkMode ? 'bg-slate-800 border-slate-700 text-purple-300 hover:bg-slate-700' : 'bg-white border-purple-200 text-purple-700 hover:bg-purple-50'
-                }`}
-              >
-                <Crown size={14} /> Visão Pastoral
-              </button>
+              {(canAccessPastoral || canAccessOrg) && (
+                <button
+                  onClick={() => navigate('/acampamento/pagamentos')}
+                  className={`flex-1 md:flex-none px-4 py-3 rounded-2xl border font-bold text-xs flex items-center justify-center gap-1.5 transition-transform active:scale-95 ${
+                    isDarkMode ? 'bg-slate-800 border-slate-700 text-purple-300 hover:bg-slate-700' : 'bg-white border-purple-200 text-purple-700 hover:bg-purple-50'
+                  }`}
+                >
+                  <Crown size={14} /> Visão Pastoral
+                </button>
+              )}
             </div>
           </div>
         </div>

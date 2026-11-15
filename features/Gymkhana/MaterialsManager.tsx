@@ -13,6 +13,7 @@ export const MaterialsManager = () => {
   // --- STATES FOR EDITING ---
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<{name: string, qty: number, cat: string}>({ name: '', qty: 0, cat: '' });
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // --- STATES FOR ADDING (Inline at bottom of group) ---
   const [addingToGroupId, setAddingToGroupId] = useState<string | null>(null); // Stores the ProofID or CategoryName we are adding to
@@ -124,12 +125,34 @@ export const MaterialsManager = () => {
             </div>
          </div>
          
-         <div className="flex items-center gap-4">
+         <div className="flex items-center gap-3 sm:gap-4 shrink-0">
             <span className="bg-gray-100 px-2 py-1 rounded text-xs font-black min-w-[30px] text-center">{m.quantity}</span>
             
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-               <button onClick={() => startEditing(m)} className="p-2 text-gray-300 hover:text-blue-500 transition-colors" title="Editar"><Edit2 size={16} /></button>
-               <button onClick={() => deleteMaterial(m.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors" title="Excluir"><Trash2 size={16} /></button>
+            <div className="flex items-center gap-1 opacity-90 sm:opacity-60 sm:group-hover:opacity-100 transition-opacity">
+               <button onClick={() => startEditing(m)} className="p-2 text-gray-400 hover:text-blue-500 transition-colors" title="Editar" aria-label={`Editar ${m.name}`}><Edit2 size={16} /></button>
+               {confirmDeleteId === m.id ? (
+                 <div className="flex items-center gap-1">
+                   <button
+                     type="button"
+                     onClick={() => {
+                       deleteMaterial(m.id);
+                       setConfirmDeleteId(null);
+                     }}
+                     className="px-2 py-1 rounded-lg bg-red-600 text-white text-[11px] font-bold"
+                   >
+                     Confirmar
+                   </button>
+                   <button
+                     type="button"
+                     onClick={() => setConfirmDeleteId(null)}
+                     className="px-2 py-1 rounded-lg bg-gray-100 text-gray-600 text-[11px] font-bold"
+                   >
+                     Não
+                   </button>
+                 </div>
+               ) : (
+                 <button onClick={() => setConfirmDeleteId(m.id)} className="p-2 text-gray-400 hover:text-red-500 transition-colors" title="Excluir" aria-label={`Excluir ${m.name}`}><Trash2 size={16} /></button>
+               )}
             </div>
          </div>
       </div>
@@ -173,9 +196,9 @@ export const MaterialsManager = () => {
      return (
         <button 
            onClick={() => startAdding(groupId)}
-           className="w-full py-3 flex items-center justify-center gap-2 border-t border-transparent text-gray-300 hover:bg-blue-50 hover:border-blue-100 hover:text-blue-600 transition-all group font-bold text-sm"
+           className="w-full py-3 flex items-center justify-center gap-2 border-t border-transparent text-gray-500 hover:bg-blue-50 hover:border-blue-100 hover:text-blue-600 transition-all group font-bold text-sm"
         >
-           <span className="opacity-0 group-hover:opacity-100 flex items-center gap-2 transition-opacity">
+           <span className="opacity-85 sm:opacity-60 sm:group-hover:opacity-100 flex items-center gap-2 transition-opacity">
               <Plus size={16} /> Adicionar Item
            </span>
         </button>

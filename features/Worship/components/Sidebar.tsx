@@ -11,11 +11,13 @@ import {
   Calendar,
   Users,
   BookOpen,
-  Star
+  Star,
+  ArrowLeft
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
 import { Profile } from '../types';
+import { useCurrentRole } from '../../../hooks/useCurrentRole';
 
 /* ─── Mobile nav button helper ─────────────────────────────── */
 function MobileNavBtn({
@@ -80,6 +82,8 @@ export default function Sidebar({
 }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { canAccessPastoral, canAccessOrg } = useCurrentRole();
+  const churchHomePath = canAccessPastoral || canAccessOrg ? '/hub' : '/igreja/membro';
   const pathname = location.pathname;
   const activeTab = (() => {
     if (pathname.includes('/repertoire')) return 'repertoire';
@@ -173,6 +177,15 @@ export default function Sidebar({
               </div>
             </div>
           </div>
+
+          <button 
+            onClick={() => navigate(churchHomePath)}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-cyan-800 bg-cyan-50 hover:bg-cyan-100 hover:text-cyan-900 transition-all rounded-2xl group/btn border border-cyan-200/60 mb-2 shadow-xs cursor-pointer"
+            title="Voltar ao Portal da Igreja"
+          >
+            <ArrowLeft size={18} className="min-w-[18px] transition-transform group-hover/btn:-translate-x-1" />
+            <span className="text-xs font-black uppercase tracking-wider">Voltar à Igreja</span>
+          </button>
 
           <button 
             onClick={() => navigate('/app/settings')}
